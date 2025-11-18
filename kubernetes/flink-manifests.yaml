@@ -1,0 +1,139 @@
+# ============================================
+# FLINK CLUSTER - Kubernetes Manifests
+# ============================================
+
+---
+# Namespace
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: flink
+
+---
+# ConfigMap
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: flink-config
+  namespace: flink
+data:
+  flink-conf.yaml: |
+    jobmanager.rpc.address: flink-jobmanager
+    jobmanager.rpc.port: 6123
+    jobmanager.memory.process.size: 1600m
+    taskmanager.memory.process.size: 1728m
+    taskmanager.numberOfTaskSlots: 2
+    parallelism.default: 2
+
+---
+# ServiceAccount
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: flink
+  namespace: flink
+
+---
+# JobManager Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: flink-jobmanager
+  namespace: flink
+spec:
+  type: ClusterIP
+  ports:
+  - name: rpc
+    port: 6123
+  - name: blob-server
+    port: 6124
+  - name: webui
+    port: 8081
+  selector:
+    app: flink
+    component: jobmanager
+
+---
+# JobManager Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: flink-jobmanager
+  namespace: flink
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: flink
+      component: jobmanager
+  template:
+    metadata:
+      labels:
+        app: flink
+        component: jobmanager
+    spec:
+      serviceAccountName: flink
+      containers:
+      - name: jobmanager
+        image: flink:1.18.0
+        args: ["jobmanager"]
+        ports:
+        - containerPort: 6123
+          name: rpc
+        - containerPort: 6124
+          name: blob-server
+        - containerPort: 8081
+          name: webui
+        env:
+        - name: FLINK_PROPERTIES
+          value: "jobmanager.rpc.address: flink-jobmanager"
+        volumeMounts:
+        - name: flink-config-volume
+          mountPath: /opt/flink/conf
+      volumes:
+      - name: flink-config-volume
+        configMap:
+          name: flink-config
+
+---
+# TaskManager Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: flink-taskmanager
+  namespace: flink
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: flink
+      component: taskmanager
+  template:
+    metadata:
+      labels:
+        app: flink
+        component: taskmanager
+        priority: "5"
+    spec:
+      serviceAccountName: flink
+      
+      # ← USE ADAPTIVE SCHEDULER
+      schedulerName: adaptive-scheduler
+      
+      containers:
+      - name: taskmanager
+        image: flink:1.18.0
+        args: ["taskmanager"]
+        ports:
+        - containerPort: 6122
+          name: rpc
+        env:
+        - name: FLINK_PROPERTIES
+          value: "jobmanager.rpc.address: flink-jobmanager"
+        volumeMounts:
+        - name: flink-config-volume
+          mountPath: /opt/flink/conf
+      volumes:
+      - name: flink-config-volume
+        configMap:
+          name: flink-config

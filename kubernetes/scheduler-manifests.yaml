@@ -1,0 +1,122 @@
+# ============================================
+# SCHEDULER - Kubernetes Manifests
+# ============================================
+
+---
+# ServiceAccount
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: adaptive-scheduler
+  namespace: kube-system
+
+---
+# ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: adaptive-scheduler
+rules:
+  # Pods
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "watch"]
+  
+  - apiGroups: [""]
+    resources: ["pods/binding"]
+    verbs: ["create"]
+  
+  - apiGroups: [""]
+    resources: ["pods/status"]
+    verbs: ["patch", "update"]
+  
+  # Nodes
+  - apiGroups: [""]
+    resources: ["nodes"]
+    verbs: ["get", "list", "watch"]
+  
+  # Events
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["create", "patch", "update"]
+
+---
+# ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: adaptive-scheduler
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: adaptive-scheduler
+subjects:
+  - kind: ServiceAccount
+    name: adaptive-scheduler
+    namespace: kube-system
+
+---
+# ConfigMap
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: scheduler-config
+  namespace: kube-system
+data:
+  cpu-low-threshold: "40.0"
+  cpu-high-threshold: "80.0"
+  strategy-cooldown: "30"
+  log-level: "INFO"
+
+---
+# Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: adaptive-scheduler
+  namespace: kube-system
+  labels:
+    app: adaptive-scheduler
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: adaptive-scheduler
+  template:
+    metadata:
+      labels:
+        app: adaptive-scheduler
+    spec:
+      serviceAccountName: adaptive-scheduler
+      
+      containers:
+      - name: scheduler
+        image: adaptive-scheduler:1.0
+        imagePullPolicy: IfNotPresent
+        
+        env:
+          - name: CPU_LOW_THRESHOLD
+            valueFrom:
+              configMapKeyRef:
+                name: scheduler-config
+                key: cpu-low-threshold
+          
+          - name: CPU_HIGH_THRESHOLD
+            valueFrom:
+              configMapKeyRef:
+                name: scheduler-config
+                key: cpu-high-threshold
+          
+          - name: STRATEGY_COOLDOWN
+            valueFrom:
+              configMapKeyRef:
+                name: scheduler-config
+                key: strategy-cooldown
+        
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
