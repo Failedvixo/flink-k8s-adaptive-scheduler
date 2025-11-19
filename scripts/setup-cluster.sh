@@ -76,8 +76,8 @@ if ! minikube status &> /dev/null; then
     log_info "Creating new cluster with 3 nodes..."
     minikube start \
         --nodes=3 \
-        --cpus=4 \
-        --memory=8192 \
+        --cpus=2 \
+        --memory=6144 \
         --driver=docker
 fi
 

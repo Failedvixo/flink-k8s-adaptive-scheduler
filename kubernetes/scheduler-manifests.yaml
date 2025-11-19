@@ -39,7 +39,11 @@ rules:
   - apiGroups: [""]
     resources: ["events"]
     verbs: ["create", "patch", "update"]
-
+  
+  # Bindings
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["create"]
 ---
 # ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1

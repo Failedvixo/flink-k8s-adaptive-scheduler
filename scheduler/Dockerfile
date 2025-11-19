@@ -1,6 +1,6 @@
-FROM openjdk:11-jre-slim
+FROM eclipse-temurin:11-jre
 
-LABEL maintainer="your.email@university.edu"
+LABEL maintainer="vicente.lineros_m@mail.udp.cl"
 LABEL description="Adaptive Scheduler for Flink on Kubernetes"
 
 WORKDIR /app
@@ -9,7 +9,7 @@ WORKDIR /app
 COPY target/flink-adaptive-scheduler-1.0.0.jar /app/scheduler.jar
 
 # Create user
-RUN useradd -m -u 1000 scheduler && \
+RUN useradd -m scheduler && \
     chown -R scheduler:scheduler /app
 
 USER scheduler
