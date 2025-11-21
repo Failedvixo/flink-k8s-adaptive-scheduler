@@ -1,0 +1,17 @@
+com/thesis/benchmark/ConfigurableGraphJob$SumAggregator.class
+com/thesis/benchmark/ConfigurableGraphJob$1.class
+com/thesis/benchmark/ConfigurableGraphJob$AverageAggregator.class
+com/thesis/benchmark/ConfigurableGraphJob$Bid.class
+com/thesis/benchmark/GraphConfig.class
+com/thesis/benchmark/NexmarkBenchmarkJob$BidSourceFunction.class
+com/thesis/benchmark/GraphConfig$WindowType.class
+com/thesis/benchmark/NexmarkBenchmarkJob.class
+com/thesis/benchmark/ConfigurableGraphJob$MinAggregator.class
+com/thesis/benchmark/GraphConfig$AggregationType.class
+com/thesis/benchmark/NexmarkBenchmarkJob$Bid.class
+com/thesis/benchmark/ConfigurableGraphJob$BidSource.class
+com/thesis/benchmark/ConfigurableGraphJob$MaxAggregator.class
+com/thesis/benchmark/NexmarkBenchmarkJob$ConvertToEuros.class
+com/thesis/benchmark/ConfigurableGraphJob.class
+com/thesis/benchmark/ConfigurableGraphJob$CurrencyConverter.class
+com/thesis/benchmark/ConfigurableGraphJob$CountAggregator.class
