@@ -35,7 +35,6 @@ public class ConfigurableGraphJob {
     private static DataStream<Bid> buildSource(StreamExecutionEnvironment env, GraphConfig config) {
         return env.addSource(new BidSource(config))
             .name("Source: Bid Generator")
-            .setParallelism(config.sourceParallelism)
             .assignTimestampsAndWatermarks(
                 WatermarkStrategy.<Bid>forBoundedOutOfOrderness(Duration.ofSeconds(5))
                     .withTimestampAssigner((bid, ts) -> bid.timestamp))

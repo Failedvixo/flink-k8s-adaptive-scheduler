@@ -1,0 +1,4 @@
+[STRATEGY SWITCH]
+  From: BALANCED
+  To: LEAST_LOADED
+  Reason: Cluster CPU = 83.8%

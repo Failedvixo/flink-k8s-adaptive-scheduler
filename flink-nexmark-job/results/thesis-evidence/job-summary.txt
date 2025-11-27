@@ -1,0 +1,37 @@
+========================================
+NEXMARK JOB - SUMMARY
+========================================
+
+Job ID: bc753974384ee801c08c770cb99f5487
+
+Configuration:
+- Events per second: 50,000
+- Duration: 180 seconds
+- Parallelism: 4
+- Window: Tumbling 10s
+
+Results (from Flink UI):
+- Total Events Processed: ~9,120,000
+- Throughput: ~50,666 events/second
+- Duration: 3m 1s
+- Status: FINISHED (Success)
+
+Operators:
+1. Source: Bid Generator (Parallelism: 1)
+   - Records Sent: 9,120,000
+   - Bytes Sent: 288 MB
+
+2. Filter: High Value Bids -> Transform (Parallelism: 4)
+   - Records Received: 9,120,000
+   - Records Sent: 8,290,053
+   - Bytes Sent: 229 MB
+
+3. Window: Tumbling (Parallelism: 4)
+   - Records Received: 8,290,053
+   - Records Sent: 19,000
+   - Bytes Sent: 629 KB
+
+4. Sink: Console (Parallelism: 2)
+   - Records Received: 19,000
+
+========================================

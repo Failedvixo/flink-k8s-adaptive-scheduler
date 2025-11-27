@@ -1,7 +1,8 @@
 package com.thesis.benchmark;
 
-public class GraphConfig {
+public class GraphConfig implements java.io.Serializable {
     
+    private static final long serialVersionUID = 1L;
     public int eventsPerSecond = 50000;
     public int durationSeconds = 300;
     public int globalParallelism = 4;

@@ -1,0 +1,22 @@
+========================================
+ADAPTIVE SCHEDULER - SUMMARY
+========================================
+
+Total Strategy Switches:
+1
+
+Strategy Transitions:
+      1   From: BALANCED
+      1   From: LEAST_LOADED
+
+Total Scheduling Decisions:
+0
+
+Decisions by Strategy:
+
+
+TaskManager Distribution:
+      2 minikube-m02
+      1 minikube-m03
+
+========================================
