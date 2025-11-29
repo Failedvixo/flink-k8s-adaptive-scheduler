@@ -1,0 +1,22 @@
+========================================
+EXPERIMENTO: FCFS - Alta Carga
+========================================
+
+Configuración:
+- Eventos/seg: 200,000
+- Duración: 180 segundos
+- Paralelismo: 8
+- TaskManagers: 5
+
+Resultados:
+- Job ID: 71692ac0a2c506a7ee0834d906030077
+- Estado final: FINISHED
+- Duración: 181463 ms
+
+Distribución de TaskManagers:
+      5 minikube
+
+Scheduling decisions:
+5
+
+========================================

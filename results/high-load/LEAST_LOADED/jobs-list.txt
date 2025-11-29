@@ -1,0 +1,7 @@
+Waiting for response...
+No running jobs.
+No scheduled jobs.
+---------------------- Terminated Jobs -----------------------
+28.11.2025 18:42:50 : 9562a9e8c70a4f5eec4ee8e72ec705c2 : Nexmark-Config[rate=200k,par=8,win=TUM-10s] (FINISHED)
+28.11.2025 18:55:18 : 0c9cda3fc5e265359cdcc00df028b33d : Nexmark-Config[rate=200k,par=8,win=TUM-10s] (FINISHED)
+--------------------------------------------------------------

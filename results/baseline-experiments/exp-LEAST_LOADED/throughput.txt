@@ -1,0 +1,4 @@
+Source: Source: Bid Generator -> Watermark Assigner: 0 records
+Filter: High Value Bids -> Transform: USD to EUR: 9210000 records
+Window: Tumbling: 8373339 records
+Sink: Sink: Console: 19000 records

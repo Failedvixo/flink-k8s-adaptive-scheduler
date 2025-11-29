@@ -1,0 +1,34 @@
+========================================
+MÉTRICAS COMPLETAS - ADAPTIVE
+========================================
+
+CONFIGURACIÓN:
+- Workload: Nexmark Benchmark
+- Tasa objetivo: 200,000 eventos/segundo
+- Duración configurada: 180 segundos
+- Paralelismo: 8
+- TaskManagers: 5
+
+RESULTADOS:
+
+1. DURACIÓN:
+   - Total: 181302 ms
+   - Segundos: 181.30 s
+
+2. THROUGHPUT:
+   - Eventos procesados: 32580000
+   - Throughput: 179700 eventos/segundo
+   - Tasa objetivo: 200,000 evt/s
+   - Eficiencia: 89.8%
+
+3. LATENCIA:
+   - End-to-end: 181.30 segundos
+   - Por evento: .005 ms
+
+4. DISTRIBUCIÓN:
+      5 minikube
+
+5. OBSERVACIONES:
+   ⚠️  TODOS los TaskManagers en el mismo nodo (desbalanceado)
+
+========================================

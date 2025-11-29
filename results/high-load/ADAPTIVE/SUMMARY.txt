@@ -1,0 +1,29 @@
+========================================
+EXPERIMENTO: ADAPTIVE - Alta Carga
+========================================
+
+Configuración:
+- Eventos/seg: 200,000
+- Duración: 180 segundos
+- Paralelismo: 8
+- TaskManagers: 5
+
+Resultados:
+- Job ID: 8d80bd7cec4ccab2be0c7f4d9ac8e9a8
+- Estado final: FINISHED
+- Duración: 181302 ms
+
+Distribución de TaskManagers:
+      5 minikube
+
+Scheduling decisions:
+5
+
+Strategy switches:
+0
+0
+
+Switches detectados:
+Ninguno
+
+========================================

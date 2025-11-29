@@ -1,0 +1,30 @@
+  From: BALANCED
+  To: LEAST_LOADED
+  Reason: Cluster CPU = 84.8%
+  Time: 2025-11-27 22:35:30
+
+[STRATEGY SWITCH]
+  From: LEAST_LOADED
+  To: BALANCED
+  Reason: Cluster CPU = 73.5%
+  Time: 2025-11-27 22:38:18
+
+[2025-11-27 22:38:28] Found 2 pending TaskManager(s)
+
+[SCHEDULING] Pod: flink-taskmanager-747bb55c9b-j9jdf
+  Strategy: BALANCED
+  Result: ✓ SCHEDULED to minikube-m03
+  Node CPU: 71.6%
+  Total scheduled: 15
+
+[SCHEDULING] Pod: flink-taskmanager-747bb55c9b-vkx2k
+  Strategy: BALANCED
+  Result: ✓ SCHEDULED to minikube
+  Node CPU: 95.0%
+  Total scheduled: 16
+
+[STRATEGY SWITCH]
+  From: BALANCED
+  To: LEAST_LOADED
+  Reason: Cluster CPU = 81.8%
+  Time: 2025-11-27 22:39:46

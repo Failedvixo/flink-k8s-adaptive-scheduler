@@ -1,0 +1,36 @@
+========================================
+MÉTRICAS COMPLETAS - BALANCED
+========================================
+
+CONFIGURACIÓN:
+- Workload: Nexmark Benchmark
+- Tasa objetivo: 200,000 eventos/segundo
+- Duración configurada: 180 segundos
+- Paralelismo: 8
+- TaskManagers: 5
+
+RESULTADOS:
+
+1. DURACIÓN:
+   - Total: 181470 ms
+   - Segundos: 181.47 s
+
+2. THROUGHPUT:
+   - Eventos procesados: 32900000
+   - Throughput: 181297 eventos/segundo
+   - Tasa objetivo: 200,000 evt/s
+   - Eficiencia: 90.6%
+
+3. LATENCIA:
+   - End-to-end: 181.47 segundos
+   - Por evento: .005 ms
+
+4. DISTRIBUCIÓN:
+      2 minikube
+      2 minikube-m02
+      1 minikube-m03
+
+5. OBSERVACIONES:
+   ✅ TaskManagers distribuidos en múltiples nodos
+
+========================================

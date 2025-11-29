@@ -1,0 +1,24 @@
+========================================
+EXPERIMENTO: BALANCED - Alta Carga
+========================================
+
+Configuración:
+- Eventos/seg: 200,000
+- Duración: 180 segundos
+- Paralelismo: 8
+- TaskManagers: 5
+
+Resultados:
+- Job ID: 9562a9e8c70a4f5eec4ee8e72ec705c2
+- Estado final: FINISHED
+- Duración: 181470 ms
+
+Distribución de TaskManagers:
+      2 minikube
+      2 minikube-m02
+      1 minikube-m03
+
+Scheduling decisions:
+5
+
+========================================

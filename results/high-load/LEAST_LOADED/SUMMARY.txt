@@ -1,0 +1,23 @@
+========================================
+EXPERIMENTO: LEAST_LOADED - Alta Carga
+========================================
+
+Configuración:
+- Eventos/seg: 200,000
+- Duración: 180 segundos
+- Paralelismo: 8
+- TaskManagers: 5
+
+Resultados:
+- Job ID: 0c9cda3fc5e265359cdcc00df028b33d
+- Estado final: FINISHED
+- Duración: 181547 ms
+
+Distribución de TaskManagers:
+      4 minikube-m02
+      1 minikube-m03
+
+Scheduling decisions:
+5
+
+========================================

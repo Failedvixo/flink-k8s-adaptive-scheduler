@@ -1,0 +1,44 @@
+========================================
+  Adaptive Scheduler for Flink v1.0
+========================================
+Configuration:
+  CPU Low Threshold: 40.0%
+  CPU High Threshold: 80.0%
+  Strategy Cooldown: 30s
+  Initial Strategy: FCFS
+========================================
+
+Starting scheduler loop...
+
+
+[2025-11-28 02:34:30] Found 5 pending TaskManager(s)
+
+[SCHEDULING] Pod: flink-taskmanager-747bb55c9b-6cs7d
+  Strategy: FCFS
+  Result: ✓ SCHEDULED to minikube
+  Node CPU: 95.0%
+  Total scheduled: 1
+
+[SCHEDULING] Pod: flink-taskmanager-747bb55c9b-g2r84
+  Strategy: FCFS
+  Result: ✓ SCHEDULED to minikube
+  Node CPU: 95.0%
+  Total scheduled: 2
+
+[SCHEDULING] Pod: flink-taskmanager-747bb55c9b-k76tj
+  Strategy: FCFS
+  Result: ✓ SCHEDULED to minikube
+  Node CPU: 95.0%
+  Total scheduled: 3
+
+[SCHEDULING] Pod: flink-taskmanager-747bb55c9b-lpqcd
+  Strategy: FCFS
+  Result: ✓ SCHEDULED to minikube
+  Node CPU: 95.0%
+  Total scheduled: 4
+
+[SCHEDULING] Pod: flink-taskmanager-747bb55c9b-ncfft
+  Strategy: FCFS
+  Result: ✓ SCHEDULED to minikube
+  Node CPU: 95.0%
+  Total scheduled: 5
