@@ -7,5 +7,6 @@ public enum SchedulingStrategyType {
     FCFS,           // First-Come-First-Serve
     LEAST_LOADED,   // Assign to node with lowest CPU
     PRIORITY,       // Priority-based assignment
-    BALANCED        // Round-robin distribution
+    BALANCED,        // Round-robin distribution
+    BANDIT
 }

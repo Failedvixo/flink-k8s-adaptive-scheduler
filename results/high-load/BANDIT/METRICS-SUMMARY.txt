@@ -1,0 +1,93 @@
+==========================================
+  MÉTRICAS COMPLETAS - BANDIT
+==========================================
+Fecha: Fri Dec 19 10:28:04 -03 2025
+Job ID: 24bc1195f9fe43788eee771d2745a14e
+Job Name: Nexmark-Config[rate=50k,par=4,win=TUM-10s]
+
+CONFIGURACIÓN:
+- Workload: Nexmark Benchmark  
+- Estrategia: BANDIT
+- TaskManagers: 5
+- Nodos utilizados: 3
+
+------------------------------------------
+1. ESTADO DEL JOB
+------------------------------------------
+   Estado: FINISHED
+   Duración: 105636 ms (105.63 s)
+   Inicio: 1766150743816
+   Fin: 1766150849452
+
+------------------------------------------
+2. THROUGHPUT
+------------------------------------------
+   Eventos generados: 5117000
+   Throughput: 48439 eventos/segundo
+   Bytes procesados: 255856396 bytes
+
+------------------------------------------
+3. MÉTRICAS POR OPERADOR
+------------------------------------------
+
+   Source: Source: Bid Generator -> Watermark Assigner
+   ├── Parallelism: 2
+   ├── Records out: 5117000
+   └── Bytes out: 255856396
+
+   Filter: High Value Bids -> Transform: USD to EUR
+   ├── Parallelism: 4
+   ├── Records in: 5117000
+   ├── Records out: 4651319
+   └── Eficiencia: 90.8%
+
+   Window: Tumbling
+   ├── Parallelism: 4
+   ├── Records in: 4651319
+   └── Records out: 12041
+
+   Sink: Sink: Console
+   ├── Parallelism: 2
+   └── Records in: 12041
+
+------------------------------------------
+4. DISTRIBUCIÓN DE PODS
+------------------------------------------
+    minikube: 2 TaskManagers
+    minikube-m02: 2 TaskManagers
+    minikube-m03: 1 TaskManagers
+
+------------------------------------------
+5. SCHEDULING
+------------------------------------------
+   Decisiones de scheduling: 5
+   Cambios de estrategia: 0
+0
+
+------------------------------------------
+6. BACKPRESSURE
+------------------------------------------
+
+Source: Source: Bid Generator -> Watermark Assigner:
+  Backpressure time: 0ms
+  Idle time: 0ms
+Filter: High Value Bids -> Transform: USD to EUR:
+  Backpressure time: 0ms
+  Idle time: 491262ms
+Window: Tumbling:
+  Backpressure time: 0ms
+  Idle time: 531352ms
+Sink: Sink: Console:
+  Backpressure time: 0ms
+  Idle time: 273267ms
+
+==========================================
+Archivos generados en results/high-load/BANDIT/:
+  - job-details.json
+  - taskmanager-placement.txt
+  - node-metrics.txt
+  - pod-metrics.txt
+  - scheduler-logs.txt
+  - backpressure-summary.txt
+  - METRICS-SUMMARY.txt
+==========================================

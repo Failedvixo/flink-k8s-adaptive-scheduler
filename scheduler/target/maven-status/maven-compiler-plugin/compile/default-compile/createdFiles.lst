@@ -1,9 +1,13 @@
+com/thesis/scheduler/strategy/BanditStrategy$ArmStatistics.class
+com/thesis/scheduler/metrics/ClusterMetrics$CachedMetric.class
+com/thesis/scheduler/strategy/LeastLoadedStrategy.class
+com/thesis/scheduler/strategy/BalancedStrategy.class
 com/thesis/scheduler/AdaptiveScheduler.class
 com/thesis/scheduler/model/SchedulingStrategyType.class
 com/thesis/scheduler/strategy/FCFSStrategy.class
 com/thesis/scheduler/metrics/ClusterMetrics.class
-com/thesis/scheduler/strategy/LeastLoadedStrategy.class
+com/thesis/scheduler/strategy/BanditStrategy$SelectionRecord.class
 com/thesis/scheduler/strategy/PriorityStrategy.class
 com/thesis/scheduler/model/SchedulingDecision.class
-com/thesis/scheduler/strategy/BalancedStrategy.class
+com/thesis/scheduler/strategy/BanditStrategy.class
 com/thesis/scheduler/strategy/SchedulingStrategy.class

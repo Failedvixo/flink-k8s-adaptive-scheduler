@@ -1,0 +1,9 @@
+
+=== Source: Source: Bid Generator -> Watermark Assigner ===
+[]
+=== Filter: High Value Bids -> Transform: USD to EUR ===
+[]
+=== Window: Tumbling ===
+[]
+=== Sink: Sink: Console ===
+[]

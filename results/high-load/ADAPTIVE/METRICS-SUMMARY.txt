@@ -1,0 +1,91 @@
+==========================================
+  MÉTRICAS COMPLETAS - ADAPTIVE
+==========================================
+Fecha: Fri Dec 19 11:26:31 -03 2025
+Job ID: eaf65bf1381e7bfdeca1870072729790
+Job Name: Nexmark-Config[rate=50k,par=4,win=TUM-10s]
+
+CONFIGURACIÓN:
+- Workload: Nexmark Benchmark  
+- Estrategia: ADAPTIVE
+- TaskManagers: 5
+- Nodos utilizados: 1
+
+------------------------------------------
+1. ESTADO DEL JOB
+------------------------------------------
+   Estado: FINISHED
+   Duración: 120991 ms (120.99 s)
+   Inicio: 1766154262114
+   Fin: 1766154383105
+
+------------------------------------------
+2. THROUGHPUT
+------------------------------------------
+   Eventos generados: 5895750
+   Throughput: 48728 eventos/segundo
+   Bytes procesados: 294792596 bytes
+
+------------------------------------------
+3. MÉTRICAS POR OPERADOR
+------------------------------------------
+
+   Source: Source: Bid Generator -> Watermark Assigner
+   ├── Parallelism: 2
+   ├── Records out: 5895750
+   └── Bytes out: 294792596
+
+   Filter: High Value Bids -> Transform: USD to EUR
+   ├── Parallelism: 4
+   ├── Records in: 5895750
+   ├── Records out: 5359975
+   └── Eficiencia: 90.9%
+
+   Window: Tumbling
+   ├── Parallelism: 4
+   ├── Records in: 5359975
+   └── Records out: 13998
+
+   Sink: Sink: Console
+   ├── Parallelism: 2
+   └── Records in: 13998
+
+------------------------------------------
+4. DISTRIBUCIÓN DE PODS
+------------------------------------------
+    minikube: 5 TaskManagers
+
+------------------------------------------
+5. SCHEDULING
+------------------------------------------
+   Decisiones de scheduling: 5
+   Cambios de estrategia: 0
+0
+
+------------------------------------------
+6. BACKPRESSURE
+------------------------------------------
+
+Source: Source: Bid Generator -> Watermark Assigner:
+  Backpressure time: 0ms
+  Idle time: 0ms
+Filter: High Value Bids -> Transform: USD to EUR:
+  Backpressure time: 0ms
+  Idle time: 515309ms
+Window: Tumbling:
+  Backpressure time: 0ms
+  Idle time: 635546ms
+Sink: Sink: Console:
+  Backpressure time: 0ms
+  Idle time: 302619ms
+
+==========================================
+Archivos generados en results/high-load/ADAPTIVE/:
+  - job-details.json
+  - taskmanager-placement.txt
+  - node-metrics.txt
+  - pod-metrics.txt
+  - scheduler-logs.txt
+  - backpressure-summary.txt
+  - METRICS-SUMMARY.txt
+==========================================

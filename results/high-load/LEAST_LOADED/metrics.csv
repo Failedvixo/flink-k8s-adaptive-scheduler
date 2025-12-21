@@ -1,0 +1,3 @@
+strategy,job_id,state,duration_ms,duration_sec,source_records,throughput,filter_in,filter_out,filter_efficiency,window_in,window_out,sink_in,total_tms,nodes_used,scheduling_decisions,strategy_switches
+LEAST_LOADED,900a48aaee55a1acd9c7dc221ed251e6,FINISHED,125204,125.20,5158750,41202,5158750,4690627,90.9,4690627,11368,11368,5,1,5,0
+0

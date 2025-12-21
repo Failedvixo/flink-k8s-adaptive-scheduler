@@ -5,5 +5,6 @@
 /mnt/c/Users/bpvli/Documents/GitHub/Seminario II/flink-k8s-adaptive-scheduler/scheduler/src/main/java/com/thesis/scheduler/strategy/LeastLoadedStrategy.java
 /mnt/c/Users/bpvli/Documents/GitHub/Seminario II/flink-k8s-adaptive-scheduler/scheduler/src/main/java/com/thesis/scheduler/model/SchedulingStrategyType.java
 /mnt/c/Users/bpvli/Documents/GitHub/Seminario II/flink-k8s-adaptive-scheduler/scheduler/src/main/java/com/thesis/scheduler/AdaptiveScheduler.java
+/mnt/c/Users/bpvli/Documents/GitHub/Seminario II/flink-k8s-adaptive-scheduler/scheduler/src/main/java/com/thesis/scheduler/strategy/BanditStrategy.java
 /mnt/c/Users/bpvli/Documents/GitHub/Seminario II/flink-k8s-adaptive-scheduler/scheduler/src/main/java/com/thesis/scheduler/strategy/SchedulingStrategy.java
 /mnt/c/Users/bpvli/Documents/GitHub/Seminario II/flink-k8s-adaptive-scheduler/scheduler/src/main/java/com/thesis/scheduler/model/SchedulingDecision.java

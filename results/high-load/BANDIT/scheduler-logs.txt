@@ -1,0 +1,94 @@
+[main] INFO com.thesis.scheduler.metrics.ClusterMetrics - [ClusterMetrics] ✓ Metrics Server is available - using REAL metrics
+[BANDIT] Initialized Multi-Armed Bandit Strategy with UCB1
+[BANDIT] Exploration parameter: 1.4142135623730951
+[BANDIT] Optimal CPU range: 30.0% - 70.0%
+========================================
+  Adaptive Scheduler for Flink v1.2
+  (with Real Metrics + BANDIT Support)
+========================================
+Configuration:
+  CPU Low Threshold: 40.0%
+  CPU High Threshold: 80.0%
+  Strategy Cooldown: 30s
+  Mode: ADAPTIVE
+  Initial Strategy: BANDIT
+========================================
+
+Starting scheduler loop...
+
+========================================
+  CLUSTER METRICS STATUS
+========================================
+  Metrics Server: ✓ AVAILABLE (using REAL metrics)
+
+  Current Node CPU Usage:
+    minikube-m03: 0.5%
+    minikube-m02: 0.9%
+    minikube: 1.4%
+
+  Cluster Average: 0.9%
+========================================
+
+
+[2025-12-19 13:24:49] Found 5 pending TaskManager(s)
+
+[SCHEDULING] Pod: flink-taskmanager-747bb55c9b-9c278
+  Strategy: BANDIT
+[BANDIT] Exploration phase: selecting under-explored node minikube
+[BANDIT] [SELECTION] Node: minikube | Reason: EXPLORATION | CPU: 3.3% | Reward: 0.5329 | Total: 1 | Arm: 1
+  Result: ✓ SCHEDULED to minikube
+  Node CPU: 3.3% (real)
+  Total scheduled: 1
+
+[SCHEDULING] Pod: flink-taskmanager-747bb55c9b-d9jhw
+  Strategy: BANDIT
+[BANDIT] Exploration phase: selecting under-explored node minikube
+[BANDIT] [SELECTION] Node: minikube | Reason: EXPLORATION | CPU: 3.3% | Reward: 0.5329 | Total: 2 | Arm: 2
+  Result: ✓ SCHEDULED to minikube
+  Node CPU: 3.3% (real)
+  Total scheduled: 2
+
+[SCHEDULING] Pod: flink-taskmanager-747bb55c9b-hrl6d
+  Strategy: BANDIT
+[BANDIT] Exploration phase: selecting under-explored node minikube-m02
+[BANDIT] [SELECTION] Node: minikube-m02 | Reason: EXPLORATION | CPU: 3.2% | Reward: 0.5323 | Total: 3 | Arm: 1
+  Result: ✓ SCHEDULED to minikube-m02
+  Node CPU: 3.2% (real)
+  Total scheduled: 3
+
+[SCHEDULING] Pod: flink-taskmanager-747bb55c9b-jlhq7
+  Strategy: BANDIT
+[BANDIT] Exploration phase: selecting under-explored node minikube-m02
+[BANDIT] [SELECTION] Node: minikube-m02 | Reason: EXPLORATION | CPU: 3.2% | Reward: 0.5323 | Total: 4 | Arm: 2
+  Result: ✓ SCHEDULED to minikube-m02
+  Node CPU: 3.2% (real)
+  Total scheduled: 4
+
+[SCHEDULING] Pod: flink-taskmanager-747bb55c9b-nzvdp
+  Strategy: BANDIT
+[BANDIT] Exploration phase: selecting under-explored node minikube-m03
+[BANDIT] [SELECTION] Node: minikube-m03 | Reason: EXPLORATION | CPU: 2.0% | Reward: 0.5197 | Total: 5 | Arm: 1
+  Result: ✓ SCHEDULED to minikube-m03
+  Node CPU: 2.0% (real)
+  Total scheduled: 5
+
+========================================
+  BANDIT STATISTICS SUMMARY
+========================================
+Total selections: 5
+
+Per-node statistics:
+  minikube-m03:
+    Selections: 1 (20.0%)
+    Avg Reward: 0.5197
+    Total Reward: 0.5197
+  minikube-m02:
+    Selections: 2 (40.0%)
+    Avg Reward: 0.5323
+    Total Reward: 1.0646
+  minikube:
+    Selections: 2 (40.0%)
+    Avg Reward: 0.5329
+    Total Reward: 1.0659
+========================================
+

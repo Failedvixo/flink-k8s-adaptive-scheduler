@@ -1,0 +1,13 @@
+
+Source: Source: Bid Generator -> Watermark Assigner:
+  Backpressure time: 0ms
+  Idle time: 0ms
+Filter: High Value Bids -> Transform: USD to EUR:
+  Backpressure time: 0ms
+  Idle time: 515309ms
+Window: Tumbling:
+  Backpressure time: 0ms
+  Idle time: 635546ms
+Sink: Sink: Console:
+  Backpressure time: 0ms
+  Idle time: 302619ms

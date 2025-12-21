@@ -1,44 +1,69 @@
+[main] INFO com.thesis.scheduler.metrics.ClusterMetrics - [ClusterMetrics] ✓ Metrics Server is available - using REAL metrics
 ========================================
-  Adaptive Scheduler for Flink v1.0
+[BANDIT] Multi-Armed Bandit Strategy v2.0
+[BANDIT] WITH DEFERRED REWARD LEARNING
+========================================
+[BANDIT] Exploration parameter (c): 1.4142
+[BANDIT] Optimal CPU range: 30.0% - 70.0%
+[BANDIT] Reward delay: 30 seconds
+========================================
+[BANDIT] Reward processor started (runs every 10s)
+========================================
+  Adaptive Scheduler for Flink v1.2
+  (with Real Metrics + BANDIT Support)
 ========================================
 Configuration:
   CPU Low Threshold: 40.0%
   CPU High Threshold: 80.0%
   Strategy Cooldown: 30s
+  Mode: ADAPTIVE
   Initial Strategy: LEAST_LOADED
 ========================================
 
 Starting scheduler loop...
 
+========================================
+  CLUSTER METRICS STATUS
+========================================
+  Metrics Server: ✓ AVAILABLE (using REAL metrics)
 
-[2025-11-28 18:55:00] Found 5 pending TaskManager(s)
+  Current Node CPU Usage:
+    minikube-m03: 1.3%
+    minikube-m02: 1.4%
+    minikube: 2.6%
 
-[SCHEDULING] Pod: flink-taskmanager-747bb55c9b-5v8j2
+  Cluster Average: 1.8%
+========================================
+
+
+[2025-12-19 12:58:55] Found 5 pending TaskManager(s)
+
+[SCHEDULING] Pod: flink-taskmanager-747bb55c9b-69fxc
   Strategy: LEAST_LOADED
   Result: ✓ SCHEDULED to minikube-m02
-  Node CPU: 44.4%
+  Node CPU: 0.4% (real)
   Total scheduled: 1
 
-[SCHEDULING] Pod: flink-taskmanager-747bb55c9b-8wlx8
+[SCHEDULING] Pod: flink-taskmanager-747bb55c9b-kxtv5
   Strategy: LEAST_LOADED
   Result: ✓ SCHEDULED to minikube-m02
-  Node CPU: 57.8%
+  Node CPU: 0.4% (real)
   Total scheduled: 2
 
-[SCHEDULING] Pod: flink-taskmanager-747bb55c9b-bfd2g
+[SCHEDULING] Pod: flink-taskmanager-747bb55c9b-rsxvp
   Strategy: LEAST_LOADED
-  Result: ✓ SCHEDULED to minikube-m03
-  Node CPU: 72.2%
+  Result: ✓ SCHEDULED to minikube-m02
+  Node CPU: 0.4% (real)
   Total scheduled: 3
 
-[SCHEDULING] Pod: flink-taskmanager-747bb55c9b-bkc4c
+[SCHEDULING] Pod: flink-taskmanager-747bb55c9b-v8mlk
   Strategy: LEAST_LOADED
   Result: ✓ SCHEDULED to minikube-m02
-  Node CPU: 75.9%
+  Node CPU: 0.4% (real)
   Total scheduled: 4
 
-[SCHEDULING] Pod: flink-taskmanager-747bb55c9b-s44h8
+[SCHEDULING] Pod: flink-taskmanager-747bb55c9b-zwmcj
   Strategy: LEAST_LOADED
   Result: ✓ SCHEDULED to minikube-m02
-  Node CPU: 86.9%
+  Node CPU: 0.4% (real)
   Total scheduled: 5

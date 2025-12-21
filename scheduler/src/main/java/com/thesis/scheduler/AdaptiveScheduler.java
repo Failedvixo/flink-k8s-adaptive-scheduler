@@ -19,10 +19,14 @@ import java.util.stream.Collectors;
  * Adaptive Scheduler for Flink TaskManagers in Kubernetes
  * 
  * This is the MAIN contribution of the thesis:
- * - Monitors cluster CPU usage
- * - Dynamically switches scheduling strategies
+ * - Monitors cluster CPU usage (REAL metrics from Metrics Server)
+ * - Dynamically switches scheduling strategies (including BANDIT)
  * - Assigns Flink TaskManager pods to optimal nodes
  * - Records all decisions for analysis
+ * 
+ * Now supports Multi-Armed Bandit (UCB1) strategy!
+ * 
+ * @author Vicente (Thesis Project)
  */
 public class AdaptiveScheduler {
     
@@ -42,6 +46,10 @@ public class AdaptiveScheduler {
     private final double cpuLowThreshold;
     private final double cpuHighThreshold;
     private final long strategyCooldownMs;
+    
+    // Fixed strategy mode (for experiments)
+    private final boolean useFixedStrategy;
+    private final SchedulingStrategyType fixedStrategy;
     
     public AdaptiveScheduler() throws IOException {
         // Initialize Kubernetes client
@@ -63,8 +71,18 @@ public class AdaptiveScheduler {
         this.strategyCooldownMs = Long.parseLong(
             System.getenv().getOrDefault("STRATEGY_COOLDOWN", "30")) * 1000;
         
-        // Start with FCFS
-        this.currentStrategy = SchedulingStrategyType.FCFS;
+        // Check for fixed strategy mode (for experiments)
+        String fixedStrategyEnv = System.getenv("FIXED_STRATEGY");
+        if (fixedStrategyEnv != null && !fixedStrategyEnv.isEmpty()) {
+            this.useFixedStrategy = true;
+            this.fixedStrategy = SchedulingStrategyType.valueOf(fixedStrategyEnv.toUpperCase());
+            this.currentStrategy = this.fixedStrategy;
+        } else {
+            this.useFixedStrategy = false;
+            this.fixedStrategy = null;
+            this.currentStrategy = SchedulingStrategyType.FCFS;
+        }
+        
         this.lastStrategySwitchTime = System.currentTimeMillis();
         
         printBanner();
@@ -75,6 +93,9 @@ public class AdaptiveScheduler {
      */
     public void run() throws Exception {
         System.out.println("Starting scheduler loop...\n");
+        
+        // Print initial cluster metrics
+        printClusterMetrics();
         
         while (true) {
             try {
@@ -88,10 +109,18 @@ public class AdaptiveScheduler {
                     for (V1Pod pod : pendingPods) {
                         schedulePod(pod);
                     }
+                    
+                    // Print bandit statistics after scheduling if using BANDIT
+                    if (currentStrategy == SchedulingStrategyType.BANDIT) {
+                        BanditStrategy bandit = (BanditStrategy) strategies.get(SchedulingStrategyType.BANDIT);
+                        System.out.println(bandit.getStatisticsSummary());
+                    }
                 }
                 
-                // 2. Check if we should switch strategy
-                checkAndSwitchStrategy();
+                // 2. Check if we should switch strategy (only if not in fixed mode)
+                if (!useFixedStrategy) {
+                    checkAndSwitchStrategy();
+                }
                 
                 // 3. Sleep before next iteration
                 Thread.sleep(2000);
@@ -102,6 +131,36 @@ public class AdaptiveScheduler {
                 Thread.sleep(5000);
             }
         }
+    }
+    
+    /**
+     * Print cluster metrics status
+     */
+    private void printClusterMetrics() {
+        System.out.println("========================================");
+        System.out.println("  CLUSTER METRICS STATUS");
+        System.out.println("========================================");
+        
+        if (clusterMetrics.isMetricsServerAvailable()) {
+            System.out.println("  Metrics Server: ✓ AVAILABLE (using REAL metrics)");
+        } else {
+            System.out.println("  Metrics Server: ✗ NOT AVAILABLE (using estimated metrics)");
+            System.out.println("  To enable: minikube addons enable metrics-server");
+        }
+        
+        System.out.println();
+        System.out.println("  Current Node CPU Usage:");
+        
+        Map<String, Double> nodeMetrics = clusterMetrics.getNodeCpuUsage();
+        for (Map.Entry<String, Double> entry : nodeMetrics.entrySet()) {
+            System.out.println("    " + entry.getKey() + ": " + 
+                String.format("%.1f%%", entry.getValue()));
+        }
+        
+        System.out.println();
+        System.out.println("  Cluster Average: " + 
+            String.format("%.1f%%", clusterMetrics.getAverageClusterCpuUsage()));
+        System.out.println("========================================\n");
     }
     
     /**
@@ -133,7 +192,7 @@ public class AdaptiveScheduler {
         }
         
         String nodeName = selectedNode.getMetadata().getName();
-        double nodeCpu = clusterMetrics.getNodeCpuUsage(selectedNode);
+        double nodeCpu = clusterMetrics.getNodeCpuUsage(nodeName);
         
         // Bind pod to node (ACTUAL RESOURCE SCHEDULING)
         V1Binding binding = new V1Binding()
@@ -149,14 +208,16 @@ public class AdaptiveScheduler {
             int count = schedulingCount.incrementAndGet();
             
             System.out.println("  Result: ✓ SCHEDULED to " + nodeName);
-            System.out.println("  Node CPU: " + String.format("%.1f%%", nodeCpu));
+            System.out.println("  Node CPU: " + String.format("%.1f%%", nodeCpu) + 
+                (clusterMetrics.isMetricsServerAvailable() ? " (real)" : " (estimated)"));
             System.out.println("  Total scheduled: " + count);
             
             // Record decision for analysis
             recordDecision(pod, selectedNode, currentStrategy, nodeCpu);
             
         } catch (ApiException e) {
-            System.err.println("  Error: Failed to bind pod - " + e.getMessage());
+            System.err.println("  Error: Failed to bind pod - Code: " + e.getCode() + 
+                " Body: " + e.getResponseBody());
         }
     }
     
@@ -177,7 +238,8 @@ public class AdaptiveScheduler {
             System.out.println("\n[STRATEGY SWITCH]");
             System.out.println("  From: " + currentStrategy);
             System.out.println("  To: " + newStrategy);
-            System.out.println("  Reason: Cluster CPU = " + String.format("%.1f%%", avgCpu));
+            System.out.println("  Reason: Cluster CPU = " + String.format("%.1f%%", avgCpu) +
+                (clusterMetrics.isMetricsServerAvailable() ? " (real)" : " (estimated)"));
             System.out.println("  Time: " + getCurrentTimestamp());
             
             currentStrategy = newStrategy;
@@ -189,14 +251,14 @@ public class AdaptiveScheduler {
      * Select optimal strategy based on CPU usage
      */
     private SchedulingStrategyType selectStrategyForCpu(double cpuUsage) {
-        if (cpuUsage > cpuHighThreshold) {
-            return SchedulingStrategyType.LEAST_LOADED;
-        } else if (cpuUsage > cpuLowThreshold) {
-            return SchedulingStrategyType.BALANCED;
+        if (cpuUsage > 60.0) {
+            return SchedulingStrategyType.BANDIT;      // Alta carga: usar Bandit
+        } else if (cpuUsage > 30.0) {
+            return SchedulingStrategyType.LEAST_LOADED; // Media carga: nodo menos cargado
         } else {
-            return SchedulingStrategyType.FCFS;
-        }
+            return SchedulingStrategyType.FCFS;         // Baja carga: simple y rápido
     }
+}
     
     /**
      * Get unscheduled Flink TaskManager pods
@@ -267,6 +329,7 @@ public class AdaptiveScheduler {
         map.put(SchedulingStrategyType.LEAST_LOADED, new LeastLoadedStrategy());
         map.put(SchedulingStrategyType.PRIORITY, new PriorityStrategy());
         map.put(SchedulingStrategyType.BALANCED, new BalancedStrategy());
+        map.put(SchedulingStrategyType.BANDIT, new BanditStrategy());  // NEW: Bandit strategy
         return map;
     }
     
@@ -294,6 +357,9 @@ public class AdaptiveScheduler {
         System.out.println("========================================");
         System.out.println("Total Pods Scheduled: " + schedulingCount.get());
         System.out.println("Current Strategy: " + currentStrategy);
+        System.out.println("Fixed Strategy Mode: " + (useFixedStrategy ? "YES (" + fixedStrategy + ")" : "NO (Adaptive)"));
+        System.out.println("Metrics Source: " + 
+            (clusterMetrics.isMetricsServerAvailable() ? "REAL (Metrics Server)" : "ESTIMATED"));
         System.out.println();
         
         // Count by strategy
@@ -310,6 +376,12 @@ public class AdaptiveScheduler {
                              " (" + String.format("%.1f%%", percentage) + ")");
         }
         
+        // If using Bandit, print bandit-specific statistics
+        if (countByStrategy.containsKey(SchedulingStrategyType.BANDIT)) {
+            BanditStrategy bandit = (BanditStrategy) strategies.get(SchedulingStrategyType.BANDIT);
+            System.out.println(bandit.getStatisticsSummary());
+        }
+        
         System.out.println("========================================\n");
     }
     
@@ -318,13 +390,19 @@ public class AdaptiveScheduler {
      */
     private void printBanner() {
         System.out.println("========================================");
-        System.out.println("  Adaptive Scheduler for Flink v1.0");
+        System.out.println("  Adaptive Scheduler for Flink v1.2");
+        System.out.println("  (with Real Metrics + BANDIT Support)");
         System.out.println("========================================");
         System.out.println("Configuration:");
         System.out.println("  CPU Low Threshold: " + cpuLowThreshold + "%");
         System.out.println("  CPU High Threshold: " + cpuHighThreshold + "%");
         System.out.println("  Strategy Cooldown: " + (strategyCooldownMs/1000) + "s");
-        System.out.println("  Initial Strategy: " + currentStrategy);
+        if (useFixedStrategy) {
+            System.out.println("  Mode: FIXED STRATEGY (" + fixedStrategy + ")");
+        } else {
+            System.out.println("  Mode: ADAPTIVE");
+            System.out.println("  Initial Strategy: " + currentStrategy);
+        }
         System.out.println("========================================\n");
     }
     

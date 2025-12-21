@@ -1,0 +1,93 @@
+==========================================
+  MÉTRICAS COMPLETAS - BALANCED
+==========================================
+Fecha: Fri Dec 19 09:52:45 -03 2025
+Job ID: 06526c3a3a5d574492e6271f8b1558e8
+Job Name: Nexmark-Config[rate=50k,par=4,win=TUM-10s]
+
+CONFIGURACIÓN:
+- Workload: Nexmark Benchmark  
+- Estrategia: BALANCED
+- TaskManagers: 5
+- Nodos utilizados: 3
+
+------------------------------------------
+1. ESTADO DEL JOB
+------------------------------------------
+   Estado: FINISHED
+   Duración: 125218 ms (125.21 s)
+   Inicio: 1766148633912
+   Fin: 1766148759130
+
+------------------------------------------
+2. THROUGHPUT
+------------------------------------------
+   Eventos generados: 5165250
+   Throughput: 41250 eventos/segundo
+   Bytes procesados: 258267128 bytes
+
+------------------------------------------
+3. MÉTRICAS POR OPERADOR
+------------------------------------------
+
+   Source: Source: Bid Generator -> Watermark Assigner
+   ├── Parallelism: 2
+   ├── Records out: 5165250
+   └── Bytes out: 258267128
+
+   Filter: High Value Bids -> Transform: USD to EUR
+   ├── Parallelism: 4
+   ├── Records in: 5165250
+   ├── Records out: 4695720
+   └── Eficiencia: 90.9%
+
+   Window: Tumbling
+   ├── Parallelism: 4
+   ├── Records in: 4695720
+   └── Records out: 11839
+
+   Sink: Sink: Console
+   ├── Parallelism: 2
+   └── Records in: 11839
+
+------------------------------------------
+4. DISTRIBUCIÓN DE PODS
+------------------------------------------
+    minikube: 2 TaskManagers
+    minikube-m02: 2 TaskManagers
+    minikube-m03: 1 TaskManagers
+
+------------------------------------------
+5. SCHEDULING
+------------------------------------------
+   Decisiones de scheduling: 5
+   Cambios de estrategia: 0
+0
+
+------------------------------------------
+6. BACKPRESSURE
+------------------------------------------
+
+Source: Source: Bid Generator -> Watermark Assigner:
+  Backpressure time: 0ms
+  Idle time: 0ms
+Filter: High Value Bids -> Transform: USD to EUR:
+  Backpressure time: 0ms
+  Idle time: 455500ms
+Window: Tumbling:
+  Backpressure time: 0ms
+  Idle time: 497738ms
+Sink: Sink: Console:
+  Backpressure time: 0ms
+  Idle time: 279854ms
+
+==========================================
+Archivos generados en results/high-load/BALANCED/:
+  - job-details.json
+  - taskmanager-placement.txt
+  - node-metrics.txt
+  - pod-metrics.txt
+  - scheduler-logs.txt
+  - backpressure-summary.txt
+  - METRICS-SUMMARY.txt
+==========================================

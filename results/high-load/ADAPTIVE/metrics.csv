@@ -1,0 +1,3 @@
+strategy,job_id,state,duration_ms,duration_sec,source_records,throughput,filter_in,filter_out,filter_efficiency,window_in,window_out,sink_in,total_tms,nodes_used,scheduling_decisions,strategy_switches
+ADAPTIVE,eaf65bf1381e7bfdeca1870072729790,FINISHED,120991,120.99,5895750,48728,5895750,5359975,90.9,5359975,13998,13998,5,1,5,0
+0

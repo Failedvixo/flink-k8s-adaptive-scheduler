@@ -1,44 +1,225 @@
+[main] INFO com.thesis.scheduler.metrics.ClusterMetrics - [ClusterMetrics] ✓ Metrics Server is available - using REAL metrics
 ========================================
-  Adaptive Scheduler for Flink v1.0
+[BANDIT] Multi-Armed Bandit Strategy v2.0
+[BANDIT] WITH DEFERRED REWARD LEARNING
+========================================
+[BANDIT] Exploration parameter (c): 1.4142
+[BANDIT] Optimal CPU range: 30.0% - 70.0%
+[BANDIT] Reward delay: 30 seconds
+========================================
+[BANDIT] Reward processor started (runs every 10s)
+========================================
+  Adaptive Scheduler for Flink v1.2
+  (with Real Metrics + BANDIT Support)
 ========================================
 Configuration:
   CPU Low Threshold: 40.0%
   CPU High Threshold: 80.0%
   Strategy Cooldown: 30s
+  Mode: ADAPTIVE
   Initial Strategy: FCFS
 ========================================
 
 Starting scheduler loop...
 
+========================================
+  CLUSTER METRICS STATUS
+========================================
+  Metrics Server: ✓ AVAILABLE (using REAL metrics)
 
-[2025-11-28 02:34:30] Found 5 pending TaskManager(s)
+  Current Node CPU Usage:
+    minikube-m03: 0.8%
+    minikube-m02: 0.4%
+    minikube: 1.6%
 
-[SCHEDULING] Pod: flink-taskmanager-747bb55c9b-6cs7d
-  Strategy: FCFS
+  Cluster Average: 0.9%
+========================================
+
+
+[STRATEGY SWITCH]
+  From: FCFS
+  To: BANDIT
+  Reason: Cluster CPU = 2.7% (real)
+  Time: 2025-12-19 12:16:52
+
+[2025-12-19 12:17:08] Found 5 pending TaskManager(s)
+
+[SCHEDULING] Pod: flink-taskmanager-747bb55c9b-22jqt
+  Strategy: BANDIT
+[BANDIT] EXPLORATION: Node minikube needs more samples (has 0/2)
+[BANDIT] [ASSIGNED] Pod: flink-taskmanager-747bb55c9b-22jqt → Node: minikube | Reason: EXPLORATION | CPU before: 5.6%
+[BANDIT] [PENDING] Reward will be calculated in 30 seconds (Total pending: 1)
   Result: ✓ SCHEDULED to minikube
-  Node CPU: 95.0%
+  Node CPU: 5.6% (real)
   Total scheduled: 1
 
-[SCHEDULING] Pod: flink-taskmanager-747bb55c9b-g2r84
-  Strategy: FCFS
+[SCHEDULING] Pod: flink-taskmanager-747bb55c9b-9p5ks
+  Strategy: BANDIT
+[BANDIT] EXPLORATION: Node minikube needs more samples (has 1/2)
+[BANDIT] [ASSIGNED] Pod: flink-taskmanager-747bb55c9b-9p5ks → Node: minikube | Reason: EXPLORATION | CPU before: 5.6%
+[BANDIT] [PENDING] Reward will be calculated in 30 seconds (Total pending: 2)
   Result: ✓ SCHEDULED to minikube
-  Node CPU: 95.0%
+  Node CPU: 5.6% (real)
   Total scheduled: 2
 
-[SCHEDULING] Pod: flink-taskmanager-747bb55c9b-k76tj
-  Strategy: FCFS
-  Result: ✓ SCHEDULED to minikube
-  Node CPU: 95.0%
+[SCHEDULING] Pod: flink-taskmanager-747bb55c9b-kblt9
+  Strategy: BANDIT
+[BANDIT] EXPLORATION: Node minikube-m02 needs more samples (has 0/2)
+[BANDIT] [ASSIGNED] Pod: flink-taskmanager-747bb55c9b-kblt9 → Node: minikube-m02 | Reason: EXPLORATION | CPU before: 1.2%
+[BANDIT] [PENDING] Reward will be calculated in 30 seconds (Total pending: 3)
+  Result: ✓ SCHEDULED to minikube-m02
+  Node CPU: 1.2% (real)
   Total scheduled: 3
 
-[SCHEDULING] Pod: flink-taskmanager-747bb55c9b-lpqcd
-  Strategy: FCFS
-  Result: ✓ SCHEDULED to minikube
-  Node CPU: 95.0%
+[SCHEDULING] Pod: flink-taskmanager-747bb55c9b-swbj6
+  Strategy: BANDIT
+[BANDIT] EXPLORATION: Node minikube-m02 needs more samples (has 1/2)
+[BANDIT] [ASSIGNED] Pod: flink-taskmanager-747bb55c9b-swbj6 → Node: minikube-m02 | Reason: EXPLORATION | CPU before: 1.2%
+[BANDIT] [PENDING] Reward will be calculated in 30 seconds (Total pending: 4)
+  Result: ✓ SCHEDULED to minikube-m02
+  Node CPU: 1.2% (real)
   Total scheduled: 4
 
-[SCHEDULING] Pod: flink-taskmanager-747bb55c9b-ncfft
-  Strategy: FCFS
-  Result: ✓ SCHEDULED to minikube
-  Node CPU: 95.0%
+[SCHEDULING] Pod: flink-taskmanager-747bb55c9b-wnctc
+  Strategy: BANDIT
+[BANDIT] EXPLORATION: Node minikube-m03 needs more samples (has 0/2)
+[BANDIT] [ASSIGNED] Pod: flink-taskmanager-747bb55c9b-wnctc → Node: minikube-m03 | Reason: EXPLORATION | CPU before: 1.2%
+[BANDIT] [PENDING] Reward will be calculated in 30 seconds (Total pending: 5)
+  Result: ✓ SCHEDULED to minikube-m03
+  Node CPU: 1.2% (real)
   Total scheduled: 5
+
+========================================
+  BANDIT STATISTICS (Deferred Reward)
+========================================
+Total selections: 5
+Pending rewards: 5
+Rewards processed: 0
+
+Per-node statistics:
+  minikube-m03:
+    Selections: 1 (20.0%)
+    Avg Reward: 0.5000
+    Total Reward: 0.0000
+    Rewards Received: 0
+  minikube-m02:
+    Selections: 2 (40.0%)
+    Avg Reward: 0.5000
+    Total Reward: 0.0000
+    Rewards Received: 0
+  minikube:
+    Selections: 2 (40.0%)
+    Avg Reward: 0.5000
+    Total Reward: 0.0000
+    Rewards Received: 0
+========================================
+
+[BANDIT] [REWARD] Node: minikube | Pod: flink-taskmanager-747bb55c9b-22jqt | CPU: 5.6% → 5.9% | Reward: 0.5595 | New Avg: 0.5595
+[BANDIT] [REWARD] Node: minikube | Pod: flink-taskmanager-747bb55c9b-9p5ks | CPU: 5.6% → 5.9% | Reward: 0.5595 | New Avg: 0.5595
+[BANDIT] [REWARD] Node: minikube-m02 | Pod: flink-taskmanager-747bb55c9b-kblt9 | CPU: 1.2% → 3.0% | Reward: 0.5296 | New Avg: 0.5296
+[BANDIT] [REWARD] Node: minikube-m02 | Pod: flink-taskmanager-747bb55c9b-swbj6 | CPU: 1.2% → 3.0% | Reward: 0.5296 | New Avg: 0.5296
+[BANDIT] [REWARD] Node: minikube-m03 | Pod: flink-taskmanager-747bb55c9b-wnctc | CPU: 1.2% → 4.6% | Reward: 0.5460 | New Avg: 0.5460
+[BANDIT] Processed 5 deferred rewards. Pending: 0
+
+[2025-12-19 12:29:54] Found 5 pending TaskManager(s)
+
+[SCHEDULING] Pod: flink-taskmanager-747bb55c9b-598z7
+  Strategy: BANDIT
+[BANDIT] EXPLORATION: Node minikube-m03 needs more samples (has 1/2)
+[BANDIT] [ASSIGNED] Pod: flink-taskmanager-747bb55c9b-598z7 → Node: minikube-m03 | Reason: EXPLORATION | CPU before: 1.6%
+[BANDIT] [PENDING] Reward will be calculated in 30 seconds (Total pending: 1)
+  Result: ✓ SCHEDULED to minikube-m03
+  Node CPU: 1.6% (real)
+  Total scheduled: 6
+
+[SCHEDULING] Pod: flink-taskmanager-747bb55c9b-72blx
+  Strategy: BANDIT
+
+[BANDIT] ===== UCB1 CALCULATION =====
+[BANDIT]   minikube: UCB=1.9544 (Q=0.5595 + Explore=1.3950) | n=2 | CPU=2.9%
+[BANDIT]   minikube-m02: UCB=1.9246 (Q=0.5296 + Explore=1.3950) | n=2 | CPU=1.6%
+[BANDIT]   minikube-m03: UCB=1.9410 (Q=0.5460 + Explore=1.3950) | n=2 | CPU=1.6%
+[BANDIT] ================================
+[BANDIT] SELECTED: minikube (UCB=1.9544)
+[BANDIT] [ASSIGNED] Pod: flink-taskmanager-747bb55c9b-72blx → Node: minikube | Reason: UCB1 | CPU before: 2.9%
+[BANDIT] [PENDING] Reward will be calculated in 30 seconds (Total pending: 2)
+  Result: ✓ SCHEDULED to minikube
+  Node CPU: 2.9% (real)
+  Total scheduled: 7
+
+[SCHEDULING] Pod: flink-taskmanager-747bb55c9b-8nx46
+  Strategy: BANDIT
+
+[BANDIT] ===== UCB1 CALCULATION =====
+[BANDIT]   minikube: UCB=1.7369 (Q=0.5595 + Explore=1.1774) | n=3 | CPU=2.9%
+[BANDIT]   minikube-m02: UCB=1.9716 (Q=0.5296 + Explore=1.4420) | n=2 | CPU=1.6%
+[BANDIT]   minikube-m03: UCB=1.9880 (Q=0.5460 + Explore=1.4420) | n=2 | CPU=1.6%
+[BANDIT] ================================
+[BANDIT] SELECTED: minikube-m03 (UCB=1.9880)
+[BANDIT] [ASSIGNED] Pod: flink-taskmanager-747bb55c9b-8nx46 → Node: minikube-m03 | Reason: UCB1 | CPU before: 1.6%
+[BANDIT] [PENDING] Reward will be calculated in 30 seconds (Total pending: 3)
+  Result: ✓ SCHEDULED to minikube-m03
+  Node CPU: 1.6% (real)
+  Total scheduled: 8
+
+[SCHEDULING] Pod: flink-taskmanager-747bb55c9b-99fl9
+  Strategy: BANDIT
+
+[BANDIT] ===== UCB1 CALCULATION =====
+[BANDIT]   minikube: UCB=1.7698 (Q=0.5595 + Explore=1.2103) | n=3 | CPU=2.9%
+[BANDIT]   minikube-m02: UCB=2.0119 (Q=0.5296 + Explore=1.4823) | n=2 | CPU=1.6%
+[BANDIT]   minikube-m03: UCB=1.7563 (Q=0.5460 + Explore=1.2103) | n=3 | CPU=1.6%
+[BANDIT] ================================
+[BANDIT] SELECTED: minikube-m02 (UCB=2.0119)
+[BANDIT] [ASSIGNED] Pod: flink-taskmanager-747bb55c9b-99fl9 → Node: minikube-m02 | Reason: UCB1 | CPU before: 1.6%
+[BANDIT] [PENDING] Reward will be calculated in 30 seconds (Total pending: 4)
+  Result: ✓ SCHEDULED to minikube-m02
+  Node CPU: 1.6% (real)
+  Total scheduled: 9
+
+[SCHEDULING] Pod: flink-taskmanager-747bb55c9b-cjw6g
+  Strategy: BANDIT
+
+[BANDIT] ===== UCB1 CALCULATION =====
+[BANDIT]   minikube: UCB=1.7985 (Q=0.5595 + Explore=1.2390) | n=3 | CPU=2.9%
+[BANDIT]   minikube-m02: UCB=1.7686 (Q=0.5296 + Explore=1.2390) | n=3 | CPU=1.6%
+[BANDIT]   minikube-m03: UCB=1.7850 (Q=0.5460 + Explore=1.2390) | n=3 | CPU=1.6%
+[BANDIT] ================================
+[BANDIT] SELECTED: minikube (UCB=1.7985)
+[BANDIT] [ASSIGNED] Pod: flink-taskmanager-747bb55c9b-cjw6g → Node: minikube | Reason: UCB1 | CPU before: 2.9%
+[BANDIT] [PENDING] Reward will be calculated in 30 seconds (Total pending: 5)
+  Result: ✓ SCHEDULED to minikube
+  Node CPU: 2.9% (real)
+  Total scheduled: 10
+
+========================================
+  BANDIT STATISTICS (Deferred Reward)
+========================================
+Total selections: 10
+Pending rewards: 5
+Rewards processed: 5
+
+Per-node statistics:
+  minikube-m03:
+    Selections: 3 (30.0%)
+    Avg Reward: 0.5460
+    Total Reward: 0.5460
+    Rewards Received: 1
+  minikube-m02:
+    Selections: 3 (30.0%)
+    Avg Reward: 0.5296
+    Total Reward: 1.0592
+    Rewards Received: 2
+  minikube:
+    Selections: 4 (40.0%)
+    Avg Reward: 0.5595
+    Total Reward: 1.1190
+    Rewards Received: 2
+========================================
+
+[BANDIT] [REWARD] Node: minikube-m03 | Pod: flink-taskmanager-747bb55c9b-598z7 | CPU: 1.6% → 1.6% | Reward: 0.5157 | New Avg: 0.5308
+[BANDIT] [REWARD] Node: minikube | Pod: flink-taskmanager-747bb55c9b-72blx | CPU: 2.9% → 2.9% | Reward: 0.5291 | New Avg: 0.5494
+[BANDIT] [REWARD] Node: minikube-m03 | Pod: flink-taskmanager-747bb55c9b-8nx46 | CPU: 1.6% → 1.6% | Reward: 0.5157 | New Avg: 0.5258
+[BANDIT] [REWARD] Node: minikube-m02 | Pod: flink-taskmanager-747bb55c9b-99fl9 | CPU: 1.6% → 1.6% | Reward: 0.5164 | New Avg: 0.5252
+[BANDIT] [REWARD] Node: minikube | Pod: flink-taskmanager-747bb55c9b-cjw6g | CPU: 2.9% → 2.9% | Reward: 0.5291 | New Avg: 0.5443
+[BANDIT] Processed 5 deferred rewards. Pending: 0

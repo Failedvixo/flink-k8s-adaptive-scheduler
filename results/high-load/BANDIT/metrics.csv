@@ -1,0 +1,3 @@
+strategy,job_id,state,duration_ms,duration_sec,source_records,throughput,filter_in,filter_out,filter_efficiency,window_in,window_out,sink_in,total_tms,nodes_used,scheduling_decisions,strategy_switches
+BANDIT,24bc1195f9fe43788eee771d2745a14e,FINISHED,105636,105.63,5117000,48439,5117000,4651319,90.8,4651319,12041,12041,5,3,5,0
+0
