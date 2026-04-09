@@ -9,15 +9,17 @@ STRATEGY=$1
 JOB_ID=$2
 
 if [ -z "$STRATEGY" ]; then
-  echo "Uso: ./extract-metrics.sh <FCFS|BALANCED|LEAST_LOADED|ADAPTIVE> [JOB_ID]"
+  echo "Uso: ./extract-metrics.sh <STRATEGY> [JOB_ID] [WORKLOAD]"
   echo ""
   echo "Ejemplos:"
-  echo "  ./extract-metrics.sh BALANCED"
-  echo "  ./extract-metrics.sh BALANCED e8eeef77d28ed0980f90c6e2629e2906"
+  echo "  ./extract-metrics.sh FCFS"
+  echo "  ./extract-metrics.sh SARSA '' heavy"
+  echo "  ./extract-metrics.sh BANDIT abc123def456 heavy"
   exit 1
 fi
 
-RESULTS_DIR="results/high-load/$STRATEGY"
+WORKLOAD="${3:-high-load}"
+RESULTS_DIR="results/$WORKLOAD/$STRATEGY"
 mkdir -p "$RESULTS_DIR"
 
 # Obtener pod del JobManager
