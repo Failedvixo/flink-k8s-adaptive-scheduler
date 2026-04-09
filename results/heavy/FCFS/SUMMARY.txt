@@ -1,0 +1,30 @@
+========================================
+EXPERIMENTO: FCFS (heavy)
+========================================
+
+Configuración:
+- Workload: heavy
+- Eventos/seg: 800000
+- Duración: 304214 segundos
+- Paralelismo: 5
+- Ventana: 10s
+- TaskManagers: 5
+- Imagen: adaptive-scheduler:fcfs-1775710307
+- Modo: FIXED_STRATEGY=FCFS
+
+Resultados:
+- Job ID: 9e6713cc75d4e6bf4b2b071c96f345ca
+- Estado final: FINISHED
+- Duración: 304214 ms
+
+Distribución de TaskManagers:
+      5 minikube
+
+Scheduling decisions: 5
+Strategy switches:    0
+0
+
+Switches detectados:
+
+
+========================================

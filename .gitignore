@@ -1,0 +1,24 @@
+# Build artifacts
+scheduler/target/
+flink-nexmark-job/target/
+*.class
+*.jar
+
+# Archivos fantasma de backups
+*.backup
+*.ORIGINAL
+scheduler/backups/
+
+
+# Logs temporales
+*.log
+/tmp/
+
+# IDE
+.vscode/
+.idea/
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db

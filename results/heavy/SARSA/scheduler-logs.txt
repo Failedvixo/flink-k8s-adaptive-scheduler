@@ -1,0 +1,34 @@
+[main] INFO com.thesis.scheduler.metrics.ClusterMetrics - [ClusterMetrics] ✓ Metrics Server is available - using REAL metrics
+[BANDIT] Initialized Multi-Armed Bandit Strategy with UCB1
+[BANDIT] Exploration parameter: 1.4142135623730951
+[BANDIT] Optimal CPU range: 30.0% - 70.0%
+[SARSA] Initialized SARSA Strategy (on-policy TD control)
+[SARSA] alpha=0.2 gamma=0.8 epsilon_min=0.05
+[SARSA] Optimal CPU range: 30.0% - 70.0%
+========================================
+  Adaptive Scheduler for Flink v1.2
+  (with Real Metrics + BANDIT + SARSA)
+========================================
+Configuration:
+  CPU Low Threshold: 40.0%
+  CPU High Threshold: 80.0%
+  Strategy Cooldown: 30s
+  Mode: ADAPTIVE
+  Initial Strategy: FCFS
+========================================
+
+Starting scheduler loop...
+
+========================================
+  CLUSTER METRICS STATUS
+========================================
+  Metrics Server: ✓ AVAILABLE (using REAL metrics)
+
+  Current Node CPU Usage:
+    minikube-m03: 0.5%
+    minikube-m02: 5.1%
+    minikube: 6.3%
+
+  Cluster Average: 4.0%
+========================================
+

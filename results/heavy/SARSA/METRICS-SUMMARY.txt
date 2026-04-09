@@ -1,0 +1,94 @@
+==========================================
+  MÉTRICAS COMPLETAS - SARSA
+==========================================
+Fecha: Thu Apr  9 01:10:22 -04 2026
+Job ID: 898dea649df4e38948f977a975ce1a1c
+Job Name: Nexmark-Config[rate=800k,par=8,win=TUM-10s]
+
+CONFIGURACIÓN:
+- Workload: Nexmark Benchmark  
+- Estrategia: SARSA
+- TaskManagers: 5
+- Nodos utilizados: 3
+
+------------------------------------------
+1. ESTADO DEL JOB
+------------------------------------------
+   Estado: FINISHED
+   Duración: 362006 ms (362.00 s)
+   Inicio: 1775710968163
+   Fin: 1775711330169
+
+------------------------------------------
+2. THROUGHPUT
+------------------------------------------
+   Eventos generados: 267366000
+   Throughput: 738567 eventos/segundo
+   Bytes procesados: 13369009904 bytes
+
+------------------------------------------
+3. MÉTRICAS POR OPERADOR
+------------------------------------------
+
+   Source: Source: Bid Generator -> Watermark Assigner
+   ├── Parallelism: 4
+   ├── Records out: 267366000
+   └── Bytes out: 13369009904
+
+   Filter: High Value Bids
+   ├── Parallelism: 8
+   ├── Records in: 267366000
+   ├── Records out: 243058358
+   └── Eficiencia: 90.9%
+
+   Transform: USD to EUR
+   ├── Parallelism: 4
+   ├── Records in: 243058358
+   └── Records out: 243058358
+
+   Window: Tumbling
+   ├── Parallelism: 8
+   └── Records in: 243058358
+
+------------------------------------------
+4. DISTRIBUCIÓN DE PODS
+------------------------------------------
+    minikube: 2 TaskManagers
+    minikube-m02: 2 TaskManagers
+    minikube-m03: 1 TaskManagers
+
+------------------------------------------
+5. SCHEDULING
+------------------------------------------
+   Decisiones de scheduling: 0
+0
+   Cambios de estrategia: 0
+0
+
+------------------------------------------
+6. BACKPRESSURE
+------------------------------------------
+
+Source: Source: Bid Generator -> Watermark Assigner:
+  Backpressure time: 31527ms
+  Idle time: 0ms
+Filter: High Value Bids:
+  Backpressure time: 4319ms
+  Idle time: 2651106ms
+Transform: USD to EUR:
+  Backpressure time: 305ms
+  Idle time: 1235880ms
+Window: Tumbling:
+  Backpressure time: 0ms
+  Idle time: 2683070ms
+
+==========================================
+Archivos generados en results/heavy/SARSA/:
+  - job-details.json
+  - taskmanager-placement.txt
+  - node-metrics.txt
+  - pod-metrics.txt
+  - scheduler-logs.txt
+  - backpressure-summary.txt
+  - METRICS-SUMMARY.txt
+==========================================

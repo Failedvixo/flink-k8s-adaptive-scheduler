@@ -86,14 +86,13 @@ spec:
           name: webui
         env:
         - name: FLINK_PROPERTIES
-          value: "jobmanager.rpc.address: flink-jobmanager"
-        volumeMounts:
-        - name: flink-config-volume
-          mountPath: /opt/flink/conf
-      volumes:
-      - name: flink-config-volume
-        configMap:
-          name: flink-config
+          value: |
+            jobmanager.rpc.address: flink-jobmanager
+            jobmanager.rpc.port: 6123
+            jobmanager.memory.process.size: 1600m
+            taskmanager.memory.process.size: 1728m
+            taskmanager.numberOfTaskSlots: 2
+            parallelism.default: 2
 
 ---
 # TaskManager Deployment
@@ -129,11 +128,10 @@ spec:
           name: rpc
         env:
         - name: FLINK_PROPERTIES
-          value: "jobmanager.rpc.address: flink-jobmanager"
-        volumeMounts:
-        - name: flink-config-volume
-          mountPath: /opt/flink/conf
-      volumes:
-      - name: flink-config-volume
-        configMap:
-          name: flink-config
+          value: |
+            jobmanager.rpc.address: flink-jobmanager
+            jobmanager.rpc.port: 6123
+            jobmanager.memory.process.size: 1600m
+            taskmanager.memory.process.size: 1728m
+            taskmanager.numberOfTaskSlots: 2
+            parallelism.default: 2

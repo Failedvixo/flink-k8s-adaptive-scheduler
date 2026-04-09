@@ -1,0 +1,32 @@
+========================================
+EXPERIMENTO: SARSA (heavy)
+========================================
+
+Configuración:
+- Workload: heavy
+- Eventos/seg: 800000
+- Duración: 362006 segundos
+- Paralelismo: 8
+- Ventana: 10s
+- TaskManagers: 5
+- Imagen: adaptive-scheduler:sarsa-1775710877
+- Modo: FIXED_STRATEGY=SARSA
+
+Resultados:
+- Job ID: 898dea649df4e38948f977a975ce1a1c
+- Estado final: FINISHED
+- Duración: 362006 ms
+
+Distribución de TaskManagers:
+      2 minikube
+      2 minikube-m02
+      1 minikube-m03
+
+Scheduling decisions: 5
+Strategy switches:    0
+0
+
+Switches detectados:
+
+
+========================================

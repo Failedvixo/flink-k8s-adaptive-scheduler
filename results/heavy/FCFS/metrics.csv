@@ -1,0 +1,4 @@
+strategy,job_id,state,duration_ms,duration_sec,source_records,throughput,filter_in,filter_out,filter_efficiency,window_in,window_out,sink_in,total_tms,nodes_used,scheduling_decisions,strategy_switches
+FCFS,9e6713cc75d4e6bf4b2b071c96f345ca,FINISHED,304214,304.21,228560000,751313,228560000,207782285,90.9,207782285,207782285,207782285,5,1,0
+0,0
+0
