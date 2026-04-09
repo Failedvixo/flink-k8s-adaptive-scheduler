@@ -1,67 +1,67 @@
 ==========================================
   MÉTRICAS COMPLETAS - FCFS
 ==========================================
-Fecha: Fri Dec 19 09:32:53 -03 2025
-Job ID: 2ce1e8be6fa3d2ae30f9b808fe67cf4f
-Job Name: Nexmark-Config[rate=50k,par=4,win=TUM-10s]
+Fecha: Wed Apr  8 22:21:15 -04 2026
+Job ID: c013fc793488b4c34e3602604a7c29d8
+Job Name: Nexmark-Config[rate=200k,par=8,win=TUM-10s]
 
 CONFIGURACIÓN:
 - Workload: Nexmark Benchmark  
 - Estrategia: FCFS
 - TaskManagers: 5
-- Nodos utilizados: 3
+- Nodos utilizados: 1
 
 ------------------------------------------
 1. ESTADO DEL JOB
 ------------------------------------------
    Estado: FINISHED
-   Duración: 125020 ms (125.02 s)
-   Inicio: 1766147413964
-   Fin: 1766147538984
+   Duración: 181350 ms (181.35 s)
+   Inicio: 1775700946622
+   Fin: 1775701127972
 
 ------------------------------------------
 2. THROUGHPUT
 ------------------------------------------
-   Eventos generados: 5115000
-   Throughput: 40913 eventos/segundo
-   Bytes procesados: 255756448 bytes
+   Eventos generados: 35047000
+   Throughput: 193256 eventos/segundo
+   Bytes procesados: 1752721488 bytes
 
 ------------------------------------------
 3. MÉTRICAS POR OPERADOR
 ------------------------------------------
 
    Source: Source: Bid Generator -> Watermark Assigner
-   ├── Parallelism: 2
-   ├── Records out: 5115000
-   └── Bytes out: 255756448
-
-   Filter: High Value Bids -> Transform: USD to EUR
    ├── Parallelism: 4
-   ├── Records in: 5115000
-   ├── Records out: 4650568
+   ├── Records out: 35047000
+   └── Bytes out: 1752721488
+
+   Filter: High Value Bids
+   ├── Parallelism: 8
+   ├── Records in: 35047000
+   ├── Records out: 31862947
    └── Eficiencia: 90.9%
 
-   Window: Tumbling
+   Transform: USD to EUR
    ├── Parallelism: 4
-   ├── Records in: 4650568
-   └── Records out: 12000
+   ├── Records in: 31862947
+   └── Records out: 31862947
 
-   Sink: Sink: Console
-   ├── Parallelism: 2
-   └── Records in: 12000
+   Window: Tumbling
+   ├── Parallelism: 8
+   └── Records in: 31862947
 
 ------------------------------------------
 4. DISTRIBUCIÓN DE PODS
 ------------------------------------------
-    minikube: 2 TaskManagers
-    minikube-m02: 1 TaskManagers
-    minikube-m03: 2 TaskManagers
+    minikube: 5 TaskManagers
 
 ------------------------------------------
 5. SCHEDULING
 ------------------------------------------
-   Decisiones de scheduling: 10
-   Cambios de estrategia: 1
+   Decisiones de scheduling: 0
+0
+   Cambios de estrategia: 0
+0
 
 ------------------------------------------
 6. BACKPRESSURE
@@ -70,15 +70,15 @@ CONFIGURACIÓN:
 Source: Source: Bid Generator -> Watermark Assigner:
   Backpressure time: 0ms
   Idle time: 0ms
-Filter: High Value Bids -> Transform: USD to EUR:
+Filter: High Value Bids:
   Backpressure time: 0ms
-  Idle time: 452512ms
+  Idle time: 1411616ms
+Transform: USD to EUR:
+  Backpressure time: 0ms
+  Idle time: 695704ms
 Window: Tumbling:
   Backpressure time: 0ms
-  Idle time: 513068ms
-Sink: Sink: Console:
-  Backpressure time: 0ms
-  Idle time: 270036ms
+  Idle time: 1417712ms
 
 ==========================================
 Archivos generados en results/high-load/FCFS/:

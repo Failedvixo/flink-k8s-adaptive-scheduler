@@ -10,10 +10,10 @@
 
 | Estrategia | Duración | Records Procesados | Throughput | CPU Promedio | Distribución |
 |------------|----------|-------------------|------------|--------------|--------------|
-| FCFS | 3.01m | 9195000 | 50867/s |  |       1 minikube       1 minikube-m02       1 minikube-m03  |
-| BALANCED | 3.01m | 9180000 | 50761/s |  |       1 minikube       1 minikube-m02       1 minikube-m03  |
-| LEAST_LOADED | 3.01m | 9210000 | 50967/s |  |       2 minikube-m02       1 minikube-m03  |
-| ADAPTIVE | 3.01m | 9210000 | 50935/s |  |       1 minikube       1 minikube-m02       1 minikube-m03  |
+| FCFS | 3.02m | 9232000 | 50909/s |  |       3 minikube  |
+| BALANCED | 3.01m | 9262500 | 51204/s |  |       3 minikube  |
+| LEAST_LOADED | 3.01m | 9263250 | 51242/s |  |       3 minikube  |
+| ADAPTIVE | 3.01m | 9262250 | 51229/s |  |       3 minikube  |
 
 ## Observaciones
 

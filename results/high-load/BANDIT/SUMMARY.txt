@@ -1,5 +1,5 @@
 ========================================
-EXPERIMENTO: BALANCED - Alta Carga
+EXPERIMENTO: BANDIT - Alta Carga
 ========================================
 
 Configuración:
@@ -7,13 +7,13 @@ Configuración:
 - Duración: 180 segundos
 - Paralelismo: 8
 - TaskManagers: 5
-- Imagen: adaptive-scheduler:balanced-1775699609
-- Modo: FIXED_STRATEGY=BALANCED
+- Imagen: adaptive-scheduler:bandit-1775701301
+- Modo: FIXED_STRATEGY=BANDIT
 
 Resultados:
-- Job ID: 7517aa1c0646e6eb41c4b0b82d9c37f9
+- Job ID: b0cd84f26ee7fbcb1ff5615d98481ae7
 - Estado final: FINISHED
-- Duración: 181391 ms
+- Duración: 181338 ms
 
 Distribución de TaskManagers:
       2 minikube

@@ -1,1 +1,5 @@
-error: Metrics API not available
+NAME                                 CPU(cores)   MEMORY(bytes)   
+flink-jobmanager-6559f6c74f-x5pst    21m          704Mi           
+flink-taskmanager-68d7cb6488-8fhcp   89m          765Mi           
+flink-taskmanager-68d7cb6488-fljm4   90m          750Mi           
+flink-taskmanager-68d7cb6488-x8dzh   14m          422Mi           

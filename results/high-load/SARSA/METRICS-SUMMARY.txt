@@ -1,30 +1,30 @@
 ==========================================
-  MÉTRICAS COMPLETAS - BALANCED
+  MÉTRICAS COMPLETAS - SARSA
 ==========================================
-Fecha: Wed Apr  8 21:59:34 -04 2026
-Job ID: 7517aa1c0646e6eb41c4b0b82d9c37f9
+Fecha: Wed Apr  8 22:37:46 -04 2026
+Job ID: 1a6e889c763245b48533700ae022acf5
 Job Name: Nexmark-Config[rate=200k,par=8,win=TUM-10s]
 
 CONFIGURACIÓN:
 - Workload: Nexmark Benchmark  
-- Estrategia: BALANCED
+- Estrategia: SARSA
 - TaskManagers: 5
-- Nodos utilizados: 3
+- Nodos utilizados: 2
 
 ------------------------------------------
 1. ESTADO DEL JOB
 ------------------------------------------
    Estado: FINISHED
-   Duración: 181391 ms (181.39 s)
-   Inicio: 1775699711160
-   Fin: 1775699892551
+   Duración: 181469 ms (181.46 s)
+   Inicio: 1775701791728
+   Fin: 1775701973197
 
 ------------------------------------------
 2. THROUGHPUT
 ------------------------------------------
-   Eventos generados: 35159000
-   Throughput: 193829 eventos/segundo
-   Bytes procesados: 1758322320 bytes
+   Eventos generados: 35143500
+   Throughput: 193661 eventos/segundo
+   Bytes procesados: 1757547320 bytes
 
 ------------------------------------------
 3. MÉTRICAS POR OPERADOR
@@ -32,30 +32,29 @@ CONFIGURACIÓN:
 
    Source: Source: Bid Generator -> Watermark Assigner
    ├── Parallelism: 4
-   ├── Records out: 35159000
-   └── Bytes out: 1758322320
+   ├── Records out: 35143500
+   └── Bytes out: 1757547320
 
    Filter: High Value Bids
    ├── Parallelism: 8
-   ├── Records in: 35159000
-   ├── Records out: 31962427
+   ├── Records in: 35143500
+   ├── Records out: 31946978
    └── Eficiencia: 90.9%
 
    Transform: USD to EUR
    ├── Parallelism: 4
-   ├── Records in: 31962427
-   └── Records out: 31962427
+   ├── Records in: 31946978
+   └── Records out: 31946978
 
    Window: Tumbling
    ├── Parallelism: 8
-   └── Records in: 31962427
+   └── Records in: 31946978
 
 ------------------------------------------
 4. DISTRIBUCIÓN DE PODS
 ------------------------------------------
-    minikube: 2 TaskManagers
-    minikube-m02: 2 TaskManagers
-    minikube-m03: 1 TaskManagers
+    minikube: 3 TaskManagers
+    minikube-m03: 2 TaskManagers
 
 ------------------------------------------
 5. SCHEDULING
@@ -74,16 +73,16 @@ Source: Source: Bid Generator -> Watermark Assigner:
   Idle time: 0ms
 Filter: High Value Bids:
   Backpressure time: 0ms
-  Idle time: 1412770ms
+  Idle time: 1409618ms
 Transform: USD to EUR:
   Backpressure time: 0ms
-  Idle time: 696497ms
+  Idle time: 693364ms
 Window: Tumbling:
   Backpressure time: 0ms
-  Idle time: 1415840ms
+  Idle time: 1417183ms
 
 ==========================================
-Archivos generados en results/high-load/BALANCED/:
+Archivos generados en results/high-load/SARSA/:
   - job-details.json
   - taskmanager-placement.txt
   - node-metrics.txt

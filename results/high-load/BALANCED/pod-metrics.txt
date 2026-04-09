@@ -1,7 +1,7 @@
 NAME                                 CPU(cores)   MEMORY(bytes)   
-flink-jobmanager-77c5856c5b-pjz7k    41m          534Mi           
-flink-taskmanager-747bb55c9b-dgqxd   20m          398Mi           
-flink-taskmanager-747bb55c9b-dnfqm   85m          705Mi           
-flink-taskmanager-747bb55c9b-f254p   19m          422Mi           
-flink-taskmanager-747bb55c9b-g28xj   20m          394Mi           
-flink-taskmanager-747bb55c9b-k7gfq   82m          722Mi           
+flink-jobmanager-6559f6c74f-x5pst    61m          705Mi           
+flink-taskmanager-68d7cb6488-dcxkt   14m          407Mi           
+flink-taskmanager-68d7cb6488-fx9h6   13m          800Mi           
+flink-taskmanager-68d7cb6488-gw5gp   16m          762Mi           
+flink-taskmanager-68d7cb6488-mn255   13m          751Mi           
+flink-taskmanager-68d7cb6488-rx8xn   14m          811Mi           

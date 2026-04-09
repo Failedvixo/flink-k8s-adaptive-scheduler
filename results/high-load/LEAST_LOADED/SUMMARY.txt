@@ -7,17 +7,22 @@ Configuración:
 - Duración: 180 segundos
 - Paralelismo: 8
 - TaskManagers: 5
+- Imagen: adaptive-scheduler:least_loaded-1775700453
+- Modo: FIXED_STRATEGY=LEAST_LOADED
 
 Resultados:
-- Job ID: 0c9cda3fc5e265359cdcc00df028b33d
+- Job ID: 34a8152b2dddd26f2177e5a8cb95c10e
 - Estado final: FINISHED
-- Duración: 181547 ms
+- Duración: 181307 ms
 
 Distribución de TaskManagers:
-      4 minikube-m02
-      1 minikube-m03
+      5 minikube-m02
 
-Scheduling decisions:
-5
+Scheduling decisions: 5
+Strategy switches:    0
+0
+
+Switches detectados:
+
 
 ========================================

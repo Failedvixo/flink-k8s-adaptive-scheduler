@@ -1,1 +1,4 @@
-error: Metrics API not available
+NAME           CPU(cores)   CPU(%)   MEMORY(bytes)   MEMORY(%)   
+minikube       395m         3%       2664Mi          33%         
+minikube-m02   37m          0%       369Mi           4%          
+minikube-m03   60m          0%       1024Mi          12%         

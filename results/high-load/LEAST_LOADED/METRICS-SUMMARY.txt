@@ -1,9 +1,9 @@
 ==========================================
   MÉTRICAS COMPLETAS - LEAST_LOADED
 ==========================================
-Fecha: Fri Dec 19 10:01:51 -03 2025
-Job ID: 900a48aaee55a1acd9c7dc221ed251e6
-Job Name: Nexmark-Config[rate=50k,par=4,win=TUM-10s]
+Fecha: Wed Apr  8 22:13:25 -04 2026
+Job ID: 34a8152b2dddd26f2177e5a8cb95c10e
+Job Name: Nexmark-Config[rate=200k,par=8,win=TUM-10s]
 
 CONFIGURACIÓN:
 - Workload: Nexmark Benchmark  
@@ -15,40 +15,40 @@ CONFIGURACIÓN:
 1. ESTADO DEL JOB
 ------------------------------------------
    Estado: FINISHED
-   Duración: 125204 ms (125.20 s)
-   Inicio: 1766149148975
-   Fin: 1766149274179
+   Duración: 181307 ms (181.30 s)
+   Inicio: 1775700552433
+   Fin: 1775700733740
 
 ------------------------------------------
 2. THROUGHPUT
 ------------------------------------------
-   Eventos generados: 5158750
-   Throughput: 41202 eventos/segundo
-   Bytes procesados: 257941972 bytes
+   Eventos generados: 35202500
+   Throughput: 194159 eventos/segundo
+   Bytes procesados: 1760497320 bytes
 
 ------------------------------------------
 3. MÉTRICAS POR OPERADOR
 ------------------------------------------
 
    Source: Source: Bid Generator -> Watermark Assigner
-   ├── Parallelism: 2
-   ├── Records out: 5158750
-   └── Bytes out: 257941972
-
-   Filter: High Value Bids -> Transform: USD to EUR
    ├── Parallelism: 4
-   ├── Records in: 5158750
-   ├── Records out: 4690627
+   ├── Records out: 35202500
+   └── Bytes out: 1760497320
+
+   Filter: High Value Bids
+   ├── Parallelism: 8
+   ├── Records in: 35202500
+   ├── Records out: 32004096
    └── Eficiencia: 90.9%
 
-   Window: Tumbling
+   Transform: USD to EUR
    ├── Parallelism: 4
-   ├── Records in: 4690627
-   └── Records out: 11368
+   ├── Records in: 32004096
+   └── Records out: 32004096
 
-   Sink: Sink: Console
-   ├── Parallelism: 2
-   └── Records in: 11368
+   Window: Tumbling
+   ├── Parallelism: 8
+   └── Records in: 32004096
 
 ------------------------------------------
 4. DISTRIBUCIÓN DE PODS
@@ -58,7 +58,8 @@ CONFIGURACIÓN:
 ------------------------------------------
 5. SCHEDULING
 ------------------------------------------
-   Decisiones de scheduling: 5
+   Decisiones de scheduling: 0
+0
    Cambios de estrategia: 0
 0
 
@@ -69,15 +70,15 @@ CONFIGURACIÓN:
 Source: Source: Bid Generator -> Watermark Assigner:
   Backpressure time: 0ms
   Idle time: 0ms
-Filter: High Value Bids -> Transform: USD to EUR:
+Filter: High Value Bids:
   Backpressure time: 0ms
-  Idle time: 416223ms
+  Idle time: 1418083ms
+Transform: USD to EUR:
+  Backpressure time: 0ms
+  Idle time: 699369ms
 Window: Tumbling:
   Backpressure time: 0ms
-  Idle time: 573324ms
-Sink: Sink: Console:
-  Backpressure time: 0ms
-  Idle time: 353848ms
+  Idle time: 1418601ms
 
 ==========================================
 Archivos generados en results/high-load/LEAST_LOADED/:

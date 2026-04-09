@@ -1,3 +1,4 @@
 strategy,job_id,state,duration_ms,duration_sec,source_records,throughput,filter_in,filter_out,filter_efficiency,window_in,window_out,sink_in,total_tms,nodes_used,scheduling_decisions,strategy_switches
-BALANCED,06526c3a3a5d574492e6271f8b1558e8,FINISHED,125218,125.21,5165250,41250,5165250,4695720,90.9,4695720,11839,11839,5,3,5,0
+BALANCED,7517aa1c0646e6eb41c4b0b82d9c37f9,FINISHED,181391,181.39,35159000,193829,35159000,31962427,90.9,31962427,31962427,31962427,5,3,0
+0,0
 0

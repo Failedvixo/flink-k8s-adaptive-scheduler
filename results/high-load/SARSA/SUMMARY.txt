@@ -1,5 +1,5 @@
 ========================================
-EXPERIMENTO: BALANCED - Alta Carga
+EXPERIMENTO: SARSA - Alta Carga
 ========================================
 
 Configuración:
@@ -7,18 +7,17 @@ Configuración:
 - Duración: 180 segundos
 - Paralelismo: 8
 - TaskManagers: 5
-- Imagen: adaptive-scheduler:balanced-1775699609
-- Modo: FIXED_STRATEGY=BALANCED
+- Imagen: adaptive-scheduler:sarsa-1775701706
+- Modo: FIXED_STRATEGY=SARSA
 
 Resultados:
-- Job ID: 7517aa1c0646e6eb41c4b0b82d9c37f9
+- Job ID: 1a6e889c763245b48533700ae022acf5
 - Estado final: FINISHED
-- Duración: 181391 ms
+- Duración: 181469 ms
 
 Distribución de TaskManagers:
-      2 minikube
-      2 minikube-m02
-      1 minikube-m03
+      3 minikube
+      2 minikube-m03
 
 Scheduling decisions: 5
 Strategy switches:    0
