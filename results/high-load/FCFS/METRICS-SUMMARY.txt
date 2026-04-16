@@ -1,9 +1,9 @@
 ==========================================
   MÉTRICAS COMPLETAS - FCFS
 ==========================================
-Fecha: Wed Apr  8 22:21:15 -04 2026
-Job ID: c013fc793488b4c34e3602604a7c29d8
-Job Name: Nexmark-Config[rate=200k,par=8,win=TUM-10s]
+Fecha: Wed Apr 15 21:41:13 -04 2026
+Job ID: f5b2b8d586bd00bea8a40e4bc3f32642
+Job Name: Nexmark-Config[rate=200k,par=8,win=TUM-10s,cpu=1000]
 
 CONFIGURACIÓN:
 - Workload: Nexmark Benchmark  
@@ -15,16 +15,16 @@ CONFIGURACIÓN:
 1. ESTADO DEL JOB
 ------------------------------------------
    Estado: FINISHED
-   Duración: 181350 ms (181.35 s)
-   Inicio: 1775700946622
-   Fin: 1775701127972
+   Duración: 184592 ms (184.59 s)
+   Inicio: 1776303434824
+   Fin: 1776303619416
 
 ------------------------------------------
 2. THROUGHPUT
 ------------------------------------------
-   Eventos generados: 35047000
-   Throughput: 193256 eventos/segundo
-   Bytes procesados: 1752721488 bytes
+   Eventos generados: 35505675
+   Throughput: 192346 eventos/segundo
+   Bytes procesados: 1775573390 bytes
 
 ------------------------------------------
 3. MÉTRICAS POR OPERADOR
@@ -32,23 +32,23 @@ CONFIGURACIÓN:
 
    Source: Source: Bid Generator -> Watermark Assigner
    ├── Parallelism: 4
-   ├── Records out: 35047000
-   └── Bytes out: 1752721488
+   ├── Records out: 35505675
+   └── Bytes out: 1775573390
 
-   Filter: High Value Bids
+   Filter: High Value Bids -> CPU Load Simulator (1000 iter/event) -> Transform: USD to EUR
    ├── Parallelism: 8
-   ├── Records in: 35047000
-   ├── Records out: 31862947
+   ├── Records in: 35505675
+   ├── Records out: 32305945
    └── Eficiencia: 90.9%
-
-   Transform: USD to EUR
-   ├── Parallelism: 4
-   ├── Records in: 31862947
-   └── Records out: 31862947
 
    Window: Tumbling
    ├── Parallelism: 8
-   └── Records in: 31862947
+   ├── Records in: 32305945
+   └── Records out: 19000
+
+   Sink: Sink: Console
+   ├── Parallelism: 2
+   └── Records in: 19000
 
 ------------------------------------------
 4. DISTRIBUCIÓN DE PODS
@@ -68,17 +68,17 @@ CONFIGURACIÓN:
 ------------------------------------------
 
 Source: Source: Bid Generator -> Watermark Assigner:
-  Backpressure time: 0ms
+  Backpressure time: 708243ms
   Idle time: 0ms
-Filter: High Value Bids:
+Filter: High Value Bids -> CPU Load Simulator (1000 iter/event) -> Transform: USD to EUR:
   Backpressure time: 0ms
-  Idle time: 1411616ms
-Transform: USD to EUR:
-  Backpressure time: 0ms
-  Idle time: 695704ms
+  Idle time: 9134ms
 Window: Tumbling:
   Backpressure time: 0ms
-  Idle time: 1417712ms
+  Idle time: 1373740ms
+Sink: Sink: Console:
+  Backpressure time: 0ms
+  Idle time: 366147ms
 
 ==========================================
 Archivos generados en results/high-load/FCFS/:

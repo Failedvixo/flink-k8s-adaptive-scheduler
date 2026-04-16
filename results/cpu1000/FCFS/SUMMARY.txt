@@ -1,0 +1,44 @@
+========================================
+EXPERIMENTO: FCFS (cpu1000)
+========================================
+
+Configuración:
+- Workload: cpu1000
+- Eventos/seg (base): 200000
+- Duración: 184728 ms (configurada: 180s)
+- Paralelismo: 8
+- Ventana: 10s
+- CPU load por evento: 1000 iter
+- Distribución de llegada: STEP
+- TaskManagers: 5
+- Imagen: adaptive-scheduler:fcfs-1776312523
+- Modo: FIXED_STRATEGY=FCFS
+
+Resultados:
+- Job ID: d879a3033dbbc5496f2a156aa575e4da
+- Estado final: FINISHED
+- Duración: 184728 ms
+
+Distribución de TaskManagers:
+      5 minikube
+
+Scheduling decisions: 5
+Strategy switches:    0
+0
+
+Switches detectados:
+
+
+Source stats (últimas líneas):
+[Source-4] t=185s target=50k/s gen=6,459,000 (5900/s) emit=4,954,259 (5900/s) drop=1,504,741 (0/s, 23.3%) qDepth=0
+[Source-3] t=185s target=50k/s gen=6,462,500 (5875/s) emit=4,937,770 (5875/s) drop=1,524,730 (0/s, 23.6%) qDepth=0
+[Source-1] t=168s target=50k/s gen=6,358,000 (12499/s) emit=4,799,468 (12499/s) drop=1,558,532 (0/s, 24.5%) qDepth=0
+[Source-1] t=175s target=50k/s gen=6,483,000 (16602/s) emit=4,924,468 (16602/s) drop=1,558,532 (0/s, 24.0%) qDepth=0
+[Source-1] FINALIZADO en 180.1s: generated=6,542,500, emitted=4,983,968, dropped=1,558,532 (23.8%)
+[Source-1] t=185s target=50k/s gen=6,542,500 (5949/s) emit=4,983,968 (5949/s) drop=1,558,532 (0/s, 23.8%) qDepth=0
+[Source-2] t=168s target=50k/s gen=6,234,250 (12500/s) emit=4,713,833 (12500/s) drop=1,520,417 (0/s, 24.4%) qDepth=0
+[Source-2] t=175s target=50k/s gen=6,359,250 (16600/s) emit=4,838,833 (16600/s) drop=1,520,417 (0/s, 23.9%) qDepth=0
+[Source-2] FINALIZADO en 180.1s: generated=6,419,500, emitted=4,899,083, dropped=1,520,417 (23.7%)
+[Source-2] t=185s target=50k/s gen=6,419,500 (6024/s) emit=4,899,083 (6024/s) drop=1,520,417 (0/s, 23.7%) qDepth=0
+
+========================================

@@ -13,8 +13,7 @@ Configuration:
   CPU Low Threshold: 40.0%
   CPU High Threshold: 80.0%
   Strategy Cooldown: 30s
-  Mode: ADAPTIVE
-  Initial Strategy: FCFS
+  Mode: FIXED STRATEGY (FCFS)
 ========================================
 
 Starting scheduler loop...
@@ -25,10 +24,42 @@ Starting scheduler loop...
   Metrics Server: ✓ AVAILABLE (using REAL metrics)
 
   Current Node CPU Usage:
-    minikube-m03: 0.4%
-    minikube-m02: 0.5%
-    minikube: 12.1%
+    minikube-m03: 1.2%
+    minikube-m02: 1.4%
+    minikube: 2.9%
 
-  Cluster Average: 4.3%
+  Cluster Average: 1.8%
 ========================================
 
+
+[2026-04-15 04:29:20] Found 5 pending TaskManager(s)
+
+[SCHEDULING] Pod: flink-taskmanager-66d45446c5-h72hp
+  Strategy: FCFS
+  Result: ✓ SCHEDULED to minikube
+  Node CPU: 2.9% (real)
+  Total scheduled: 1
+
+[SCHEDULING] Pod: flink-taskmanager-66d45446c5-nc6mj
+  Strategy: FCFS
+  Result: ✓ SCHEDULED to minikube
+  Node CPU: 2.9% (real)
+  Total scheduled: 2
+
+[SCHEDULING] Pod: flink-taskmanager-66d45446c5-p82jk
+  Strategy: FCFS
+  Result: ✓ SCHEDULED to minikube
+  Node CPU: 2.9% (real)
+  Total scheduled: 3
+
+[SCHEDULING] Pod: flink-taskmanager-66d45446c5-vb94c
+  Strategy: FCFS
+  Result: ✓ SCHEDULED to minikube
+  Node CPU: 2.9% (real)
+  Total scheduled: 4
+
+[SCHEDULING] Pod: flink-taskmanager-66d45446c5-zxmnq
+  Strategy: FCFS
+  Result: ✓ SCHEDULED to minikube
+  Node CPU: 2.9% (real)
+  Total scheduled: 5

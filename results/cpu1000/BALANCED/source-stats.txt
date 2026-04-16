@@ -1,0 +1,52 @@
+[Source-2] gen=8,999,000 (49995/s) emit=8,999,000 (49995/s) drop=0 (0/s, 0.0%) qDepth=0
+[Source-2] gen=9,499,000 (50000/s) emit=9,499,000 (50000/s) drop=0 (0/s, 0.0%) qDepth=0
+[Source-2] FINALIZADO en 180.1s: generated=9,618,000, emitted=9,618,000, dropped=0 (0.0%)
+[Source-2] gen=9,618,000 (15827/s) emit=9,618,000 (15827/s) drop=0 (0/s, 0.0%) qDepth=0
+[Source-1] gen=9,000,000 (49995/s) emit=9,000,000 (49995/s) drop=0 (0/s, 0.0%) qDepth=0
+[Source-1] gen=9,500,000 (49995/s) emit=9,500,000 (49995/s) drop=0 (0/s, 0.0%) qDepth=0
+[Source-1] FINALIZADO en 180.1s: generated=9,616,000, emitted=9,616,000, dropped=0 (0.0%)
+[Source-1] gen=9,616,000 (15428/s) emit=9,616,000 (15428/s) drop=0 (0/s, 0.0%) qDepth=0
+[Source-3/4] NON-BLOCKING source: 50000 evt/s/instance, queueCap=100000
+[Source-3] gen=495,000 (49500/s) emit=487,498 (48750/s) drop=0 (0/s, 0.0%) qDepth=7501
+[Source-3] gen=995,000 (49995/s) emit=995,000 (50745/s) drop=0 (0/s, 0.0%) qDepth=0
+[Source-3] gen=1,495,000 (49995/s) emit=1,493,958 (49891/s) drop=0 (0/s, 0.0%) qDepth=1041
+[Source-3] gen=1,995,000 (66498/s) emit=1,995,000 (66637/s) drop=0 (0/s, 0.0%) qDepth=0
+[Source-3] gen=2,495,000 (49995/s) emit=2,495,000 (49995/s) drop=0 (0/s, 0.0%) qDepth=0
+[Source-3] gen=2,995,000 (49995/s) emit=2,995,000 (49995/s) drop=0 (0/s, 0.0%) qDepth=0
+[Source-3] gen=3,495,000 (66498/s) emit=3,495,000 (66498/s) drop=0 (0/s, 0.0%) qDepth=0
+[Source-3] gen=3,995,000 (49995/s) emit=3,995,000 (49995/s) drop=0 (0/s, 0.0%) qDepth=0
+[Source-3] gen=4,495,000 (50000/s) emit=4,495,000 (50000/s) drop=0 (0/s, 0.0%) qDepth=0
+[Source-3] gen=4,995,000 (66401/s) emit=4,995,000 (66401/s) drop=0 (0/s, 0.0%) qDepth=0
+[Source-3] gen=5,495,000 (50000/s) emit=5,495,000 (50000/s) drop=0 (0/s, 0.0%) qDepth=0
+[Source-3] gen=5,995,000 (49995/s) emit=5,995,000 (49995/s) drop=0 (0/s, 0.0%) qDepth=0
+[Source-3] gen=6,495,000 (66507/s) emit=6,495,000 (66507/s) drop=0 (0/s, 0.0%) qDepth=0
+[Source-3] gen=6,995,000 (49995/s) emit=6,995,000 (49995/s) drop=0 (0/s, 0.0%) qDepth=0
+[Source-3] gen=7,495,000 (49995/s) emit=7,495,000 (49995/s) drop=0 (0/s, 0.0%) qDepth=0
+[Source-3] gen=7,995,000 (49995/s) emit=7,995,000 (49995/s) drop=0 (0/s, 0.0%) qDepth=0
+[Source-3] gen=8,495,000 (66622/s) emit=8,495,000 (66622/s) drop=0 (0/s, 0.0%) qDepth=0
+[Source-3] gen=8,995,000 (50000/s) emit=8,995,000 (50000/s) drop=0 (0/s, 0.0%) qDepth=0
+[Source-3] gen=9,496,000 (50095/s) emit=9,496,000 (50095/s) drop=0 (0/s, 0.0%) qDepth=0
+[Source-3] FINALIZADO en 180.1s: generated=9,615,000, emitted=9,615,000, dropped=0 (0.0%)
+[Source-3] gen=9,615,000 (15827/s) emit=9,615,000 (15827/s) drop=0 (0/s, 0.0%) qDepth=0
+[Source-4/4] NON-BLOCKING source: 50000 evt/s/instance, queueCap=100000
+[Source-4] gen=499,000 (49900/s) emit=482,259 (48226/s) drop=0 (0/s, 0.0%) qDepth=16740
+[Source-4] gen=1,000,000 (50095/s) emit=995,985 (51367/s) drop=0 (0/s, 0.0%) qDepth=4014
+[Source-4] gen=1,500,000 (49995/s) emit=1,493,983 (49795/s) drop=0 (0/s, 0.0%) qDepth=6016
+[Source-4] gen=2,000,000 (66498/s) emit=2,000,000 (67298/s) drop=0 (0/s, 0.0%) qDepth=0
+[Source-4] gen=2,500,000 (49995/s) emit=2,500,000 (49995/s) drop=0 (0/s, 0.0%) qDepth=0
+[Source-4] gen=3,000,000 (50000/s) emit=3,000,000 (50000/s) drop=0 (0/s, 0.0%) qDepth=0
+[Source-4] gen=3,500,000 (66498/s) emit=3,500,000 (66498/s) drop=0 (0/s, 0.0%) qDepth=0
+[Source-4] gen=4,000,000 (49995/s) emit=4,000,000 (49995/s) drop=0 (0/s, 0.0%) qDepth=0
+[Source-4] gen=4,500,000 (49995/s) emit=4,500,000 (49995/s) drop=0 (0/s, 0.0%) qDepth=0
+[Source-4] gen=5,000,000 (66419/s) emit=5,000,000 (66419/s) drop=0 (0/s, 0.0%) qDepth=0
+[Source-4] gen=5,500,000 (49995/s) emit=5,500,000 (49995/s) drop=0 (0/s, 0.0%) qDepth=0
+[Source-4] gen=6,000,000 (49995/s) emit=6,000,000 (49995/s) drop=0 (0/s, 0.0%) qDepth=0
+[Source-4] gen=6,500,000 (66507/s) emit=6,500,000 (66507/s) drop=0 (0/s, 0.0%) qDepth=0
+[Source-4] gen=7,000,000 (49995/s) emit=7,000,000 (49995/s) drop=0 (0/s, 0.0%) qDepth=0
+[Source-4] gen=7,500,000 (49995/s) emit=7,500,000 (49995/s) drop=0 (0/s, 0.0%) qDepth=0
+[Source-4] gen=8,000,000 (49995/s) emit=8,000,000 (49995/s) drop=0 (0/s, 0.0%) qDepth=0
+[Source-4] gen=8,500,000 (66622/s) emit=8,500,000 (66622/s) drop=0 (0/s, 0.0%) qDepth=0
+[Source-4] gen=9,000,000 (49995/s) emit=9,000,000 (49995/s) drop=0 (0/s, 0.0%) qDepth=0
+[Source-4] gen=9,500,000 (49995/s) emit=9,500,000 (49995/s) drop=0 (0/s, 0.0%) qDepth=0
+[Source-4] FINALIZADO en 180.1s: generated=9,619,000, emitted=9,619,000, dropped=0 (0.0%)
+[Source-4] gen=9,619,000 (15829/s) emit=9,619,000 (15829/s) drop=0 (0/s, 0.0%) qDepth=0

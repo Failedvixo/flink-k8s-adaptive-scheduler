@@ -1,0 +1,67 @@
+[main] INFO com.thesis.scheduler.metrics.ClusterMetrics - [ClusterMetrics] ✓ Metrics Server is available - using REAL metrics
+[BANDIT] Initialized Multi-Armed Bandit Strategy with UCB1
+[BANDIT] Exploration parameter: 1.4142135623730951
+[BANDIT] Optimal CPU range: 30.0% - 70.0%
+[SARSA] Initialized SARSA Strategy (on-policy TD control)
+[SARSA] alpha=0.2 gamma=0.8 epsilon_min=0.05
+[SARSA] Optimal CPU range: 30.0% - 70.0%
+========================================
+  Adaptive Scheduler for Flink v1.2
+  (with Real Metrics + BANDIT + SARSA)
+========================================
+Configuration:
+  CPU Low Threshold: 40.0%
+  CPU High Threshold: 80.0%
+  Strategy Cooldown: 30s
+  Mode: FIXED STRATEGY (FCFS)
+========================================
+
+Starting scheduler loop...
+
+========================================
+  CLUSTER METRICS STATUS
+========================================
+  Metrics Server: ✓ AVAILABLE (using REAL metrics)
+
+  Current Node CPU Usage:
+    minikube-m03: 0.4%
+    minikube-m02: 0.5%
+    minikube: 2.4%
+
+  Cluster Average: 1.1%
+========================================
+
+
+[2026-04-16 00:18:34] Found 3 pending TaskManager(s)
+
+[SCHEDULING] Pod: flink-taskmanager-66d45446c5-6f76r
+  Strategy: FCFS
+  Result: ✓ SCHEDULED to minikube
+  Node CPU: 4.0% (real)
+  Total scheduled: 1
+
+[SCHEDULING] Pod: flink-taskmanager-66d45446c5-k9c9p
+  Strategy: FCFS
+  Result: ✓ SCHEDULED to minikube
+  Node CPU: 4.0% (real)
+  Total scheduled: 2
+
+[SCHEDULING] Pod: flink-taskmanager-66d45446c5-kfwms
+  Strategy: FCFS
+  Result: ✓ SCHEDULED to minikube
+  Node CPU: 4.0% (real)
+  Total scheduled: 3
+
+[2026-04-16 00:18:37] Found 2 pending TaskManager(s)
+
+[SCHEDULING] Pod: flink-taskmanager-66d45446c5-8pl4r
+  Strategy: FCFS
+  Result: ✓ SCHEDULED to minikube
+  Node CPU: 4.0% (real)
+  Total scheduled: 4
+
+[SCHEDULING] Pod: flink-taskmanager-66d45446c5-9pzrs
+  Strategy: FCFS
+  Result: ✓ SCHEDULED to minikube
+  Node CPU: 4.0% (real)
+  Total scheduled: 5

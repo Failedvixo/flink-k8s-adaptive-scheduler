@@ -1,0 +1,138 @@
+==========================================
+  MÉTRICAS COMPLETAS - LEAST_LOADED
+==========================================
+Fecha: Thu Apr 16 10:17:50 -04 2026
+Job ID: d73ca94c75a2417c2be4edb2d9380ff5
+Job Name: Nexmark-Config[rate=200k,par=8,win=TUM-10s,cpu=1000]
+
+CONFIGURACIÓN:
+- Workload:                constant
+- Estrategia:              LEAST_LOADED
+- Modo:                    FIXED_STRATEGY=LEAST_LOADED
+- Eventos/seg (base):      200000
+- Distribución llegada:    CONSTANT
+- Duración configurada:    180s
+- Paralelismo global:      8
+- Ventana:                 10s
+- CPU load por evento:     1000 iter
+- TaskManagers:            5
+- Nodos utilizados:        1
+- Imagen scheduler:        adaptive-scheduler:least_loaded-1776348729
+
+------------------------------------------
+1. ESTADO DEL JOB
+------------------------------------------
+   Estado:        FINISHED
+   Duración:      185540 ms (185.54 s)
+   Inicio:        1776348843954
+   Fin:           1776349029494
+
+------------------------------------------
+2. THROUGHPUT
+------------------------------------------
+   TRABAJO ÚTIL PROCESADO (métrica principal):
+     Stage de medición: CPU Load Simulator
+     Eventos procesados: 33747410
+     Throughput:         181887 ev/s
+
+   THROUGHPUT POR ETAPA (records out / duration):
+     Source emitted:     199527 ev/s   (37020415 records)
+     Filter out:         N/A ev/s   (0 records)
+     CPU Load out:       181887 ev/s   (33747410 records)
+     Latency Tracker:    chained ev/s   (0 records)
+     Transform out:      chained ev/s   (0 records)
+     Window out:         102 ev/s   (19000 records, aggregated)
+     Sink in:            102 ev/s   (19000 records)
+
+   Nota: "chained" indica que Flink fusionó el operador con otro vertex,
+   por lo que sus records están reflejados en el siguiente stage.
+
+------------------------------------------
+3. SOURCE STATS (desde logs del TaskManager)
+------------------------------------------
+   Total generado:    39005000
+   Total emitido:     37020415
+   Total descartado:  1984585
+   Drop %:            5.08%
+
+   Throughput generado: 210224 ev/s
+   Throughput emitido:  199527 ev/s (entra al grafo)
+   Throughput procesado: 181887 ev/s (sale del CPU-load) ← MÉTRICA PRINCIPAL
+
+------------------------------------------
+4. LATENCIA END-TO-END
+------------------------------------------
+   PROCESSING (event-time -> fin de CPU-load):
+     p50: 2432 ms
+     p95: 2986 ms
+     p99: 4976 ms
+     avg: 2471.8 ms
+
+   TOTAL (event-time -> sink, incluye delay del window):
+     p50: 8626 ms
+     p95: 10803 ms
+     p99: 10905 ms
+     avg: 7177.1 ms
+
+   Nota: la latencia TOTAL incluye necesariamente hasta 10s
+   adicionales por el delay del Tumbling Window.
+
+------------------------------------------
+5. MÉTRICAS POR OPERADOR
+   Source: Source: Bid Generator -> Watermark Assigner (par=4):
+     Records in:        0
+     Records out:       37020415
+     Backpressure time: 697901ms
+     Idle time:         0ms
+   Filter: High Value Bids -> CPU Load Simulator (1000 iter/event) -> Latency Tracker (processing) -> Transform: USD to EUR (par=8):
+     Records in:        37020415
+     Records out:       33747410
+     Backpressure time: 0ms
+     Idle time:         31236ms
+   Window: Tumbling (par=8):
+     Records in:        33747410
+     Records out:       19000
+     Backpressure time: 0ms
+     Idle time:         1383829ms
+   Sink: Sink: Tracked Console (par=2):
+     Records in:        19000
+     Records out:       0
+     Backpressure time: 0ms
+     Idle time:         371868ms
+
+------------------------------------------
+6. DISTRIBUCIÓN DE PODS
+------------------------------------------
+    minikube-m03: 5 TaskManagers
+
+------------------------------------------
+7. SCHEDULING
+------------------------------------------
+   Decisiones de scheduling: 5
+   Cambios de estrategia:    0
+0
+
+   Switches detectados:
+
+
+------------------------------------------
+8. RECURSOS DEL CLUSTER (final)
+------------------------------------------
+NAME           CPU(cores)   CPU(%)   MEMORY(bytes)   MEMORY(%)   
+minikube       168m         1%       847Mi           10%         
+minikube-m02   63m          0%       911Mi           11%         
+minikube-m03   8675m        72%      1968Mi          24%         
+
+==========================================
+Archivos generados en results/constant/LEAST_LOADED/:
+  - job-details.json         (raw JSON del job)
+  - taskmanager-placement.txt (pods por nodo)
+  - taskmanager-full.log     (logs completos del TM)
+  - source-stats.txt         (gen/emit/drop por subtask)
+  - latency-processing.txt   (latencia post CPU-load)
+  - latency-total.txt        (latencia event-time -> sink)
+  - scheduler-logs.txt       (decisiones del scheduler)
+  - node-metrics.txt         (CPU/memoria por nodo)
+  - METRICS-SUMMARY.txt      (este archivo)
+  - metrics.csv              (fila lista para análisis comparativo)
+==========================================

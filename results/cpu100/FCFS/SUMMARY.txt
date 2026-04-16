@@ -1,0 +1,41 @@
+========================================
+EXPERIMENTO: FCFS (cpu100)
+========================================
+
+Configuración:
+- Workload: cpu100
+- Eventos/seg: 200000
+- Duración: 92889 ms (configurada: 90s)
+- Paralelismo: 4
+- Ventana: 10s
+- CPU load por evento: 100 iter
+- TaskManagers: 5
+- Imagen: adaptive-scheduler:fcfs-1776298642
+- Modo: FIXED_STRATEGY=FCFS
+
+Resultados:
+- Job ID: 25add1e85580ebce44b35c58c4fa6d29
+- Estado final: FINISHED
+- Duración: 92889 ms
+
+Distribución de TaskManagers:
+      5 minikube
+
+Scheduling decisions: 5
+Strategy switches:    0
+0
+
+Switches detectados:
+
+
+Source stats (últimas líneas):
+[Source-1] gen=7,982,000 (100000/s) emit=7,982,000 (100000/s) drop=0 (0/s, 0.0%) qDepth=0
+[Source-1] gen=8,982,000 (132943/s) emit=8,982,000 (132943/s) drop=0 (0/s, 0.0%) qDepth=0
+[Source-1] FINALIZADO en 90.1s: generated=9,720,000, emitted=9,720,000, dropped=0 (0.0%)
+[Source-1] gen=9,720,000 (73785/s) emit=9,720,000 (73785/s) drop=0 (0/s, 0.0%) qDepth=0
+[Source-2] gen=7,996,000 (100000/s) emit=7,996,000 (100000/s) drop=0 (0/s, 0.0%) qDepth=0
+[Source-2] gen=8,996,000 (132961/s) emit=8,996,000 (132961/s) drop=0 (0/s, 0.0%) qDepth=0
+[Source-2] FINALIZADO en 90.1s: generated=9,734,000, emitted=9,734,000, dropped=0 (0.0%)
+[Source-2] gen=9,734,000 (73793/s) emit=9,734,000 (73793/s) drop=0 (0/s, 0.0%) qDepth=0
+
+========================================

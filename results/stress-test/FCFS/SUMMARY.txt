@@ -1,0 +1,30 @@
+========================================
+EXPERIMENTO: FCFS (stress-test)
+========================================
+
+Configuración:
+- Workload: stress-test
+- Eventos/seg: 1000000
+- Duración: 123048 segundos
+- Paralelismo: 4
+- Ventana: 10s
+- TaskManagers: 5
+- Imagen: adaptive-scheduler:fcfs-1776296831
+- Modo: FIXED_STRATEGY=FCFS
+
+Resultados:
+- Job ID: a1ea7fe5b604b6ba68a6b7aadeca1b53
+- Estado final: FINISHED
+- Duración: 123048 ms
+
+Distribución de TaskManagers:
+      5 minikube
+
+Scheduling decisions: 5
+Strategy switches:    0
+0
+
+Switches detectados:
+
+
+========================================

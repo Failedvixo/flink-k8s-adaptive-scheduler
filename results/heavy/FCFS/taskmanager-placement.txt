@@ -1,6 +1,6 @@
 NAME                                 READY   STATUS    RESTARTS   AGE     IP            NODE       NOMINATED NODE   READINESS GATES
-flink-taskmanager-5fdf7dff67-7dd9m   1/1     Running   0          7m29s   10.244.0.33   minikube   <none>           <none>
-flink-taskmanager-5fdf7dff67-8c4r6   1/1     Running   0          7m29s   10.244.0.34   minikube   <none>           <none>
-flink-taskmanager-5fdf7dff67-jgj8c   1/1     Running   0          7m29s   10.244.0.35   minikube   <none>           <none>
-flink-taskmanager-5fdf7dff67-knhlx   1/1     Running   0          7m29s   10.244.0.36   minikube   <none>           <none>
-flink-taskmanager-5fdf7dff67-spxnb   1/1     Running   0          7m29s   10.244.0.37   minikube   <none>           <none>
+flink-taskmanager-66d45446c5-h72hp   1/1     Running   0          3m24s   10.244.0.12   minikube   <none>           <none>
+flink-taskmanager-66d45446c5-nc6mj   1/1     Running   0          3m24s   10.244.0.13   minikube   <none>           <none>
+flink-taskmanager-66d45446c5-p82jk   1/1     Running   0          3m24s   10.244.0.14   minikube   <none>           <none>
+flink-taskmanager-66d45446c5-vb94c   1/1     Running   0          3m24s   10.244.0.15   minikube   <none>           <none>
+flink-taskmanager-66d45446c5-zxmnq   1/1     Running   0          3m24s   10.244.0.16   minikube   <none>           <none>

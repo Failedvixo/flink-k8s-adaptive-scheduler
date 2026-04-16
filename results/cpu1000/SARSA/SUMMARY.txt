@@ -1,0 +1,45 @@
+========================================
+EXPERIMENTO: SARSA (cpu1000)
+========================================
+
+Configuración:
+- Workload: cpu1000
+- Eventos/seg: 200000
+- Duración: 182052 ms (configurada: 180s)
+- Paralelismo: 8
+- Ventana: 10s
+- CPU load por evento: 1000 iter
+- TaskManagers: 5
+- Imagen: adaptive-scheduler:sarsa-1776304157
+- Modo: FIXED_STRATEGY=SARSA
+
+Resultados:
+- Job ID: 4cfe1bfed70bb5dbea5bae960a4cff41
+- Estado final: FINISHED
+- Duración: 182052 ms
+
+Distribución de TaskManagers:
+      2 minikube
+      2 minikube-m02
+      1 minikube-m03
+
+Scheduling decisions: 5
+Strategy switches:    0
+0
+
+Switches detectados:
+
+
+Source stats (últimas líneas):
+[Source-4] gen=8,500,000 (50055/s) emit=8,500,000 (50055/s) drop=0 (0/s, 0.0%) qDepth=0
+[Source-4] gen=9,000,000 (49995/s) emit=8,999,862 (49981/s) drop=0 (0/s, 0.0%) qDepth=108
+[Source-4] gen=9,500,000 (50000/s) emit=9,500,000 (50014/s) drop=0 (0/s, 0.0%) qDepth=0
+[Source-4] FINALIZADO en 180.1s: generated=9,741,000, emitted=9,741,000, dropped=0 (0.0%)
+[Source-4] gen=9,741,000 (32056/s) emit=9,741,000 (32056/s) drop=0 (0/s, 0.0%) qDepth=0
+[Source-1] gen=8,496,000 (49990/s) emit=8,496,000 (49990/s) drop=0 (0/s, 0.0%) qDepth=0
+[Source-1] gen=8,996,000 (49990/s) emit=8,996,000 (49990/s) drop=0 (0/s, 0.0%) qDepth=0
+[Source-1] gen=9,496,000 (49995/s) emit=9,496,000 (49995/s) drop=0 (0/s, 0.0%) qDepth=0
+[Source-1] FINALIZADO en 180.1s: generated=9,739,000, emitted=9,739,000, dropped=0 (0.0%)
+[Source-1] gen=9,739,000 (32322/s) emit=9,739,000 (32322/s) drop=0 (0/s, 0.0%) qDepth=0
+
+========================================

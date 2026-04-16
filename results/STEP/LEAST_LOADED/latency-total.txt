@@ -1,0 +1,2 @@
+[Latency-TOTAL-0] FINAL count=9000 min=3136ms p50=5379ms p95=10058ms p99=10147ms max=10153ms avg=6275.4ms
+[Latency-TOTAL-1] FINAL count=9000 min=3133ms p50=5379ms p95=10058ms p99=10147ms max=10154ms avg=6274.3ms

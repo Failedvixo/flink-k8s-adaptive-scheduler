@@ -1,0 +1,35 @@
+========================================
+EXPERIMENTO: FCFS (cpu500)
+========================================
+
+Configuración:
+- Workload: cpu500
+- Eventos/seg: 200000
+- Duración: 90398 ms (configurada: 90s)
+- Paralelismo: 4
+- Ventana: 10s
+- CPU load por evento: 500 iter
+- TaskManagers: 5
+- Imagen: adaptive-scheduler:fcfs-1776299375
+- Modo: FIXED_STRATEGY=FCFS
+
+Resultados:
+- Job ID: 81cbd927cb7fd36339561b8ce976ae39
+- Estado final: FINISHED
+- Duración: 90398 ms
+
+Distribución de TaskManagers:
+      5 minikube
+
+Scheduling decisions: 5
+Strategy switches:    0
+0
+
+Switches detectados:
+
+
+Source stats (últimas líneas):
+[Source-2] gen=9,606,000 (61000/s) emit=9,606,000 (61000/s) drop=0 (0/s, 0.0%) qDepth=0
+[Source-1] gen=9,606,000 (61000/s) emit=9,606,000 (61000/s) drop=0 (0/s, 0.0%) qDepth=0
+
+========================================

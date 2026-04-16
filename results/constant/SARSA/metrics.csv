@@ -1,0 +1,3 @@
+strategy,workload,distribution,rate,duration_sec,cpu_load,parallelism,state,throughput_processed,throughput_generated,throughput_emitted,processed_events,total_generated,total_dropped,drop_pct,nodes_used,total_tms,scheduling_decisions,strategy_switches,lat_proc_p50,lat_proc_p95,lat_proc_p99,lat_proc_avg,lat_total_p50,lat_total_p95,lat_total_p99,lat_total_avg
+SARSA,constant,CONSTANT,200000,185.69,1000,8,FINISHED,186633,212974,205769,34656670,39548000,1337759,3.38,2,5,5,0
+0,2355,2825,3348,2336.8,8606,8952,9016,7111.1

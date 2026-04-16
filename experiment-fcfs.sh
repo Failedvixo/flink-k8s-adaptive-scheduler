@@ -1,4 +1,4 @@
 #!/bin/bash
 source "$(dirname "$0")/run-experiment-common.sh"
-# 600k ev/s, paralelismo 8 → usa los 10 slots holgadamente y satura CPU
-run_strategy_experiment "FCFS" "false" "heavy" 800000 300 5 10
+# Calibración inicial: 200k ev/s, 90s, paralelismo 4, ventana 10s, cpuLoad=100
+run_strategy_experiment "FCFS" "false" "step" 200000 180 8 10 1000 STEP  

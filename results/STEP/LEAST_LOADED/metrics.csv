@@ -1,0 +1,3 @@
+strategy,workload,distribution,rate,duration_sec,cpu_load,parallelism,state,throughput_processed,throughput_generated,throughput_emitted,processed_events,total_generated,total_dropped,drop_pct,nodes_used,total_tms,scheduling_decisions,strategy_switches,lat_proc_p50,lat_proc_p95,lat_proc_p99,lat_proc_avg,lat_total_p50,lat_total_p95,lat_total_p99,lat_total_avg
+LEAST_LOADED,step,STEP,200000,182.25,1000,8,FINISHED,98373,141775,108438,17929038,25839250,6075831,23.51,1,5,5,0
+0,3335,3917,4030,2199.9,5379,10058,10147,6274.9

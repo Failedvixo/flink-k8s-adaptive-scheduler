@@ -1,30 +1,30 @@
 ==========================================
   MÉTRICAS COMPLETAS - SARSA
 ==========================================
-Fecha: Wed Apr  8 22:37:46 -04 2026
-Job ID: 1a6e889c763245b48533700ae022acf5
-Job Name: Nexmark-Config[rate=200k,par=8,win=TUM-10s]
+Fecha: Wed Apr 15 21:55:14 -04 2026
+Job ID: 4cfe1bfed70bb5dbea5bae960a4cff41
+Job Name: Nexmark-Config[rate=200k,par=8,win=TUM-10s,cpu=1000]
 
 CONFIGURACIÓN:
 - Workload: Nexmark Benchmark  
 - Estrategia: SARSA
 - TaskManagers: 5
-- Nodos utilizados: 2
+- Nodos utilizados: 3
 
 ------------------------------------------
 1. ESTADO DEL JOB
 ------------------------------------------
    Estado: FINISHED
-   Duración: 181469 ms (181.46 s)
-   Inicio: 1775701791728
-   Fin: 1775701973197
+   Duración: 182052 ms (182.05 s)
+   Inicio: 1776304266180
+   Fin: 1776304448232
 
 ------------------------------------------
 2. THROUGHPUT
 ------------------------------------------
-   Eventos generados: 35143500
-   Throughput: 193661 eventos/segundo
-   Bytes procesados: 1757547320 bytes
+   Eventos generados: 38966000
+   Throughput: 214037 eventos/segundo
+   Bytes procesados: 1948653496 bytes
 
 ------------------------------------------
 3. MÉTRICAS POR OPERADOR
@@ -32,29 +32,30 @@ CONFIGURACIÓN:
 
    Source: Source: Bid Generator -> Watermark Assigner
    ├── Parallelism: 4
-   ├── Records out: 35143500
-   └── Bytes out: 1757547320
+   ├── Records out: 38966000
+   └── Bytes out: 1948653496
 
-   Filter: High Value Bids
+   Filter: High Value Bids -> CPU Load Simulator (1000 iter/event) -> Transform: USD to EUR
    ├── Parallelism: 8
-   ├── Records in: 35143500
-   ├── Records out: 31946978
-   └── Eficiencia: 90.9%
-
-   Transform: USD to EUR
-   ├── Parallelism: 4
-   ├── Records in: 31946978
-   └── Records out: 31946978
+   ├── Records in: 38966000
+   ├── Records out: 35402602
+   └── Eficiencia: 90.8%
 
    Window: Tumbling
    ├── Parallelism: 8
-   └── Records in: 31946978
+   ├── Records in: 35402602
+   └── Records out: 19000
+
+   Sink: Sink: Console
+   ├── Parallelism: 2
+   └── Records in: 19000
 
 ------------------------------------------
 4. DISTRIBUCIÓN DE PODS
 ------------------------------------------
-    minikube: 3 TaskManagers
-    minikube-m03: 2 TaskManagers
+    minikube: 2 TaskManagers
+    minikube-m02: 2 TaskManagers
+    minikube-m03: 1 TaskManagers
 
 ------------------------------------------
 5. SCHEDULING
@@ -69,17 +70,17 @@ CONFIGURACIÓN:
 ------------------------------------------
 
 Source: Source: Bid Generator -> Watermark Assigner:
-  Backpressure time: 0ms
+  Backpressure time: 187621ms
   Idle time: 0ms
-Filter: High Value Bids:
+Filter: High Value Bids -> CPU Load Simulator (1000 iter/event) -> Transform: USD to EUR:
   Backpressure time: 0ms
-  Idle time: 1409618ms
-Transform: USD to EUR:
-  Backpressure time: 0ms
-  Idle time: 693364ms
+  Idle time: 27820ms
 Window: Tumbling:
   Backpressure time: 0ms
-  Idle time: 1417183ms
+  Idle time: 1376065ms
+Sink: Sink: Console:
+  Backpressure time: 0ms
+  Idle time: 362234ms
 
 ==========================================
 Archivos generados en results/high-load/SARSA/:

@@ -1,0 +1,62 @@
+[main] INFO com.thesis.scheduler.metrics.ClusterMetrics - [ClusterMetrics] ✓ Metrics Server is available - using REAL metrics
+[BANDIT] Initialized Multi-Armed Bandit Strategy with UCB1
+[BANDIT] Exploration parameter: 1.4142135623730951
+[BANDIT] Optimal CPU range: 30.0% - 70.0%
+[SARSA] Initialized SARSA Strategy (on-policy TD control)
+[SARSA] alpha=0.2 gamma=0.8 epsilon_min=0.05
+[SARSA] Optimal CPU range: 30.0% - 70.0%
+========================================
+  Adaptive Scheduler for Flink v1.2
+  (with Real Metrics + BANDIT + SARSA)
+========================================
+Configuration:
+  CPU Low Threshold: 40.0%
+  CPU High Threshold: 80.0%
+  Strategy Cooldown: 30s
+  Mode: ADAPTIVE
+  Initial Strategy: FCFS
+========================================
+
+Starting scheduler loop...
+
+========================================
+  CLUSTER METRICS STATUS
+========================================
+  Metrics Server: ✓ AVAILABLE (using REAL metrics)
+
+  Current Node CPU Usage:
+    minikube-m03: 0.5%
+    minikube-m02: 0.8%
+    minikube: 1.6%
+
+  Cluster Average: 0.9%
+========================================
+
+
+[2026-04-16 15:39:36] Found 5 pending TaskManager(s)
+
+[SCHEDULING] Pod: flink-taskmanager-66d45446c5-fszlh
+  Strategy: FCFS
+
+[SCHEDULING] Pod: flink-taskmanager-66d45446c5-jdkh5
+  Strategy: FCFS
+  Error: Failed to bind pod - Code: 409 Body: {"kind":"Status","apiVersion":"v1","metadata":{},"status":"Failure","message":"Operation cannot be fulfilled on pods/binding \"flink-taskmanager-66d45446c5-fszlh\": pod flink-taskmanager-66d45446c5-fszlh is already assigned to node \"minikube\"","reason":"Conflict","details":{"name":"flink-taskmanager-66d45446c5-fszlh","kind":"pods/binding"},"code":409}
+
+
+[SCHEDULING] Pod: flink-taskmanager-66d45446c5-qcp58
+  Strategy: FCFS
+  Error: Failed to bind pod - Code: 409 Body: {"kind":"Status","apiVersion":"v1","metadata":{},"status":"Failure","message":"Operation cannot be fulfilled on pods/binding \"flink-taskmanager-66d45446c5-jdkh5\": pod flink-taskmanager-66d45446c5-jdkh5 is already assigned to node \"minikube\"","reason":"Conflict","details":{"name":"flink-taskmanager-66d45446c5-jdkh5","kind":"pods/binding"},"code":409}
+
+
+[SCHEDULING] Pod: flink-taskmanager-66d45446c5-rxgdv
+  Strategy: FCFS
+  Error: Failed to bind pod - Code: 409 Body: {"kind":"Status","apiVersion":"v1","metadata":{},"status":"Failure","message":"Operation cannot be fulfilled on pods/binding \"flink-taskmanager-66d45446c5-qcp58\": pod flink-taskmanager-66d45446c5-qcp58 is already assigned to node \"minikube\"","reason":"Conflict","details":{"name":"flink-taskmanager-66d45446c5-qcp58","kind":"pods/binding"},"code":409}
+
+  Result: ✓ SCHEDULED to minikube
+  Node CPU: 2.5% (real)
+  Total scheduled: 1
+
+[SCHEDULING] Pod: flink-taskmanager-66d45446c5-v94r4
+  Strategy: FCFS
+  Error: Failed to bind pod - Code: 409 Body: {"kind":"Status","apiVersion":"v1","metadata":{},"status":"Failure","message":"Operation cannot be fulfilled on pods/binding \"flink-taskmanager-66d45446c5-v94r4\": pod flink-taskmanager-66d45446c5-v94r4 is already assigned to node \"minikube\"","reason":"Conflict","details":{"name":"flink-taskmanager-66d45446c5-v94r4","kind":"pods/binding"},"code":409}
+

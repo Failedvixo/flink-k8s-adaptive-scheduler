@@ -25,10 +25,10 @@ Starting scheduler loop...
   Metrics Server: ✓ AVAILABLE (using REAL metrics)
 
   Current Node CPU Usage:
-    minikube-m03: 0.8%
-    minikube-m02: 1.0%
-    minikube: 1.6%
+    minikube-m03: 14.9%
+    minikube-m02: 15.1%
+    minikube: 27.5%
 
-  Cluster Average: 1.1%
+  Cluster Average: 19.2%
 ========================================
 

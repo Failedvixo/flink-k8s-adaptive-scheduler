@@ -1,0 +1,8 @@
+[Source-1] gen=7,982,000 (100000/s) emit=7,982,000 (100000/s) drop=0 (0/s, 0.0%) qDepth=0
+[Source-1] gen=8,982,000 (132943/s) emit=8,982,000 (132943/s) drop=0 (0/s, 0.0%) qDepth=0
+[Source-1] FINALIZADO en 90.1s: generated=9,720,000, emitted=9,720,000, dropped=0 (0.0%)
+[Source-1] gen=9,720,000 (73785/s) emit=9,720,000 (73785/s) drop=0 (0/s, 0.0%) qDepth=0
+[Source-2] gen=7,996,000 (100000/s) emit=7,996,000 (100000/s) drop=0 (0/s, 0.0%) qDepth=0
+[Source-2] gen=8,996,000 (132961/s) emit=8,996,000 (132961/s) drop=0 (0/s, 0.0%) qDepth=0
+[Source-2] FINALIZADO en 90.1s: generated=9,734,000, emitted=9,734,000, dropped=0 (0.0%)
+[Source-2] gen=9,734,000 (73793/s) emit=9,734,000 (73793/s) drop=0 (0/s, 0.0%) qDepth=0

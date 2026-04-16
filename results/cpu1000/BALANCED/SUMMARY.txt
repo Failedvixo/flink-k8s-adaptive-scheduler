@@ -1,0 +1,45 @@
+========================================
+EXPERIMENTO: BALANCED (cpu1000)
+========================================
+
+Configuración:
+- Workload: cpu1000
+- Eventos/seg: 200000
+- Duración: 188229 ms (configurada: 180s)
+- Paralelismo: 8
+- Ventana: 10s
+- CPU load por evento: 1000 iter
+- TaskManagers: 5
+- Imagen: adaptive-scheduler:balanced-1776303689
+- Modo: FIXED_STRATEGY=BALANCED
+
+Resultados:
+- Job ID: 53965fd115bad4803a03f111a39da169
+- Estado final: FINISHED
+- Duración: 188229 ms
+
+Distribución de TaskManagers:
+      2 minikube
+      2 minikube-m02
+      1 minikube-m03
+
+Scheduling decisions: 5
+Strategy switches:    0
+0
+
+Switches detectados:
+
+
+Source stats (últimas líneas):
+[Source-4] gen=6,000,000 (49995/s) emit=6,000,000 (49995/s) drop=0 (0/s, 0.0%) qDepth=0
+[Source-4] gen=6,500,000 (66507/s) emit=6,500,000 (66507/s) drop=0 (0/s, 0.0%) qDepth=0
+[Source-4] gen=7,000,000 (49995/s) emit=7,000,000 (49995/s) drop=0 (0/s, 0.0%) qDepth=0
+[Source-4] gen=7,500,000 (49995/s) emit=7,500,000 (49995/s) drop=0 (0/s, 0.0%) qDepth=0
+[Source-4] gen=8,000,000 (49995/s) emit=8,000,000 (49995/s) drop=0 (0/s, 0.0%) qDepth=0
+[Source-4] gen=8,500,000 (66622/s) emit=8,500,000 (66622/s) drop=0 (0/s, 0.0%) qDepth=0
+[Source-4] gen=9,000,000 (49995/s) emit=9,000,000 (49995/s) drop=0 (0/s, 0.0%) qDepth=0
+[Source-4] gen=9,500,000 (49995/s) emit=9,500,000 (49995/s) drop=0 (0/s, 0.0%) qDepth=0
+[Source-4] FINALIZADO en 180.1s: generated=9,619,000, emitted=9,619,000, dropped=0 (0.0%)
+[Source-4] gen=9,619,000 (15829/s) emit=9,619,000 (15829/s) drop=0 (0/s, 0.0%) qDepth=0
+
+========================================

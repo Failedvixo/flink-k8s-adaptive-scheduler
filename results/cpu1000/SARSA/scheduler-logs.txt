@@ -1,0 +1,98 @@
+[main] INFO com.thesis.scheduler.metrics.ClusterMetrics - [ClusterMetrics] ✓ Metrics Server is available - using REAL metrics
+[BANDIT] Initialized Multi-Armed Bandit Strategy with UCB1
+[BANDIT] Exploration parameter: 1.4142135623730951
+[BANDIT] Optimal CPU range: 30.0% - 70.0%
+[SARSA] Initialized SARSA Strategy (on-policy TD control)
+[SARSA] alpha=0.2 gamma=0.8 epsilon_min=0.05
+[SARSA] Optimal CPU range: 30.0% - 70.0%
+========================================
+  Adaptive Scheduler for Flink v1.2
+  (with Real Metrics + BANDIT + SARSA)
+========================================
+Configuration:
+  CPU Low Threshold: 40.0%
+  CPU High Threshold: 80.0%
+  Strategy Cooldown: 30s
+  Mode: FIXED STRATEGY (SARSA)
+========================================
+
+Starting scheduler loop...
+
+========================================
+  CLUSTER METRICS STATUS
+========================================
+  Metrics Server: ✓ AVAILABLE (using REAL metrics)
+
+  Current Node CPU Usage:
+    minikube-m03: 0.6%
+    minikube-m02: 1.7%
+    minikube: 2.8%
+
+  Cluster Average: 1.7%
+========================================
+
+
+[2026-04-16 01:50:28] Found 5 pending TaskManager(s)
+
+[SCHEDULING] Pod: flink-taskmanager-66d45446c5-9sgqj
+  Strategy: SARSA
+[SARSA] [EXPLORE] state=LOW_LOW eps=1.000 action=0
+[SARSA] [SELECTION] Node: minikube | State: LOW_LOW | Action: 0 | CPU: 2.8% | Reward: 0.528 | Q(s,a)=0.5000 | Total: 1
+  Result: ✓ SCHEDULED to minikube
+  Node CPU: 2.8% (real)
+  Total scheduled: 1
+
+[SCHEDULING] Pod: flink-taskmanager-66d45446c5-hvs7z
+  Strategy: SARSA
+[SARSA] [EXPLOIT] state=LOW_LOW eps=0.707 action=2 Q=0.5000
+[SARSA] [UPDATE] s=LOW_LOW a=0 r=0.528 s'=LOW_LOW a'=2  Q: 0.5000 -> 0.5857
+[SARSA] [SELECTION] Node: minikube-m03 | State: LOW_LOW | Action: 2 | CPU: 0.6% | Reward: 0.506 | Q(s,a)=0.5000 | Total: 2
+  Result: ✓ SCHEDULED to minikube-m03
+  Node CPU: 0.6% (real)
+  Total scheduled: 2
+
+[SCHEDULING] Pod: flink-taskmanager-66d45446c5-j9hl8
+  Strategy: SARSA
+[SARSA] [EXPLORE] state=LOW_LOW eps=0.577 action=1
+[SARSA] [UPDATE] s=LOW_LOW a=2 r=0.506 s'=LOW_LOW a'=1  Q: 0.5000 -> 0.5811
+[SARSA] [SELECTION] Node: minikube-m02 | State: LOW_LOW | Action: 1 | CPU: 1.7% | Reward: 0.517 | Q(s,a)=0.5000 | Total: 3
+  Result: ✓ SCHEDULED to minikube-m02
+  Node CPU: 1.7% (real)
+  Total scheduled: 3
+
+[SCHEDULING] Pod: flink-taskmanager-66d45446c5-k2ggz
+  Strategy: SARSA
+[SARSA] [EXPLORE] state=LOW_LOW eps=0.500 action=0
+[SARSA] [UPDATE] s=LOW_LOW a=1 r=0.517 s'=LOW_LOW a'=0  Q: 0.5000 -> 0.5972
+[SARSA] [SELECTION] Node: minikube | State: LOW_LOW | Action: 0 | CPU: 2.8% | Reward: 0.528 | Q(s,a)=0.5857 | Total: 4
+  Result: ✓ SCHEDULED to minikube
+  Node CPU: 2.8% (real)
+  Total scheduled: 4
+
+[SCHEDULING] Pod: flink-taskmanager-66d45446c5-ml8z4
+  Strategy: SARSA
+[SARSA] [EXPLOIT] state=LOW_LOW eps=0.447 action=1 Q=0.5972
+[SARSA] [UPDATE] s=LOW_LOW a=0 r=0.528 s'=LOW_LOW a'=1  Q: 0.5857 -> 0.6698
+[SARSA] [SELECTION] Node: minikube-m02 | State: LOW_LOW | Action: 1 | CPU: 1.7% | Reward: 0.517 | Q(s,a)=0.5972 | Total: 5
+  Result: ✓ SCHEDULED to minikube-m02
+  Node CPU: 1.7% (real)
+  Total scheduled: 5
+
+========================================
+  SARSA STATISTICS SUMMARY
+========================================
+Total selections: 5
+Distinct states visited: 1
+Q-table entries: 3
+
+Per-node selections:
+  minikube-m03: 1 (20.0%)
+  minikube-m02: 2 (40.0%)
+  minikube: 2 (40.0%)
+
+Top Q-values:
+  LOW_LOW|0 = 0.6698
+  LOW_LOW|1 = 0.5972
+  LOW_LOW|2 = 0.5811
+========================================
+
