@@ -1,0 +1,3 @@
+strategy,workload,distribution,rate,duration_sec,cpu_load,parallelism,state,throughput_processed,throughput_generated,throughput_emitted,processed_events,total_generated,total_dropped,drop_pct,nodes_used,total_tms,scheduling_decisions,strategy_switches,lat_proc_p50,lat_proc_p95,lat_proc_p99,lat_proc_avg,lat_total_p50,lat_total_p95,lat_total_p99,lat_total_avg,max_event_age,stale_dropped,stale_pct
+BALANCED,autoscaler-sine,SINE,60000,655.27,2500,8,FINISHED,25636,30706,29387,16799237,20120951,818592,4.06,3,5,5,0
+0,5417,8509,8926,5031.2,13861,20267,22433,14146.2,15000,385264,1.12

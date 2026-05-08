@@ -1,0 +1,326 @@
+[Source-3/4] NON-BLOCKING: dist=CONSTANT baseRate=100000 peakRate=100000 qCap=50000 maxAge=15000ms
+[Source-3] t=9s target=100k/s gen=248,000 (27589/s) emit=94,351 (10496/s) drop=103,648 (41.8%) q=50000
+[Source-3] t=19s target=100k/s gen=498,500 (25047/s) emit=172,952 (7859/s) drop=278,782 (55.9%) q=46765
+[Source-3] t=29s target=100k/s gen=748,500 (24998/s) emit=237,481 (6452/s) drop=461,018 (61.6%) q=50000
+[Source-3] t=39s target=100k/s gen=997,500 (24898/s) emit=321,334 (8384/s) drop=628,908 (63.0%) q=47257
+[Source-3] t=49s target=100k/s gen=1,247,500 (24998/s) emit=384,224 (6288/s) drop=813,275 (65.2%) q=50000
+[Source-3/4] NON-BLOCKING: dist=CONSTANT baseRate=100000 peakRate=100000 qCap=50000 maxAge=15000ms
+[Source-3] t=59s target=100k/s gen=1,300,000 (5249/s) emit=405,180 (2095/s) drop=849,052 (65.3%) q=45767
+[Source-3] t=10s target=100k/s gen=250,000 (25000/s) emit=167,701 (16770/s) drop=32,298 (12.9%) q=50000
+[Source-3] t=18s target=100k/s gen=500,000 (30314/s) emit=277,767 (13346/s) drop=172,232 (34.4%) q=50000
+[Source-3] t=28s target=100k/s gen=750,000 (24998/s) emit=382,610 (10483/s) drop=317,389 (42.3%) q=50000
+[Source-3/4] NON-BLOCKING: dist=CONSTANT baseRate=100000 peakRate=100000 qCap=50000 maxAge=15000ms
+[Source-3] t=38s target=100k/s gen=942,500 (19250/s) emit=471,706 (8910/s) drop=420,794 (44.6%) q=49999
+[Source-3] t=9s target=100k/s gen=250,000 (28210/s) emit=235,841 (26613/s) drop=0 (0.0%) q=14158
+[Source-3] t=19s target=100k/s gen=500,500 (25050/s) emit=392,339 (15650/s) drop=58,160 (11.6%) q=50000
+[Source-3] t=29s target=100k/s gen=749,500 (24898/s) emit=554,812 (16246/s) drop=149,920 (20.0%) q=44767
+[Source-3] t=39s target=100k/s gen=999,500 (25000/s) emit=717,288 (16248/s) drop=232,211 (23.2%) q=50000
+[Source-3/4] NON-BLOCKING: dist=CONSTANT baseRate=100000 peakRate=100000 qCap=50000 maxAge=15000ms
+[Source-3] t=49s target=100k/s gen=1,037,500 (3800/s) emit=743,485 (2619/s) drop=248,748 (24.0%) q=45266
+[Source-3] t=10s target=100k/s gen=250,500 (25050/s) emit=250,500 (25050/s) drop=0 (0.0%) q=0
+[Source-3] t=20s target=100k/s gen=500,500 (25000/s) emit=500,500 (25000/s) drop=0 (0.0%) q=0
+[Source-3] t=30s target=100k/s gen=749,500 (24898/s) emit=728,522 (22800/s) drop=0 (0.0%) q=20977
+[Source-3/4] NON-BLOCKING: dist=CONSTANT baseRate=100000 peakRate=100000 qCap=50000 maxAge=15000ms
+[Source-3] t=39s target=100k/s gen=963,000 (23204/s) emit=917,220 (20508/s) drop=0 (0.0%) q=45779
+[Source-3] t=10s target=100k/s gen=241,500 (24150/s) emit=94,336 (9434/s) drop=97,163 (40.2%) q=50000
+[Source-3] t=20s target=100k/s gen=490,500 (24900/s) emit=94,336 (0/s) drop=346,163 (70.6%) q=50000
+[Source-3] t=29s target=100k/s gen=740,500 (27334/s) emit=340,337 (26897/s) drop=400,163 (54.0%) q=0
+[Source-3/4] NON-BLOCKING: dist=CONSTANT baseRate=100000 peakRate=100000 qCap=50000 maxAge=15000ms
+[Source-3] t=39s target=100k/s gen=835,500 (9496/s) emit=435,337 (9496/s) drop=400,163 (47.9%) q=0
+[Source-3] t=10s target=100k/s gen=250,000 (25000/s) emit=250,000 (25000/s) drop=0 (0.0%) q=0
+[Source-3] t=20s target=100k/s gen=500,000 (25000/s) emit=500,000 (25000/s) drop=0 (0.0%) q=0
+[Source-3] t=29s target=100k/s gen=750,000 (27563/s) emit=721,706 (24444/s) drop=0 (0.0%) q=28293
+[Source-3/4] NON-BLOCKING: dist=CONSTANT baseRate=100000 peakRate=100000 qCap=50000 maxAge=15000ms
+[Source-3] t=39s target=100k/s gen=928,500 (17848/s) emit=873,708 (15199/s) drop=9,528 (1.0%) q=45263
+[Source-3] t=10s target=100k/s gen=250,000 (24998/s) emit=230,599 (23058/s) drop=0 (0.0%) q=19400
+[Source-3] t=19s target=100k/s gen=500,000 (27269/s) emit=403,561 (18866/s) drop=52,920 (10.6%) q=43518
+[Source-3] t=29s target=100k/s gen=750,000 (25000/s) emit=560,815 (15725/s) drop=141,920 (18.9%) q=47264
+[Source-3/4] NON-BLOCKING: dist=CONSTANT baseRate=100000 peakRate=100000 qCap=50000 maxAge=15000ms
+[Source-3] t=39s target=100k/s gen=930,500 (18048/s) emit=681,369 (12054/s) drop=199,130 (21.4%) q=50000
+[Source-3] t=10s target=100k/s gen=250,500 (25050/s) emit=172,973 (17297/s) drop=28,264 (11.3%) q=49262
+[Source-3] t=19s target=100k/s gen=500,500 (27388/s) emit=288,270 (12631/s) drop=162,229 (32.4%) q=50000
+[Source-3] t=29s target=100k/s gen=750,500 (24998/s) emit=398,333 (11005/s) drop=302,166 (40.3%) q=50000
+[Source-3/4] NON-BLOCKING: dist=CONSTANT baseRate=100000 peakRate=100000 qCap=50000 maxAge=15000ms
+[Source-3] t=39s target=100k/s gen=926,000 (17550/s) emit=476,969 (7864/s) drop=399,267 (43.1%) q=49763
+[Source-3] t=9s target=100k/s gen=250,500 (27570/s) emit=239,487 (26358/s) drop=0 (0.0%) q=11012
+[Source-3] t=19s target=100k/s gen=500,500 (24998/s) emit=401,968 (16246/s) drop=50,776 (10.1%) q=47755
+[Source-3] t=29s target=100k/s gen=750,500 (25000/s) emit=569,689 (16772/s) drop=132,048 (17.6%) q=48762
+[Source-3/4] NON-BLOCKING: dist=CONSTANT baseRate=100000 peakRate=100000 qCap=50000 maxAge=15000ms
+[Source-3] t=39s target=100k/s gen=932,000 (18150/s) emit=679,774 (11009/s) drop=202,225 (21.7%) q=50000
+[Source-3] t=9s target=100k/s gen=249,000 (27177/s) emit=249,000 (27177/s) drop=0 (0.0%) q=0
+[Source-3] t=19s target=100k/s gen=499,000 (25000/s) emit=490,010 (24101/s) drop=0 (0.0%) q=8989
+[Source-3] t=29s target=100k/s gen=749,000 (24998/s) emit=710,158 (22013/s) drop=0 (0.0%) q=38841
+[Source-3] t=38s target=100k/s gen=999,000 (27500/s) emit=919,830 (23064/s) drop=34,145 (3.4%) q=45024
+[Source-3] t=48s target=100k/s gen=1,249,000 (24998/s) emit=1,134,742 (21489/s) drop=68,428 (5.5%) q=45829
+[Source-3] t=58s target=100k/s gen=1,499,000 (25000/s) emit=1,349,658 (21492/s) drop=102,820 (6.9%) q=46521
+[Source-3] t=67s target=100k/s gen=1,749,000 (27310/s) emit=1,564,569 (23477/s) drop=137,156 (7.8%) q=47274
+[Source-3] t=77s target=100k/s gen=1,999,000 (24990/s) emit=1,779,502 (21485/s) drop=172,241 (8.6%) q=47256
+[Source-3] t=87s target=100k/s gen=2,249,500 (25032/s) emit=1,999,639 (21998/s) drop=205,842 (9.2%) q=44018
+[Source-3] t=97s target=100k/s gen=2,499,500 (25000/s) emit=2,214,549 (21491/s) drop=235,177 (9.4%) q=49773
+[Source-3] t=107s target=100k/s gen=2,749,500 (27409/s) emit=2,432,502 (23896/s) drop=269,735 (9.8%) q=47262
+[Source-3] t=117s target=100k/s gen=2,999,500 (25000/s) emit=2,642,167 (20967/s) drop=308,812 (10.3%) q=48520
+[Source-3] t=127s target=100k/s gen=3,249,500 (25000/s) emit=2,862,328 (22016/s) drop=340,658 (10.5%) q=46513
+[Source-3] t=136s target=100k/s gen=3,499,500 (27612/s) emit=3,082,738 (24344/s) drop=372,238 (10.6%) q=44523
+[Source-3] t=146s target=100k/s gen=3,749,500 (24995/s) emit=3,297,653 (21487/s) drop=407,825 (10.9%) q=44021
+[Source-3] t=156s target=100k/s gen=3,999,500 (24998/s) emit=3,507,314 (20964/s) drop=442,187 (11.1%) q=49998
+[Source-3] t=165s target=100k/s gen=4,249,500 (27313/s) emit=3,727,506 (24057/s) drop=473,961 (11.2%) q=48032
+[Source-3] t=175s target=100k/s gen=4,499,500 (24998/s) emit=3,942,407 (21488/s) drop=511,810 (11.4%) q=45282
+[Source-3] t=185s target=100k/s gen=4,749,500 (25000/s) emit=4,157,312 (21491/s) drop=545,174 (11.5%) q=47013
+[Source-3] t=194s target=100k/s gen=4,999,500 (27958/s) emit=4,372,262 (24038/s) drop=577,973 (11.6%) q=49264
+[Source-3] t=204s target=100k/s gen=5,249,500 (24993/s) emit=4,587,177 (21485/s) drop=614,310 (11.7%) q=48012
+[Source-3] t=214s target=100k/s gen=5,499,500 (25000/s) emit=4,802,071 (21489/s) drop=649,165 (11.8%) q=48263
+[Source-3] t=224s target=100k/s gen=5,749,500 (24988/s) emit=5,018,314 (21613/s) drop=685,420 (11.9%) q=45765
+[Source-3] t=233s target=100k/s gen=5,999,500 (27594/s) emit=5,233,221 (23720/s) drop=716,281 (11.9%) q=49997
+[Source-3] t=243s target=100k/s gen=6,250,000 (25047/s) emit=5,442,879 (20964/s) drop=757,360 (12.1%) q=49760
+[Source-3] t=253s target=100k/s gen=6,500,000 (24998/s) emit=5,642,062 (19916/s) drop=811,644 (12.5%) q=46293
+[Source-3] t=262s target=100k/s gen=6,750,000 (27874/s) emit=5,851,727 (23377/s) drop=852,510 (12.6%) q=45762
+[Source-3] t=272s target=100k/s gen=7,000,000 (24988/s) emit=6,061,382 (20955/s) drop=889,856 (12.7%) q=48761
+[Source-3] t=282s target=100k/s gen=7,250,000 (24998/s) emit=6,281,567 (22016/s) drop=926,905 (12.8%) q=41527
+[Source-3] t=291s target=100k/s gen=7,500,000 (28284/s) emit=6,496,471 (24313/s) drop=959,501 (12.8%) q=44027
+[Source-3] t=301s target=100k/s gen=7,735,000 (23498/s) emit=6,695,649 (19916/s) drop=999,827 (12.9%) q=39523
+[Source-3] FINALIZADO en 303.0s: generated=7,735,000, emitted=6,735,173, dropped=999,827 (12.9%)
+[Source-2/4] NON-BLOCKING: dist=CONSTANT baseRate=100000 peakRate=100000 qCap=50000 maxAge=15000ms
+[Source-2] t=9s target=100k/s gen=247,500 (27531/s) emit=115,315 (12827/s) drop=82,184 (33.2%) q=50000
+[Source-2] t=19s target=100k/s gen=495,500 (24798/s) emit=172,964 (5764/s) drop=272,535 (55.0%) q=50000
+[Source-2] t=29s target=100k/s gen=745,500 (24998/s) emit=251,884 (7891/s) drop=443,615 (59.5%) q=50000
+[Source-2] t=39s target=100k/s gen=995,500 (24998/s) emit=335,738 (8385/s) drop=612,996 (61.6%) q=46765
+[Source-2] t=49s target=100k/s gen=1,245,500 (25000/s) emit=398,627 (6289/s) drop=796,872 (64.0%) q=50000
+[Source-2] FINALIZADO en 52.2s: generated=1,324,000, emitted=423,760, dropped=854,408 (64.5%)
+[Source-2/4] NON-BLOCKING: dist=CONSTANT baseRate=100000 peakRate=100000 qCap=50000 maxAge=15000ms
+[Source-2] t=59s target=100k/s gen=1,324,000 (7849/s) emit=423,760 (2513/s) drop=854,408 (64.5%) q=45832
+[Source-2] t=10s target=100k/s gen=249,500 (24950/s) emit=167,705 (16771/s) drop=32,031 (12.8%) q=49763
+[Source-2] t=18s target=100k/s gen=499,500 (30314/s) emit=277,763 (13345/s) drop=171,736 (34.4%) q=50000
+[Source-2] t=28s target=100k/s gen=749,500 (24998/s) emit=382,722 (10495/s) drop=320,010 (42.7%) q=46767
+[Source-2/4] NON-BLOCKING: dist=CONSTANT baseRate=100000 peakRate=100000 qCap=50000 maxAge=15000ms
+[Source-2] t=38s target=100k/s gen=942,500 (19300/s) emit=471,820 (8910/s) drop=420,679 (44.6%) q=50000
+[Source-2] t=9s target=100k/s gen=250,000 (28207/s) emit=235,841 (26610/s) drop=0 (0.0%) q=14158
+[Source-2] t=19s target=100k/s gen=500,000 (25000/s) emit=393,154 (15731/s) drop=56,845 (11.4%) q=50000
+[Source-2] t=29s target=100k/s gen=748,500 (24850/s) emit=550,387 (15723/s) drop=148,112 (19.8%) q=50000
+[Source-2] t=39s target=100k/s gen=998,000 (24948/s) emit=718,097 (16769/s) drop=230,141 (23.1%) q=49761
+[Source-2/4] NON-BLOCKING: dist=CONSTANT baseRate=100000 peakRate=100000 qCap=50000 maxAge=15000ms
+[Source-2] t=49s target=100k/s gen=1,041,500 (4350/s) emit=744,310 (2621/s) drop=250,434 (24.0%) q=46755
+[Source-2] t=10s target=100k/s gen=250,500 (25050/s) emit=250,500 (25050/s) drop=0 (0.0%) q=0
+[Source-2] t=20s target=100k/s gen=500,500 (24998/s) emit=500,500 (24998/s) drop=0 (0.0%) q=0
+[Source-2] t=30s target=100k/s gen=750,500 (25000/s) emit=728,509 (22801/s) drop=0 (0.0%) q=21990
+[Source-2/4] NON-BLOCKING: dist=CONSTANT baseRate=100000 peakRate=100000 qCap=50000 maxAge=15000ms
+[Source-2] t=39s target=100k/s gen=962,500 (23036/s) emit=911,973 (19935/s) drop=4,008 (0.4%) q=46518
+[Source-2] t=10s target=100k/s gen=241,000 (24098/s) emit=94,337 (9433/s) drop=96,662 (40.1%) q=50000
+[Source-2] t=20s target=100k/s gen=488,000 (24700/s) emit=94,337 (0/s) drop=343,662 (70.4%) q=50000
+[Source-2] t=29s target=100k/s gen=738,000 (27337/s) emit=340,342 (26900/s) drop=397,658 (53.9%) q=0
+[Source-2/4] NON-BLOCKING: dist=CONSTANT baseRate=100000 peakRate=100000 qCap=50000 maxAge=15000ms
+[Source-2] t=39s target=100k/s gen=835,500 (9747/s) emit=437,842 (9747/s) drop=397,658 (47.6%) q=0
+[Source-2] t=10s target=100k/s gen=250,500 (25050/s) emit=250,500 (25050/s) drop=0 (0.0%) q=0
+[Source-2] t=20s target=100k/s gen=500,500 (24998/s) emit=497,319 (24679/s) drop=0 (0.0%) q=3180
+[Source-2] t=29s target=100k/s gen=750,500 (27563/s) emit=722,706 (24850/s) drop=0 (0.0%) q=27793
+[Source-2/4] NON-BLOCKING: dist=CONSTANT baseRate=100000 peakRate=100000 qCap=50000 maxAge=15000ms
+[Source-2] t=39s target=100k/s gen=929,500 (17900/s) emit=874,719 (15201/s) drop=6,520 (0.7%) q=48260
+[Source-2] t=10s target=100k/s gen=250,500 (25050/s) emit=230,598 (23060/s) drop=0 (0.0%) q=19901
+[Source-2] t=19s target=100k/s gen=500,500 (27266/s) emit=398,325 (18293/s) drop=54,412 (10.9%) q=47762
+[Source-2] t=29s target=100k/s gen=750,500 (25000/s) emit=555,629 (15730/s) drop=144,870 (19.3%) q=50000
+[Source-2/4] NON-BLOCKING: dist=CONSTANT baseRate=100000 peakRate=100000 qCap=50000 maxAge=15000ms
+[Source-2] t=39s target=100k/s gen=931,000 (18050/s) emit=681,425 (12580/s) drop=199,574 (21.4%) q=50000
+[Source-2] t=10s target=100k/s gen=250,000 (25000/s) emit=172,981 (17298/s) drop=32,252 (12.9%) q=44766
+[Source-2] t=19s target=100k/s gen=500,000 (27388/s) emit=288,284 (12632/s) drop=166,448 (33.3%) q=45267
+[Source-2] t=29s target=100k/s gen=750,000 (24998/s) emit=398,343 (11005/s) drop=301,656 (40.2%) q=50000
+[Source-2/4] NON-BLOCKING: dist=CONSTANT baseRate=100000 peakRate=100000 qCap=50000 maxAge=15000ms
+[Source-2] t=39s target=100k/s gen=926,500 (17650/s) emit=471,788 (7345/s) drop=404,712 (43.7%) q=49999
+[Source-2] t=9s target=100k/s gen=250,500 (27567/s) emit=234,249 (25778/s) drop=0 (0.0%) q=16250
+[Source-2] t=19s target=100k/s gen=500,500 (25000/s) emit=401,964 (16772/s) drop=50,769 (10.1%) q=47766
+[Source-2] t=29s target=100k/s gen=750,500 (25000/s) emit=569,678 (16771/s) drop=133,057 (17.7%) q=47764
+[Source-2/4] NON-BLOCKING: dist=CONSTANT baseRate=100000 peakRate=100000 qCap=50000 maxAge=15000ms
+[Source-2] t=39s target=100k/s gen=932,000 (18148/s) emit=674,587 (10490/s) drop=207,412 (22.3%) q=50000
+[Source-2] t=9s target=100k/s gen=250,001 (27287/s) emit=250,000 (27287/s) drop=0 (0.0%) q=1
+[Source-2] t=19s target=100k/s gen=500,500 (25050/s) emit=492,019 (24202/s) drop=0 (0.0%) q=8480
+[Source-2] t=29s target=100k/s gen=750,500 (25000/s) emit=706,928 (21491/s) drop=0 (0.0%) q=43571
+[Source-2] t=38s target=100k/s gen=1,000,500 (27497/s) emit=921,851 (23639/s) drop=31,116 (3.1%) q=47532
+[Source-2] t=48s target=100k/s gen=1,250,500 (24998/s) emit=1,136,876 (21500/s) drop=67,296 (5.4%) q=46327
+[Source-2] t=58s target=100k/s gen=1,500,500 (25000/s) emit=1,351,800 (21492/s) drop=103,179 (6.9%) q=45520
+[Source-2] t=67s target=100k/s gen=1,750,500 (27310/s) emit=1,566,704 (23477/s) drop=136,535 (7.8%) q=47260
+[Source-2] t=77s target=100k/s gen=2,000,500 (24998/s) emit=1,781,622 (21490/s) drop=172,111 (8.6%) q=46766
+[Source-2] t=87s target=100k/s gen=2,250,500 (25000/s) emit=1,996,538 (21492/s) drop=207,708 (9.2%) q=46253
+[Source-2] t=97s target=100k/s gen=2,500,500 (24998/s) emit=2,211,451 (21489/s) drop=240,276 (9.6%) q=48772
+[Source-2] t=107s target=100k/s gen=2,750,500 (27424/s) emit=2,431,599 (24150/s) drop=273,139 (9.9%) q=45761
+[Source-2] t=117s target=100k/s gen=3,000,000 (24950/s) emit=2,641,267 (20967/s) drop=311,711 (10.4%) q=47021
+[Source-2] t=127s target=100k/s gen=3,250,000 (24998/s) emit=2,861,425 (22014/s) drop=343,551 (10.6%) q=45023
+[Source-2] t=136s target=100k/s gen=3,500,000 (27612/s) emit=3,076,415 (23745/s) drop=380,070 (10.9%) q=43514
+[Source-2] t=146s target=100k/s gen=3,750,000 (24998/s) emit=3,291,330 (21489/s) drop=410,919 (11.0%) q=47750
+[Source-2] t=156s target=100k/s gen=4,000,000 (25000/s) emit=3,506,238 (21491/s) drop=443,761 (11.1%) q=50000
+[Source-2] t=165s target=100k/s gen=4,250,000 (27310/s) emit=3,731,046 (24558/s) drop=475,662 (11.2%) q=43291
+[Source-2] t=175s target=100k/s gen=4,500,000 (24995/s) emit=3,935,460 (20437/s) drop=516,519 (11.5%) q=48020
+[Source-2] t=185s target=100k/s gen=4,750,000 (25000/s) emit=4,155,609 (22015/s) drop=550,366 (11.6%) q=44024
+[Source-2] t=194s target=100k/s gen=5,000,000 (27958/s) emit=4,377,996 (24870/s) drop=577,725 (11.6%) q=44278
+[Source-2] t=204s target=100k/s gen=5,250,000 (24998/s) emit=4,598,148 (22013/s) drop=610,073 (11.6%) q=41778
+[Source-2] t=214s target=100k/s gen=5,500,000 (24998/s) emit=4,807,811 (20964/s) drop=645,921 (11.7%) q=46267
+[Source-2] t=224s target=100k/s gen=5,750,500 (25047/s) emit=5,022,761 (21493/s) drop=683,951 (11.9%) q=43787
+[Source-2] t=233s target=100k/s gen=6,000,500 (27594/s) emit=5,237,682 (23722/s) drop=717,060 (12.0%) q=45757
+[Source-2] t=243s target=100k/s gen=6,250,500 (25000/s) emit=5,442,103 (20442/s) drop=758,396 (12.1%) q=50000
+[Source-2] t=253s target=100k/s gen=6,500,500 (24998/s) emit=5,641,538 (19942/s) drop=812,927 (12.5%) q=46034
+[Source-2] t=262s target=100k/s gen=6,750,500 (27864/s) emit=5,851,204 (23369/s) drop=849,296 (12.6%) q=49999
+[Source-2] t=272s target=100k/s gen=7,000,500 (24998/s) emit=6,060,866 (20964/s) drop=891,872 (12.7%) q=47761
+[Source-2] t=282s target=100k/s gen=7,250,500 (25000/s) emit=6,275,783 (21492/s) drop=927,954 (12.8%) q=46762
+[Source-2] t=291s target=100k/s gen=7,500,500 (28281/s) emit=6,495,931 (24904/s) drop=958,777 (12.8%) q=45791
+[Source-2] t=301s target=100k/s gen=7,736,500 (23600/s) emit=6,695,110 (19918/s) drop=1,001,866 (12.9%) q=39523
+[Source-2] FINALIZADO en 303.0s: generated=7,736,500, emitted=6,734,634, dropped=1,001,866 (12.9%)
+[Source-4/4] NON-BLOCKING: dist=CONSTANT baseRate=100000 peakRate=100000 qCap=50000 maxAge=15000ms
+[Source-4] t=10s target=100k/s gen=246,500 (24650/s) emit=83,848 (8385/s) drop=116,884 (47.4%) q=45767
+[Source-4] t=20s target=100k/s gen=496,500 (24998/s) emit=162,465 (7861/s) drop=287,768 (58.0%) q=46266
+[Source-4] t=30s target=100k/s gen=746,500 (24998/s) emit=220,802 (5833/s) drop=475,697 (63.7%) q=50000
+[Source-4] t=40s target=100k/s gen=996,500 (24998/s) emit=304,658 (8385/s) drop=641,841 (64.4%) q=50000
+[Source-4] t=50s target=100k/s gen=1,246,500 (24998/s) emit=372,781 (6812/s) drop=827,453 (66.4%) q=46265
+[Source-4/4] NON-BLOCKING: dist=CONSTANT baseRate=100000 peakRate=100000 qCap=50000 maxAge=15000ms
+[Source-4] t=60s target=100k/s gen=1,282,000 (3550/s) emit=383,265 (1048/s) drop=848,735 (66.2%) q=49999
+[Source-4] t=10s target=100k/s gen=248,500 (24850/s) emit=167,706 (16771/s) drop=32,529 (13.1%) q=48264
+[Source-4] t=18s target=100k/s gen=498,500 (30314/s) emit=277,772 (13346/s) drop=170,964 (34.3%) q=49763
+[Source-4] t=28s target=100k/s gen=748,500 (24995/s) emit=382,621 (10483/s) drop=318,615 (42.6%) q=47263
+[Source-4/4] NON-BLOCKING: dist=CONSTANT baseRate=100000 peakRate=100000 qCap=50000 maxAge=15000ms
+[Source-4] t=38s target=100k/s gen=944,000 (19548/s) emit=471,717 (8909/s) drop=422,519 (44.8%) q=49763
+[Source-4] t=9s target=100k/s gen=250,500 (28267/s) emit=230,607 (26022/s) drop=0 (0.0%) q=19892
+[Source-4] t=19s target=100k/s gen=500,500 (25000/s) emit=393,129 (16252/s) drop=60,345 (12.1%) q=47025
+[Source-4] t=29s target=100k/s gen=750,500 (24998/s) emit=545,133 (15199/s) drop=155,366 (20.7%) q=50000
+[Source-4] t=39s target=100k/s gen=1,000,500 (25000/s) emit=712,842 (16771/s) drop=240,393 (24.0%) q=47264
+[Source-4/4] NON-BLOCKING: dist=CONSTANT baseRate=100000 peakRate=100000 qCap=50000 maxAge=15000ms
+[Source-4] t=49s target=100k/s gen=1,035,000 (3450/s) emit=733,802 (2096/s) drop=254,933 (24.6%) q=46264
+[Source-4] t=10s target=100k/s gen=250,000 (24998/s) emit=250,000 (24998/s) drop=0 (0.0%) q=0
+[Source-4] t=20s target=100k/s gen=500,000 (25000/s) emit=497,868 (24787/s) drop=0 (0.0%) q=2131
+[Source-4] t=30s target=100k/s gen=747,363 (24734/s) emit=728,493 (23060/s) drop=0 (0.0%) q=19006
+[Source-4/4] NON-BLOCKING: dist=CONSTANT baseRate=100000 peakRate=100000 qCap=50000 maxAge=15000ms
+[Source-4] t=39s target=100k/s gen=957,500 (22836/s) emit=911,959 (19938/s) drop=0 (0.0%) q=45540
+[Source-4] t=10s target=100k/s gen=246,500 (24650/s) emit=89,092 (8909/s) drop=107,407 (43.6%) q=50000
+[Source-4] t=20s target=100k/s gen=413,500 (16698/s) emit=89,092 (0/s) drop=274,407 (66.4%) q=50000
+[Source-4] t=29s target=100k/s gen=658,000 (26455/s) emit=337,596 (26889/s) drop=320,404 (48.7%) q=0
+[Source-4/4] NON-BLOCKING: dist=CONSTANT baseRate=100000 peakRate=100000 qCap=50000 maxAge=15000ms
+[Source-4] t=39s target=100k/s gen=750,000 (9196/s) emit=429,596 (9196/s) drop=320,404 (42.7%) q=0
+[Source-4] t=10s target=100k/s gen=250,000 (24993/s) emit=250,000 (24993/s) drop=0 (0.0%) q=0
+[Source-4] t=20s target=100k/s gen=500,000 (25000/s) emit=500,000 (25000/s) drop=0 (0.0%) q=0
+[Source-4] t=29s target=100k/s gen=750,000 (27563/s) emit=722,705 (24554/s) drop=0 (0.0%) q=27294
+[Source-4/4] NON-BLOCKING: dist=CONSTANT baseRate=100000 peakRate=100000 qCap=50000 maxAge=15000ms
+[Source-4] t=39s target=100k/s gen=929,500 (17950/s) emit=879,960 (15726/s) drop=6,013 (0.6%) q=43526
+[Source-4] t=10s target=100k/s gen=250,000 (25000/s) emit=235,836 (23584/s) drop=0 (0.0%) q=14163
+[Source-4] t=19s target=100k/s gen=500,000 (27266/s) emit=403,552 (18292/s) drop=50,688 (10.1%) q=45759
+[Source-4] t=29s target=100k/s gen=750,000 (25000/s) emit=560,845 (15729/s) drop=142,888 (19.1%) q=46266
+[Source-4/4] NON-BLOCKING: dist=CONSTANT baseRate=100000 peakRate=100000 qCap=50000 maxAge=15000ms
+[Source-4] t=39s target=100k/s gen=931,500 (18148/s) emit=681,399 (12054/s) drop=200,100 (21.5%) q=50000
+[Source-4] t=10s target=100k/s gen=250,500 (25050/s) emit=173,010 (17301/s) drop=28,226 (11.3%) q=49263
+[Source-4] t=19s target=100k/s gen=500,500 (27388/s) emit=288,315 (12632/s) drop=162,184 (32.4%) q=50000
+[Source-4] t=29s target=100k/s gen=750,500 (25000/s) emit=398,373 (11006/s) drop=302,126 (40.3%) q=50000
+[Source-4/4] NON-BLOCKING: dist=CONSTANT baseRate=100000 peakRate=100000 qCap=50000 maxAge=15000ms
+[Source-4] t=39s target=100k/s gen=926,000 (17548/s) emit=476,990 (7861/s) drop=399,009 (43.1%) q=50000
+[Source-4] t=9s target=100k/s gen=250,000 (27515/s) emit=233,748 (25726/s) drop=0 (0.0%) q=16251
+[Source-4] t=19s target=100k/s gen=500,000 (24998/s) emit=401,466 (16770/s) drop=50,269 (10.1%) q=48264
+[Source-4] t=29s target=100k/s gen=750,000 (25000/s) emit=569,180 (16771/s) drop=132,296 (17.6%) q=48523
+[Source-4/4] NON-BLOCKING: dist=CONSTANT baseRate=100000 peakRate=100000 qCap=50000 maxAge=15000ms
+[Source-4] t=39s target=100k/s gen=932,500 (18250/s) emit=679,274 (11009/s) drop=203,227 (21.8%) q=49998
+[Source-4] t=9s target=100k/s gen=250,000 (27290/s) emit=250,000 (27290/s) drop=0 (0.0%) q=0
+[Source-4] t=19s target=100k/s gen=500,000 (25000/s) emit=496,753 (24675/s) drop=0 (0.0%) q=3246
+[Source-4] t=29s target=100k/s gen=750,000 (24998/s) emit=711,665 (21489/s) drop=0 (0.0%) q=38334
+[Source-4] t=38s target=100k/s gen=1,000,500 (27552/s) emit=926,585 (23638/s) drop=29,396 (2.9%) q=44518
+[Source-4] t=48s target=100k/s gen=1,250,500 (25000/s) emit=1,137,771 (21119/s) drop=64,215 (5.1%) q=48513
+[Source-4] t=58s target=100k/s gen=1,500,500 (24998/s) emit=1,357,925 (22013/s) drop=96,558 (6.4%) q=46016
+[Source-4] t=67s target=100k/s gen=1,750,500 (27313/s) emit=1,572,830 (23479/s) drop=132,623 (7.6%) q=45046
+[Source-4] t=77s target=100k/s gen=2,000,500 (24998/s) emit=1,783,011 (21016/s) drop=169,727 (8.5%) q=47761
+[Source-4] t=87s target=100k/s gen=2,250,500 (24988/s) emit=2,003,153 (22003/s) drop=200,584 (8.9%) q=46762
+[Source-4] t=97s target=100k/s gen=2,500,500 (25000/s) emit=2,218,067 (21491/s) drop=232,432 (9.3%) q=50000
+[Source-4] t=107s target=100k/s gen=2,750,500 (27424/s) emit=2,432,988 (23576/s) drop=268,927 (9.8%) q=48584
+[Source-4] t=117s target=100k/s gen=3,000,500 (24998/s) emit=2,647,888 (21488/s) drop=306,827 (10.2%) q=45784
+[Source-4] t=127s target=100k/s gen=3,250,500 (24998/s) emit=2,862,804 (21489/s) drop=338,167 (10.4%) q=49528
+[Source-4] t=136s target=100k/s gen=3,500,500 (27615/s) emit=3,082,951 (24318/s) drop=374,527 (10.7%) q=43021
+[Source-4] t=146s target=100k/s gen=3,750,500 (24998/s) emit=3,303,110 (22014/s) drop=405,078 (10.8%) q=42311
+[Source-4] t=156s target=100k/s gen=4,000,500 (25000/s) emit=3,512,776 (20967/s) drop=440,438 (11.0%) q=47285
+[Source-4] t=165s target=100k/s gen=4,250,500 (27310/s) emit=3,732,931 (24050/s) drop=473,052 (11.1%) q=44516
+[Source-4] t=175s target=100k/s gen=4,500,500 (25000/s) emit=3,942,599 (20967/s) drop=509,388 (11.3%) q=48512
+[Source-4] t=185s target=100k/s gen=4,750,500 (24998/s) emit=4,162,751 (22013/s) drop=543,228 (11.4%) q=44520
+[Source-4] t=194s target=100k/s gen=5,000,500 (27955/s) emit=4,377,694 (24035/s) drop=574,281 (11.5%) q=48524
+[Source-4] t=204s target=100k/s gen=5,250,500 (25000/s) emit=4,592,618 (21492/s) drop=610,361 (11.6%) q=47520
+[Source-4] t=214s target=100k/s gen=5,501,000 (25032/s) emit=4,807,511 (21474/s) drop=645,725 (11.7%) q=47763
+[Source-4] t=224s target=100k/s gen=5,751,000 (24998/s) emit=5,027,206 (21967/s) drop=676,532 (11.8%) q=47261
+[Source-4] t=233s target=100k/s gen=6,001,000 (27594/s) emit=5,242,105 (23720/s) drop=712,629 (11.9%) q=46265
+[Source-4] t=243s target=100k/s gen=6,251,000 (25000/s) emit=5,457,009 (21490/s) drop=748,192 (12.0%) q=45798
+[Source-4] t=253s target=100k/s gen=6,501,000 (24995/s) emit=5,650,952 (19390/s) drop=804,282 (12.4%) q=45765
+[Source-4] t=262s target=100k/s gen=6,751,000 (27871/s) emit=5,860,618 (23374/s) drop=840,618 (12.5%) q=49763
+[Source-4] t=272s target=100k/s gen=7,001,000 (25000/s) emit=6,070,283 (20967/s) drop=882,454 (12.6%) q=48262
+[Source-4] t=282s target=100k/s gen=7,251,000 (24998/s) emit=6,287,310 (21701/s) drop=915,935 (12.6%) q=47754
+[Source-4] t=291s target=100k/s gen=7,501,000 (28284/s) emit=6,507,457 (24906/s) drop=947,251 (12.6%) q=46291
+[Source-4] t=301s target=100k/s gen=7,736,500 (23548/s) emit=6,706,642 (19917/s) drop=990,340 (12.8%) q=39517
+[Source-4] FINALIZADO en 303.0s: generated=7,736,500, emitted=6,746,160, dropped=990,340 (12.8%)
+[Source-1/4] NON-BLOCKING: dist=CONSTANT baseRate=100000 peakRate=100000 qCap=50000 maxAge=15000ms
+[Source-1] t=9s target=100k/s gen=247,500 (27531/s) emit=104,824 (11660/s) drop=96,416 (39.0%) q=46259
+[Source-1] t=19s target=100k/s gen=497,500 (24995/s) emit=162,477 (5764/s) drop=285,022 (57.3%) q=50000
+[Source-1] t=29s target=100k/s gen=747,500 (25000/s) emit=243,635 (8116/s) drop=453,864 (60.7%) q=50000
+[Source-1] t=39s target=100k/s gen=997,500 (24998/s) emit=322,247 (7860/s) drop=625,252 (62.7%) q=50000
+[Source-1] t=49s target=100k/s gen=1,247,500 (24998/s) emit=390,379 (6813/s) drop=807,120 (64.7%) q=50000
+[Source-1/4] NON-BLOCKING: dist=CONSTANT baseRate=100000 peakRate=100000 qCap=50000 maxAge=15000ms
+[Source-1] t=59s target=100k/s gen=1,319,000 (7150/s) emit=411,339 (2096/s) drop=857,660 (65.0%) q=50000
+[Source-1] t=10s target=100k/s gen=250,500 (25050/s) emit=172,948 (17295/s) drop=27,551 (11.0%) q=50000
+[Source-1] t=18s target=100k/s gen=500,500 (30314/s) emit=283,015 (13346/s) drop=167,486 (33.5%) q=49998
+[Source-1] t=28s target=100k/s gen=750,500 (25000/s) emit=387,910 (10490/s) drop=312,589 (41.7%) q=50000
+[Source-1/4] NON-BLOCKING: dist=CONSTANT baseRate=100000 peakRate=100000 qCap=50000 maxAge=15000ms
+[Source-1] t=38s target=100k/s gen=943,000 (19248/s) emit=477,004 (8909/s) drop=417,730 (44.3%) q=48265
+[Source-1] t=9s target=100k/s gen=250,500 (28267/s) emit=235,843 (26613/s) drop=0 (0.0%) q=14656
+[Source-1] t=19s target=100k/s gen=500,500 (24998/s) emit=398,360 (16250/s) drop=55,873 (11.2%) q=46266
+[Source-1] t=29s target=100k/s gen=750,000 (24950/s) emit=550,365 (15201/s) drop=151,373 (20.2%) q=48261
+[Source-1] t=39s target=100k/s gen=1,000,000 (24998/s) emit=718,081 (16770/s) drop=231,918 (23.2%) q=50000
+[Source-1/4] NON-BLOCKING: dist=CONSTANT baseRate=100000 peakRate=100000 qCap=50000 maxAge=15000ms
+[Source-1] t=49s target=100k/s gen=1,036,000 (3600/s) emit=739,051 (2097/s) drop=248,194 (24.0%) q=48754
+[Source-1] t=10s target=100k/s gen=250,000 (25000/s) emit=250,000 (25000/s) drop=0 (0.0%) q=1
+[Source-1] t=20s target=100k/s gen=500,000 (25000/s) emit=497,887 (24789/s) drop=0 (0.0%) q=2112
+[Source-1] t=30s target=100k/s gen=750,000 (24998/s) emit=723,938 (22603/s) drop=0 (0.0%) q=26061
+[Source-1/4] NON-BLOCKING: dist=CONSTANT baseRate=100000 peakRate=100000 qCap=50000 maxAge=15000ms
+[Source-1] t=39s target=100k/s gen=963,500 (23204/s) emit=907,395 (19939/s) drop=9,580 (1.0%) q=46524
+[Source-1] t=10s target=100k/s gen=245,500 (24550/s) emit=94,330 (9433/s) drop=101,169 (41.2%) q=50000
+[Source-1] t=20s target=100k/s gen=435,439 (18922/s) emit=94,330 (0/s) drop=291,109 (66.9%) q=50000
+[Source-1] t=29s target=100k/s gen=685,500 (27341/s) emit=341,832 (27061/s) drop=343,668 (50.1%) q=0
+[Source-1/4] NON-BLOCKING: dist=CONSTANT baseRate=100000 peakRate=100000 qCap=50000 maxAge=15000ms
+[Source-1] t=39s target=100k/s gen=780,000 (9449/s) emit=436,332 (9449/s) drop=343,668 (44.1%) q=0
+[Source-1] t=10s target=100k/s gen=250,000 (25000/s) emit=250,000 (25000/s) drop=0 (0.0%) q=0
+[Source-1] t=20s target=100k/s gen=500,000 (24998/s) emit=497,316 (24729/s) drop=0 (0.0%) q=2683
+[Source-1] t=29s target=100k/s gen=750,000 (27563/s) emit=722,716 (24851/s) drop=0 (0.0%) q=27283
+[Source-1/4] NON-BLOCKING: dist=CONSTANT baseRate=100000 peakRate=100000 qCap=50000 maxAge=15000ms
+[Source-1] t=39s target=100k/s gen=929,500 (17950/s) emit=874,725 (15201/s) drop=8,013 (0.9%) q=46761
+[Source-1] t=10s target=100k/s gen=250,000 (25000/s) emit=230,599 (23060/s) drop=0 (0.0%) q=19400
+[Source-1] t=19s target=100k/s gen=500,000 (27269/s) emit=398,327 (18295/s) drop=52,912 (10.6%) q=48760
+[Source-1] t=29s target=100k/s gen=750,000 (24998/s) emit=560,840 (16250/s) drop=141,894 (18.9%) q=47265
+[Source-1/4] NON-BLOCKING: dist=CONSTANT baseRate=100000 peakRate=100000 qCap=50000 maxAge=15000ms
+[Source-1] t=39s target=100k/s gen=930,000 (18000/s) emit=681,400 (12056/s) drop=198,599 (21.4%) q=50000
+[Source-1] t=10s target=100k/s gen=250,500 (25050/s) emit=173,160 (17316/s) drop=32,072 (12.8%) q=45267
+[Source-1] t=19s target=100k/s gen=500,500 (27388/s) emit=288,466 (12632/s) drop=163,269 (32.6%) q=48764
+[Source-1] t=29s target=100k/s gen=750,500 (25000/s) emit=393,286 (10482/s) drop=307,213 (40.9%) q=50000
+[Source-1] FINALIZADO en 36.2s: generated=925,500, emitted=471,718, dropped=408,813 (44.2%)
+[Source-1/4] NON-BLOCKING: dist=CONSTANT baseRate=100000 peakRate=100000 qCap=50000 maxAge=15000ms
+[Source-1] t=39s target=100k/s gen=925,500 (17500/s) emit=471,718 (7843/s) drop=408,813 (44.2%) q=44969
+[Source-1] t=9s target=100k/s gen=250,500 (27567/s) emit=233,247 (25668/s) drop=0 (0.0%) q=17252
+[Source-1] t=19s target=100k/s gen=500,500 (25000/s) emit=395,731 (16248/s) drop=54,768 (10.9%) q=50000
+[Source-1] t=29s target=100k/s gen=750,500 (25000/s) emit=568,684 (17295/s) drop=135,289 (18.0%) q=46526
+[Source-1/4] NON-BLOCKING: dist=CONSTANT baseRate=100000 peakRate=100000 qCap=50000 maxAge=15000ms
+[Source-1] t=39s target=100k/s gen=931,500 (18098/s) emit=678,755 (11006/s) drop=206,479 (22.2%) q=46265
+[Source-1] t=9s target=100k/s gen=250,500 (27344/s) emit=250,500 (27344/s) drop=0 (0.0%) q=0
+[Source-1] t=19s target=100k/s gen=500,500 (25000/s) emit=495,753 (24525/s) drop=0 (0.0%) q=4746
+[Source-1] t=29s target=100k/s gen=750,500 (24998/s) emit=710,678 (21490/s) drop=0 (0.0%) q=39821
+[Source-1] t=38s target=100k/s gen=1,000,500 (27497/s) emit=925,594 (23638/s) drop=29,117 (2.9%) q=45788
+[Source-1] t=48s target=100k/s gen=1,250,500 (25000/s) emit=1,140,512 (21492/s) drop=65,208 (5.2%) q=44779
+[Source-1] t=58s target=100k/s gen=1,500,500 (25000/s) emit=1,355,428 (21492/s) drop=99,548 (6.6%) q=45523
+[Source-1] t=67s target=100k/s gen=1,750,500 (27310/s) emit=1,568,677 (23296/s) drop=135,396 (7.7%) q=46384
+[Source-1] t=77s target=100k/s gen=2,000,500 (25000/s) emit=1,785,316 (21664/s) drop=169,168 (8.5%) q=46015
+[Source-1] t=87s target=100k/s gen=2,250,500 (24960/s) emit=2,000,221 (21456/s) drop=202,015 (9.0%) q=48263
+[Source-1] t=97s target=100k/s gen=2,500,500 (25000/s) emit=2,220,381 (22016/s) drop=232,859 (9.3%) q=47259
+[Source-1] t=107s target=100k/s gen=2,750,500 (27427/s) emit=2,437,042 (23770/s) drop=268,128 (9.7%) q=45329
+[Source-1] t=117s target=100k/s gen=3,001,000 (25030/s) emit=2,646,712 (20950/s) drop=306,509 (10.2%) q=47778
+[Source-1] t=127s target=100k/s gen=3,251,000 (25000/s) emit=2,861,631 (21492/s) drop=341,359 (10.5%) q=48009
+[Source-1] t=136s target=100k/s gen=3,501,000 (27612/s) emit=3,081,834 (24321/s) drop=369,642 (10.6%) q=49523
+[Source-1] t=146s target=100k/s gen=3,751,000 (25000/s) emit=3,296,738 (21490/s) drop=409,242 (10.9%) q=45019
+[Source-1] t=156s target=100k/s gen=4,001,000 (24998/s) emit=3,511,652 (21489/s) drop=440,075 (11.0%) q=49272
+[Source-1] t=165s target=100k/s gen=4,251,000 (27313/s) emit=3,731,869 (24060/s) drop=473,833 (11.1%) q=45297
+[Source-1] t=175s target=100k/s gen=4,501,000 (24998/s) emit=3,941,534 (20964/s) drop=514,182 (11.4%) q=45283
+[Source-1] t=185s target=100k/s gen=4,751,000 (25000/s) emit=4,156,444 (21491/s) drop=548,538 (11.5%) q=46017
+[Source-1] t=194s target=100k/s gen=5,001,000 (27958/s) emit=4,371,394 (24038/s) drop=579,605 (11.6%) q=50000
+[Source-1] t=204s target=100k/s gen=5,251,000 (24995/s) emit=4,591,535 (22010/s) drop=615,679 (11.7%) q=43785
+[Source-1] t=214s target=100k/s gen=5,501,000 (24998/s) emit=4,801,202 (20965/s) drop=650,035 (11.8%) q=49762
+[Source-1] t=224s target=100k/s gen=5,751,000 (25000/s) emit=5,016,861 (21566/s) drop=685,377 (11.9%) q=48761
+[Source-1] t=233s target=100k/s gen=6,001,000 (27594/s) emit=5,231,773 (23721/s) drop=719,226 (12.0%) q=50000
+[Source-1] t=243s target=100k/s gen=6,251,000 (24998/s) emit=5,446,664 (21487/s) drop=758,569 (12.1%) q=45766
+[Source-1] t=253s target=100k/s gen=6,501,000 (24988/s) emit=5,640,608 (19385/s) drop=811,355 (12.5%) q=49036
+[Source-1] t=262s target=100k/s gen=6,751,000 (27868/s) emit=5,855,521 (23956/s) drop=849,463 (12.6%) q=46015
+[Source-1] t=272s target=100k/s gen=7,001,000 (25000/s) emit=6,065,175 (20965/s) drop=891,299 (12.7%) q=44525
+[Source-1] t=282s target=100k/s gen=7,251,000 (25000/s) emit=6,281,688 (21651/s) drop=925,789 (12.8%) q=43522
+[Source-1] t=291s target=100k/s gen=7,501,000 (28281/s) emit=6,496,593 (24311/s) drop=956,145 (12.7%) q=48261
+[Source-1] t=301s target=100k/s gen=7,736,000 (23500/s) emit=6,695,765 (19917/s) drop=996,700 (12.9%) q=43534
+[Source-1] FINALIZADO en 303.1s: generated=7,736,000, emitted=6,739,300, dropped=996,700 (12.9%)

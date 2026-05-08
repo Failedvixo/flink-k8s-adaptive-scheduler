@@ -1,0 +1,3 @@
+strategy,workload,distribution,rate,duration_sec,cpu_load,parallelism,state,throughput_processed,throughput_generated,throughput_emitted,processed_events,total_generated,total_dropped,drop_pct,nodes_used,total_tms,scheduling_decisions,strategy_switches,lat_proc_p50,lat_proc_p95,lat_proc_p99,lat_proc_avg,lat_total_p50,lat_total_p95,lat_total_p99,lat_total_avg,max_event_age,stale_dropped,stale_pct
+BANDIT,autoscaler-step,STEP,60000,646.18,2500,8,FINISHED,14564,20224,17313,9411271,13068675,1840692,14.08,3,5,5,0
+0,1262,5857,6825,1928.1,5540,19773,19831,7680.8,15000,0,0

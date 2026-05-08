@@ -1,0 +1,3 @@
+strategy,workload,distribution,rate,duration_sec,cpu_load,parallelism,state,throughput_processed,throughput_generated,throughput_emitted,processed_events,total_generated,total_dropped,drop_pct,nodes_used,total_tms,scheduling_decisions,strategy_switches,lat_proc_p50,lat_proc_p95,lat_proc_p99,lat_proc_avg,lat_total_p50,lat_total_p95,lat_total_p99,lat_total_avg,max_event_age,stale_dropped,stale_pct
+OFFLINE_BANDIT,autoscaler-const,CONSTANT,100000,651.36,2500,8,FINISHED,41850,46036,46036,27259945,29986500,0,0,2,5,5,0
+0,4679,6799,7312,4294.6,15067,26602,28390,16456.1,15000,231683,.46

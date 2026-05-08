@@ -1,0 +1,164 @@
+==========================================
+  MÉTRICAS COMPLETAS - ADAPTIVE
+==========================================
+Fecha: Thu May  7 19:51:51 -04 2026
+Job ID: 46660f13adbe390074dc2ea36290aa13
+Job Name: Nexmark-Config[rate=60k,par=8,win=TUM-10s,cpu=2500,dist=SINE,maxAge=15000ms,cpuPar=2]
+
+CONFIGURACIÓN:
+- Workload:                autoscaler-sine
+- Estrategia:              ADAPTIVE
+- Modo:                    ADAPTIVE
+- Eventos/seg (base):      60000
+- Distribución llegada:    SINE
+- Duración configurada:    300s
+- Paralelismo global:      8
+- Ventana:                 10s
+- CPU load por evento:     2500 iter
+- Max event age (SLA):     15000ms 
+- TaskManagers:            5
+- Nodos utilizados:        1
+- Imagen scheduler:        adaptive-scheduler:adaptive-1778197313
+
+------------------------------------------
+1. ESTADO DEL JOB
+------------------------------------------
+   Estado:        FINISHED
+   Duración:      476249 ms (476.24 s)
+   Inicio:        1778197429452
+   Fin:           1778197905701
+
+------------------------------------------
+2. THROUGHPUT
+------------------------------------------
+   TRABAJO ÚTIL PROCESADO (métrica principal):
+     Stage de medición: Latency Tracker (post CPU-load)
+     Eventos procesados: 16286271
+     Throughput:         34196 ev/s
+
+   THROUGHPUT POR ETAPA (records out / duration):
+     Source emitted:     37744 ev/s   (17975559 records)
+     Filter out:         34196 ev/s   (16286271 records)
+     CPU Load out:       34196 ev/s   (16286271 records)
+     Latency Tracker:    34196 ev/s   (16286271 records)
+     Transform out:      chained ev/s   (0 records)
+     Window out:         69 ev/s   (33000 records, aggregated)
+     Sink in:            69 ev/s   (33000 records)
+
+   Nota: "chained" indica que Flink fusionó el operador con otro vertex,
+   por lo que sus records están reflejados en el siguiente stage.
+
+------------------------------------------
+3. SOURCE STATS (desde logs del TaskManager)
+------------------------------------------
+   Total generado:    17975559
+   Total emitido:     17975559
+   Total descartado:  0 (cola llena)
+   Drop %:            0%
+
+   Throughput generado: 37744 ev/s
+   Throughput emitido:  37744 ev/s (entra al grafo)
+   Throughput procesado: 34196 ev/s (sale del CPU-load) ← MÉTRICA PRINCIPAL
+
+------------------------------------------
+3b. STALENESS STATS (desde logs del CPULoad)
+------------------------------------------
+   Eventos procesados (CPU-load): 23384115
+   Eventos descartados (stale):   224425
+   Stale %:                       .95%
+   Max event age configurado:     15000ms
+
+   Nota: "stale" son eventos que entraron al grafo pero cuya edad
+   (System.currentTimeMillis() - event.timestamp) excedía maxEventAge
+   al llegar al CPU-load stage. Fueron descartados sin gastar CPU.
+   Esto modela un SLA de latencia: si la estrategia de scheduling
+   causa congestión → más stale drops → menos throughput útil.
+
+------------------------------------------
+4. LATENCIA END-TO-END
+------------------------------------------
+   PROCESSING (event-time -> fin de CPU-load):
+     p50: 5383 ms
+     p95: 8526 ms
+     p99: 9379 ms
+     avg: 5316.7 ms
+
+   TOTAL (event-time -> sink, incluye delay del window):
+     p50: 13932 ms
+     p95: 25774 ms
+     p99: 27781 ms
+     avg: 15969.5 ms
+
+   Nota: la latencia TOTAL incluye necesariamente hasta 10s
+   adicionales por el delay del Tumbling Window.
+
+------------------------------------------
+5. MÉTRICAS POR OPERADOR
+   Source: Source: Bid Generator -> Watermark Assigner (par=4):
+     Records in:        0
+     Records out:       17975559
+     Backpressure time: 0ms
+     Idle time:         0ms
+   Filter: High Value Bids (par=8):
+     Records in:        17975559
+     Records out:       16286271
+     Backpressure time: 346ms
+     Idle time:         2360018ms
+   CPU Load Simulator (2500 iter/event, maxAge=15000ms) (par=10):
+     Records in:        16286271
+     Records out:       16286271
+     Backpressure time: 9525ms
+     Idle time:         1210506ms
+   Latency Tracker (processing) -> Transform: USD to EUR (par=8):
+     Records in:        16286271
+     Records out:       16286271
+     Backpressure time: 0ms
+     Idle time:         2319105ms
+   Window: Tumbling (par=8):
+     Records in:        16286271
+     Records out:       33000
+     Backpressure time: 0ms
+     Idle time:         2342184ms
+   Sink: Sink: Tracked Console (par=2):
+     Records in:        33000
+     Records out:       0
+     Backpressure time: 0ms
+     Idle time:         598450ms
+
+------------------------------------------
+6. DISTRIBUCIÓN DE PODS
+------------------------------------------
+    minikube: 5 TaskManagers
+
+------------------------------------------
+7. SCHEDULING
+------------------------------------------
+   Decisiones de scheduling: 5
+   Cambios de estrategia:    0
+0
+
+   Switches detectados:
+
+
+------------------------------------------
+8. RECURSOS DEL CLUSTER (final)
+------------------------------------------
+NAME           CPU(cores)   CPU(%)   MEMORY(bytes)   MEMORY(%)   
+minikube       6438m        53%      1942Mi          24%         
+minikube-m02   90m          0%       1142Mi          14%         
+minikube-m03   39m          0%       317Mi           4%          
+
+==========================================
+Archivos generados en results/autoscaler-sine/ADAPTIVE/:
+  - job-details.json         (raw JSON del job)
+  - taskmanager-placement.txt (pods por nodo)
+  - taskmanager-full.log     (logs completos del TM)
+  - source-stats.txt         (gen/emit/drop por subtask)
+  - cpuload-stats.txt        (processed/staleDropped por subtask)
+  - latency-processing.txt   (latencia post CPU-load)
+  - latency-total.txt        (latencia event-time -> sink)
+  - scheduler-logs.txt       (decisiones del scheduler)
+  - node-metrics.txt         (CPU/memoria por nodo)
+  - METRICS-SUMMARY.txt      (este archivo)
+  - metrics.csv              (fila lista para análisis comparativo)
+==========================================

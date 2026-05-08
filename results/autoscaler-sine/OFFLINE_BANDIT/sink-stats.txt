@@ -1,0 +1,136 @@
+[Sink-0] records=0 rate=0/s
+[Sink-0] records=0 rate=0/s
+[Sink-0] records=501 rate=50/s
+[Sink-0] records=1000 rate=50/s
+[Sink-0] records=1501 rate=50/s
+[Sink-0] FINAL records=2000 firstRecord=1778206990973 lastRecord=1778207021024
+[Sink-0] records=2000 rate=50/s
+[Sink-0] records=534 rate=53/s
+[Sink-0] records=534 rate=0/s
+[Sink-0] records=1033 rate=50/s
+[Sink-0] FINAL records=1534 firstRecord=1778207025491 lastRecord=1778207056809
+[Sink-0] records=1534 rate=50/s
+[Sink-0] records=754 rate=75/s
+[Sink-0] records=1252 rate=50/s
+[Sink-0] records=1252 rate=0/s
+[Sink-0] FINAL records=1754 firstRecord=1778207062030 lastRecord=1778207094331
+[Sink-0] records=1754 rate=50/s
+[Sink-0] records=1501 rate=150/s
+[Sink-0] records=2000 rate=50/s
+[Sink-0] records=2501 rate=50/s
+[Sink-0] FINAL records=3000 firstRecord=1778207098864 lastRecord=1778207135499
+[Sink-0] records=3000 rate=50/s
+[Sink-0] records=499 rate=50/s
+[Sink-0] records=1000 rate=50/s
+[Sink-0] records=2000 rate=100/s
+[Sink-0] records=2499 rate=50/s
+[Sink-0] records=3000 rate=50/s
+[Sink-0] records=3499 rate=50/s
+[Sink-0] records=4000 rate=50/s
+[Sink-0] records=4499 rate=50/s
+[Sink-0] FINAL records=4499 firstRecord=1778207140545 lastRecord=1778207215692
+[Sink-0] records=4499 rate=0/s
+[Sink-0] records=1000 rate=100/s
+[Sink-0] records=1000 rate=0/s
+[Sink-0] records=1500 rate=50/s
+[Sink-0] FINAL records=2000 firstRecord=1778207217312 lastRecord=1778207248141
+[Sink-0] records=2000 rate=50/s
+[Sink-0] records=500 rate=50/s
+[Sink-0] records=1000 rate=50/s
+[Sink-0] records=1500 rate=50/s
+[Sink-0] records=2000 rate=50/s
+[Sink-0] records=2500 rate=50/s
+[Sink-0] records=3000 rate=50/s
+[Sink-0] records=3500 rate=50/s
+[Sink-0] records=4000 rate=50/s
+[Sink-0] records=4500 rate=50/s
+[Sink-0] records=5000 rate=50/s
+[Sink-0] records=5500 rate=50/s
+[Sink-0] records=6000 rate=50/s
+[Sink-0] records=6500 rate=50/s
+[Sink-0] records=7000 rate=50/s
+[Sink-0] records=7500 rate=50/s
+[Sink-0] records=8000 rate=50/s
+[Sink-0] records=8500 rate=50/s
+[Sink-0] records=9000 rate=50/s
+[Sink-0] records=9500 rate=50/s
+[Sink-0] records=10000 rate=50/s
+[Sink-0] records=10500 rate=50/s
+[Sink-0] records=11000 rate=50/s
+[Sink-0] records=11500 rate=50/s
+[Sink-0] records=12000 rate=50/s
+[Sink-0] records=12500 rate=50/s
+[Sink-0] records=13000 rate=50/s
+[Sink-0] records=13500 rate=50/s
+[Sink-0] records=14000 rate=50/s
+[Sink-0] records=14500 rate=50/s
+[Sink-0] records=15601 rate=110/s
+[Sink-0] FINAL records=16000 firstRecord=1778207256069 lastRecord=1778207554430
+[Sink-1] records=0 rate=0/s
+[Sink-1] records=0 rate=0/s
+[Sink-1] records=499 rate=50/s
+[Sink-1] records=1000 rate=50/s
+[Sink-1] records=1499 rate=50/s
+[Sink-1] FINAL records=2000 firstRecord=1778206990974 lastRecord=1778207021025
+[Sink-1] records=2000 rate=50/s
+[Sink-1] records=531 rate=53/s
+[Sink-1] records=531 rate=0/s
+[Sink-1] records=1032 rate=50/s
+[Sink-1] FINAL records=1531 firstRecord=1778207025491 lastRecord=1778207056809
+[Sink-1] records=1531 rate=50/s
+[Sink-1] records=750 rate=75/s
+[Sink-1] records=1252 rate=50/s
+[Sink-1] records=1252 rate=0/s
+[Sink-1] FINAL records=1750 firstRecord=1778207062029 lastRecord=1778207094331
+[Sink-1] records=1750 rate=50/s
+[Sink-1] records=1499 rate=150/s
+[Sink-1] records=2000 rate=50/s
+[Sink-1] records=2499 rate=50/s
+[Sink-1] FINAL records=3000 firstRecord=1778207098864 lastRecord=1778207135499
+[Sink-1] records=3000 rate=50/s
+[Sink-1] records=501 rate=50/s
+[Sink-1] records=1000 rate=50/s
+[Sink-1] records=2000 rate=100/s
+[Sink-1] records=2501 rate=50/s
+[Sink-1] records=3000 rate=50/s
+[Sink-1] records=3501 rate=50/s
+[Sink-1] records=4000 rate=50/s
+[Sink-1] records=4501 rate=50/s
+[Sink-1] FINAL records=4501 firstRecord=1778207140545 lastRecord=1778207215692
+[Sink-1] records=4501 rate=0/s
+[Sink-1] records=1000 rate=100/s
+[Sink-1] records=1000 rate=0/s
+[Sink-1] records=1500 rate=50/s
+[Sink-1] FINAL records=2000 firstRecord=1778207217311 lastRecord=1778207248141
+[Sink-1] records=2000 rate=50/s
+[Sink-1] records=500 rate=50/s
+[Sink-1] records=1000 rate=50/s
+[Sink-1] records=1500 rate=50/s
+[Sink-1] records=2000 rate=50/s
+[Sink-1] records=2500 rate=50/s
+[Sink-1] records=3000 rate=50/s
+[Sink-1] records=3500 rate=50/s
+[Sink-1] records=4000 rate=50/s
+[Sink-1] records=4500 rate=50/s
+[Sink-1] records=5000 rate=50/s
+[Sink-1] records=5500 rate=50/s
+[Sink-1] records=6000 rate=50/s
+[Sink-1] records=6500 rate=50/s
+[Sink-1] records=7000 rate=50/s
+[Sink-1] records=7500 rate=50/s
+[Sink-1] records=8000 rate=50/s
+[Sink-1] records=8500 rate=50/s
+[Sink-1] records=9000 rate=50/s
+[Sink-1] records=9500 rate=50/s
+[Sink-1] records=10000 rate=50/s
+[Sink-1] records=10500 rate=50/s
+[Sink-1] records=11000 rate=50/s
+[Sink-1] records=11500 rate=50/s
+[Sink-1] records=12000 rate=50/s
+[Sink-1] records=12500 rate=50/s
+[Sink-1] records=13000 rate=50/s
+[Sink-1] records=13500 rate=50/s
+[Sink-1] records=14000 rate=50/s
+[Sink-1] records=14500 rate=50/s
+[Sink-1] records=16000 rate=150/s
+[Sink-1] FINAL records=16000 firstRecord=1778207256113 lastRecord=1778207554430

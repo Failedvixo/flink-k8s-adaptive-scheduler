@@ -1,0 +1,206 @@
+[CPULoad-2/4] Starting: iterations=2500 maxAge=15000ms
+[CPULoad-2] t=10s processed=44,336 (4434/s) staleDropped=0 (0/s, 0.0%)
+[CPULoad-2] t=20s processed=78,458 (3412/s) staleDropped=0 (0/s, 0.0%)
+[CPULoad-2] t=30s processed=112,540 (3408/s) staleDropped=0 (0/s, 0.0%)
+[CPULoad-2] t=40s processed=146,747 (3421/s) staleDropped=0 (0/s, 0.0%)
+[CPULoad-2] t=50s processed=180,929 (3418/s) staleDropped=0 (0/s, 0.0%)
+[CPULoad-2] FINAL duration=58.0s processed=208,123 staleDropped=0 (0.0%) total=208,123
+[CPULoad-2] t=60s processed=208,123 (2719/s) staleDropped=0 (0/s, 0.0%)
+[CPULoad-2/4] Starting: iterations=2500 maxAge=15000ms
+[CPULoad-2] t=10s processed=44,097 (4410/s) staleDropped=0 (0/s, 0.0%)
+[CPULoad-2] t=20s processed=78,278 (3418/s) staleDropped=0 (0/s, 0.0%)
+[CPULoad-2] t=30s processed=112,379 (3410/s) staleDropped=0 (0/s, 0.0%)
+[CPULoad-2] t=40s processed=146,388 (3401/s) staleDropped=0 (0/s, 0.0%)
+[CPULoad-2] t=50s processed=180,385 (3400/s) staleDropped=0 (0/s, 0.0%)
+[CPULoad-2] FINAL duration=58.4s processed=208,712 staleDropped=0 (0.0%) total=208,712
+[CPULoad-2] t=60s processed=208,712 (2833/s) staleDropped=0 (0/s, 0.0%)
+[CPULoad-2/4] Starting: iterations=2500 maxAge=15000ms
+[CPULoad-2] t=10s processed=44,382 (4438/s) staleDropped=0 (0/s, 0.0%)
+[CPULoad-2] t=20s processed=78,363 (3398/s) staleDropped=0 (0/s, 0.0%)
+[CPULoad-2] t=30s processed=112,405 (3404/s) staleDropped=0 (0/s, 0.0%)
+[CPULoad-2] t=40s processed=146,552 (3415/s) staleDropped=0 (0/s, 0.0%)
+[CPULoad-2] FINAL duration=47.7s processed=172,655 staleDropped=0 (0.0%) total=172,655
+[CPULoad-2] t=50s processed=172,655 (2610/s) staleDropped=0 (0/s, 0.0%)
+[CPULoad-1/2] Starting: iterations=2500 maxAge=15000ms
+[CPULoad-1] t=10s processed=86,540 (8654/s) staleDropped=0 (0/s, 0.0%)
+[CPULoad-1] t=20s processed=154,628 (6809/s) staleDropped=0 (0/s, 0.0%)
+[CPULoad-1] t=30s processed=223,056 (6842/s) staleDropped=0 (0/s, 0.0%)
+[CPULoad-1] t=40s processed=291,172 (6811/s) staleDropped=0 (0/s, 0.0%)
+[CPULoad-1] t=50s processed=359,458 (6829/s) staleDropped=0 (0/s, 0.0%)
+[CPULoad-1] t=60s processed=427,760 (6830/s) staleDropped=0 (0/s, 0.0%)
+[CPULoad-1] t=70s processed=495,888 (6813/s) staleDropped=0 (0/s, 0.0%)
+[CPULoad-1] FINAL duration=75.5s processed=533,127 staleDropped=0 (0.0%) total=533,127
+[CPULoad-1/4] Starting: iterations=2500 maxAge=15000ms
+[CPULoad-1] t=80s processed=533,127 (3724/s) staleDropped=0 (0/s, 0.0%)
+[CPULoad-1] t=10s processed=44,165 (4417/s) staleDropped=0 (0/s, 0.0%)
+[CPULoad-1] t=20s processed=78,400 (3423/s) staleDropped=0 (0/s, 0.0%)
+[CPULoad-1] t=30s processed=112,373 (3397/s) staleDropped=0 (0/s, 0.0%)
+[CPULoad-1] t=40s processed=146,457 (3408/s) staleDropped=0 (0/s, 0.0%)
+[CPULoad-1] t=50s processed=180,674 (3422/s) staleDropped=0 (0/s, 0.0%)
+[CPULoad-1] FINAL duration=58.1s processed=208,186 staleDropped=0 (0.0%) total=208,186
+[CPULoad-1/2] Starting: iterations=2500 maxAge=15000ms
+[CPULoad-1] t=60s processed=208,186 (2751/s) staleDropped=0 (0/s, 0.0%)
+[CPULoad-1] t=10s processed=88,347 (8835/s) staleDropped=0 (0/s, 0.0%)
+[CPULoad-1] t=20s processed=156,472 (6812/s) staleDropped=0 (0/s, 0.0%)
+[CPULoad-1] t=30s processed=224,466 (6799/s) staleDropped=0 (0/s, 0.0%)
+[CPULoad-1] t=40s processed=292,424 (6796/s) staleDropped=0 (0/s, 0.0%)
+[CPULoad-1] FINAL duration=47.5s processed=343,124 staleDropped=0 (0.0%) total=343,124
+[CPULoad-1/4] Starting: iterations=2500 maxAge=15000ms
+[CPULoad-1] t=50s processed=343,124 (5069/s) staleDropped=0 (0/s, 0.0%)
+[CPULoad-1] t=10s processed=44,108 (4411/s) staleDropped=0 (0/s, 0.0%)
+[CPULoad-1] t=20s processed=78,283 (3418/s) staleDropped=0 (0/s, 0.0%)
+[CPULoad-1] t=30s processed=112,418 (3413/s) staleDropped=0 (0/s, 0.0%)
+[CPULoad-1] t=40s processed=146,584 (3417/s) staleDropped=0 (0/s, 0.0%)
+[CPULoad-1] t=50s processed=180,625 (3404/s) staleDropped=0 (0/s, 0.0%)
+[CPULoad-1] FINAL duration=58.3s processed=208,644 staleDropped=0 (0.0%) total=208,644
+[CPULoad-1/2] Starting: iterations=2500 maxAge=15000ms
+[CPULoad-1] t=60s processed=208,644 (2802/s) staleDropped=0 (0/s, 0.0%)
+[CPULoad-1] t=10s processed=88,612 (8861/s) staleDropped=0 (0/s, 0.0%)
+[CPULoad-1] t=20s processed=157,083 (6847/s) staleDropped=0 (0/s, 0.0%)
+[CPULoad-1] t=30s processed=225,093 (6800/s) staleDropped=0 (0/s, 0.0%)
+[CPULoad-1] t=40s processed=293,440 (6835/s) staleDropped=0 (0/s, 0.0%)
+[CPULoad-1] t=50s processed=361,864 (6842/s) staleDropped=0 (0/s, 0.0%)
+[CPULoad-1] FINAL duration=57.9s processed=415,875 staleDropped=0 (0.0%) total=415,875
+[CPULoad-1/4] Starting: iterations=2500 maxAge=15000ms
+[CPULoad-1] t=60s processed=415,875 (5401/s) staleDropped=0 (0/s, 0.0%)
+[CPULoad-1] t=10s processed=44,400 (4440/s) staleDropped=0 (0/s, 0.0%)
+[CPULoad-1] t=20s processed=78,352 (3395/s) staleDropped=0 (0/s, 0.0%)
+[CPULoad-1] t=30s processed=112,403 (3405/s) staleDropped=0 (0/s, 0.0%)
+[CPULoad-1] t=40s processed=146,540 (3413/s) staleDropped=0 (0/s, 0.0%)
+[CPULoad-1] FINAL duration=47.7s processed=172,762 staleDropped=0 (0.0%) total=172,762
+[CPULoad-1/2] Starting: iterations=2500 maxAge=15000ms
+[CPULoad-1] t=50s processed=172,762 (2622/s) staleDropped=0 (0/s, 0.0%)
+[CPULoad-1] t=10s processed=87,841 (8784/s) staleDropped=0 (0/s, 0.0%)
+[CPULoad-1] t=20s processed=155,841 (6800/s) staleDropped=0 (0/s, 0.0%)
+[CPULoad-1] t=30s processed=223,643 (6780/s) staleDropped=0 (0/s, 0.0%)
+[CPULoad-1] t=40s processed=291,836 (6819/s) staleDropped=0 (0/s, 0.0%)
+[CPULoad-1] t=50s processed=359,547 (6771/s) staleDropped=0 (0/s, 0.0%)
+[CPULoad-1] t=60s processed=427,647 (6809/s) staleDropped=0 (0/s, 0.0%)
+[CPULoad-1] t=70s processed=495,752 (6811/s) staleDropped=0 (0/s, 0.0%)
+[CPULoad-1] t=80s processed=563,772 (6801/s) staleDropped=0 (0/s, 0.0%)
+[CPULoad-1] t=90s processed=631,747 (6798/s) staleDropped=0 (0/s, 0.0%)
+[CPULoad-1] t=100s processed=701,829 (7008/s) staleDropped=0 (0/s, 0.0%)
+[CPULoad-1] t=110s processed=807,813 (10597/s) staleDropped=0 (0/s, 0.0%)
+[CPULoad-1] t=120s processed=912,775 (10496/s) staleDropped=10,192 (1019/s, 1.1%)
+[CPULoad-1] t=130s processed=1,018,792 (10602/s) staleDropped=38,227 (2804/s, 3.6%)
+[CPULoad-1] t=140s processed=1,124,154 (10535/s) staleDropped=66,460 (2823/s, 5.6%)
+[CPULoad-1] t=150s processed=1,229,774 (10562/s) staleDropped=77,675 (1122/s, 5.9%)
+[CPULoad-1] t=160s processed=1,334,718 (10493/s) staleDropped=110,593 (3291/s, 7.7%)
+[CPULoad-1] t=170s processed=1,440,616 (10590/s) staleDropped=125,631 (1504/s, 8.0%)
+[CPULoad-1] t=180s processed=1,546,758 (10614/s) staleDropped=152,022 (2639/s, 8.9%)
+[CPULoad-1] t=190s processed=1,651,767 (10501/s) staleDropped=174,184 (2216/s, 9.5%)
+[CPULoad-1] t=200s processed=1,757,798 (10602/s) staleDropped=188,762 (1458/s, 9.7%)
+[CPULoad-1] t=210s processed=1,863,890 (10609/s) staleDropped=221,957 (3320/s, 10.6%)
+[CPULoad-1] t=220s processed=1,969,261 (10537/s) staleDropped=224,386 (243/s, 10.2%)
+[CPULoad-1] t=230s processed=2,074,031 (10476/s) staleDropped=224,386 (0/s, 9.8%)
+[CPULoad-1] t=240s processed=2,160,492 (8646/s) staleDropped=224,386 (0/s, 9.4%)
+[CPULoad-1] t=250s processed=2,228,626 (6813/s) staleDropped=224,386 (0/s, 9.1%)
+[CPULoad-1] t=260s processed=2,296,372 (6775/s) staleDropped=224,386 (0/s, 8.9%)
+[CPULoad-1] t=270s processed=2,364,431 (6805/s) staleDropped=224,386 (0/s, 8.7%)
+[CPULoad-1] t=280s processed=2,432,568 (6814/s) staleDropped=224,386 (0/s, 8.4%)
+[CPULoad-1] t=290s processed=2,500,417 (6785/s) staleDropped=224,386 (0/s, 8.2%)
+[CPULoad-1] t=300s processed=2,568,352 (6793/s) staleDropped=224,386 (0/s, 8.0%)
+[CPULoad-1] FINAL duration=300.2s processed=2,568,825 staleDropped=224,386 (8.0%) total=2,793,211
+[CPULoad-3/4] Starting: iterations=2500 maxAge=15000ms
+[CPULoad-3] t=10s processed=44,151 (4415/s) staleDropped=0 (0/s, 0.0%)
+[CPULoad-3] t=20s processed=78,401 (3425/s) staleDropped=0 (0/s, 0.0%)
+[CPULoad-3] t=30s processed=112,369 (3397/s) staleDropped=0 (0/s, 0.0%)
+[CPULoad-3] t=40s processed=146,445 (3407/s) staleDropped=0 (0/s, 0.0%)
+[CPULoad-3] t=50s processed=180,656 (3421/s) staleDropped=0 (0/s, 0.0%)
+[CPULoad-3] FINAL duration=58.1s processed=208,161 staleDropped=0 (0.0%) total=208,161
+[CPULoad-3] t=60s processed=208,161 (2751/s) staleDropped=0 (0/s, 0.0%)
+[CPULoad-3/4] Starting: iterations=2500 maxAge=15000ms
+[CPULoad-3] t=10s processed=44,097 (4410/s) staleDropped=0 (0/s, 0.0%)
+[CPULoad-3] t=20s processed=78,278 (3418/s) staleDropped=0 (0/s, 0.0%)
+[CPULoad-3] t=30s processed=112,398 (3412/s) staleDropped=0 (0/s, 0.0%)
+[CPULoad-3] t=40s processed=146,463 (3406/s) staleDropped=0 (0/s, 0.0%)
+[CPULoad-3] t=50s processed=180,398 (3394/s) staleDropped=0 (0/s, 0.0%)
+[CPULoad-3] FINAL duration=58.3s processed=208,692 staleDropped=0 (0.0%) total=208,692
+[CPULoad-3] t=60s processed=208,692 (2829/s) staleDropped=0 (0/s, 0.0%)
+[CPULoad-3/4] Starting: iterations=2500 maxAge=15000ms
+[CPULoad-3] t=10s processed=44,381 (4438/s) staleDropped=0 (0/s, 0.0%)
+[CPULoad-3] t=20s processed=78,386 (3401/s) staleDropped=0 (0/s, 0.0%)
+[CPULoad-3] t=30s processed=112,416 (3403/s) staleDropped=0 (0/s, 0.0%)
+[CPULoad-3] t=40s processed=146,542 (3413/s) staleDropped=0 (0/s, 0.0%)
+[CPULoad-3] FINAL duration=47.7s processed=172,673 staleDropped=0 (0.0%) total=172,673
+[CPULoad-3] t=50s processed=172,673 (2613/s) staleDropped=0 (0/s, 0.0%)
+[CPULoad-0/2] Starting: iterations=2500 maxAge=15000ms
+[CPULoad-0] t=10s processed=86,402 (8640/s) staleDropped=0 (0/s, 0.0%)
+[CPULoad-0] t=20s processed=154,492 (6808/s) staleDropped=0 (0/s, 0.0%)
+[CPULoad-0] t=30s processed=222,896 (6840/s) staleDropped=0 (0/s, 0.0%)
+[CPULoad-0] t=40s processed=291,071 (6817/s) staleDropped=0 (0/s, 0.0%)
+[CPULoad-0] t=50s processed=359,325 (6825/s) staleDropped=0 (0/s, 0.0%)
+[CPULoad-0] t=60s processed=427,651 (6832/s) staleDropped=0 (0/s, 0.0%)
+[CPULoad-0] t=70s processed=495,743 (6809/s) staleDropped=0 (0/s, 0.0%)
+[CPULoad-0] FINAL duration=75.6s processed=533,150 staleDropped=0 (0.0%) total=533,150
+[CPULoad-0/4] Starting: iterations=2500 maxAge=15000ms
+[CPULoad-0] t=80s processed=533,150 (3740/s) staleDropped=0 (0/s, 0.0%)
+[CPULoad-0] t=10s processed=44,036 (4404/s) staleDropped=0 (0/s, 0.0%)
+[CPULoad-0] t=20s processed=78,211 (3418/s) staleDropped=0 (0/s, 0.0%)
+[CPULoad-0] t=30s processed=112,208 (3399/s) staleDropped=0 (0/s, 0.0%)
+[CPULoad-0] t=40s processed=146,421 (3421/s) staleDropped=0 (0/s, 0.0%)
+[CPULoad-0] t=50s processed=180,661 (3424/s) staleDropped=0 (0/s, 0.0%)
+[CPULoad-0] FINAL duration=58.1s processed=208,122 staleDropped=0 (0.0%) total=208,122
+[CPULoad-0/2] Starting: iterations=2500 maxAge=15000ms
+[CPULoad-0] t=60s processed=208,122 (2746/s) staleDropped=0 (0/s, 0.0%)
+[CPULoad-0] t=10s processed=88,370 (8837/s) staleDropped=0 (0/s, 0.0%)
+[CPULoad-0] t=20s processed=156,474 (6810/s) staleDropped=0 (0/s, 0.0%)
+[CPULoad-0] t=30s processed=224,526 (6805/s) staleDropped=0 (0/s, 0.0%)
+[CPULoad-0] t=40s processed=292,484 (6796/s) staleDropped=0 (0/s, 0.0%)
+[CPULoad-0] FINAL duration=47.4s processed=343,021 staleDropped=0 (0.0%) total=343,021
+[CPULoad-0/4] Starting: iterations=2500 maxAge=15000ms
+[CPULoad-0] t=50s processed=343,021 (5053/s) staleDropped=0 (0/s, 0.0%)
+[CPULoad-0] t=10s processed=44,107 (4411/s) staleDropped=0 (0/s, 0.0%)
+[CPULoad-0] t=20s processed=78,229 (3412/s) staleDropped=0 (0/s, 0.0%)
+[CPULoad-0] t=30s processed=112,278 (3405/s) staleDropped=0 (0/s, 0.0%)
+[CPULoad-0] t=40s processed=146,249 (3397/s) staleDropped=0 (0/s, 0.0%)
+[CPULoad-0] t=50s processed=180,372 (3412/s) staleDropped=0 (0/s, 0.0%)
+[CPULoad-0] FINAL duration=58.3s processed=208,641 staleDropped=0 (0.0%) total=208,641
+[CPULoad-0/2] Starting: iterations=2500 maxAge=15000ms
+[CPULoad-0] t=60s processed=208,641 (2827/s) staleDropped=0 (0/s, 0.0%)
+[CPULoad-0] t=10s processed=88,733 (8873/s) staleDropped=0 (0/s, 0.0%)
+[CPULoad-0] t=20s processed=157,102 (6836/s) staleDropped=0 (0/s, 0.0%)
+[CPULoad-0] t=30s processed=225,111 (6801/s) staleDropped=0 (0/s, 0.0%)
+[CPULoad-0] t=40s processed=293,439 (6833/s) staleDropped=0 (0/s, 0.0%)
+[CPULoad-0] t=50s processed=361,863 (6842/s) staleDropped=0 (0/s, 0.0%)
+[CPULoad-0] FINAL duration=57.9s processed=415,874 staleDropped=0 (0.0%) total=415,874
+[CPULoad-0/4] Starting: iterations=2500 maxAge=15000ms
+[CPULoad-0] t=60s processed=415,874 (5401/s) staleDropped=0 (0/s, 0.0%)
+[CPULoad-0] t=10s processed=44,264 (4426/s) staleDropped=0 (0/s, 0.0%)
+[CPULoad-0] t=20s processed=78,242 (3397/s) staleDropped=0 (0/s, 0.0%)
+[CPULoad-0] t=30s processed=112,411 (3417/s) staleDropped=0 (0/s, 0.0%)
+[CPULoad-0] t=40s processed=146,551 (3414/s) staleDropped=0 (0/s, 0.0%)
+[CPULoad-0] FINAL duration=47.7s processed=172,730 staleDropped=0 (0.0%) total=172,730
+[CPULoad-0/2] Starting: iterations=2500 maxAge=15000ms
+[CPULoad-0] t=50s processed=172,730 (2618/s) staleDropped=0 (0/s, 0.0%)
+[CPULoad-0] t=10s processed=87,823 (8782/s) staleDropped=0 (0/s, 0.0%)
+[CPULoad-0] t=20s processed=156,003 (6818/s) staleDropped=0 (0/s, 0.0%)
+[CPULoad-0] t=30s processed=223,809 (6780/s) staleDropped=0 (0/s, 0.0%)
+[CPULoad-0] t=40s processed=291,932 (6812/s) staleDropped=0 (0/s, 0.0%)
+[CPULoad-0] t=50s processed=359,792 (6786/s) staleDropped=0 (0/s, 0.0%)
+[CPULoad-0] t=60s processed=427,726 (6793/s) staleDropped=0 (0/s, 0.0%)
+[CPULoad-0] t=70s processed=495,773 (6805/s) staleDropped=0 (0/s, 0.0%)
+[CPULoad-0] t=80s processed=563,882 (6811/s) staleDropped=0 (0/s, 0.0%)
+[CPULoad-0] t=90s processed=631,875 (6799/s) staleDropped=0 (0/s, 0.0%)
+[CPULoad-0] t=100s processed=701,966 (7009/s) staleDropped=0 (0/s, 0.0%)
+[CPULoad-0] t=110s processed=807,805 (10584/s) staleDropped=0 (0/s, 0.0%)
+[CPULoad-0] t=120s processed=912,459 (10464/s) staleDropped=10,827 (1083/s, 1.2%)
+[CPULoad-0] t=130s processed=1,018,625 (10617/s) staleDropped=39,560 (2873/s, 3.7%)
+[CPULoad-0] t=140s processed=1,124,317 (10569/s) staleDropped=66,872 (2731/s, 5.6%)
+[CPULoad-0] t=150s processed=1,229,584 (10526/s) staleDropped=79,482 (1261/s, 6.1%)
+[CPULoad-0] t=160s processed=1,334,492 (10491/s) staleDropped=110,876 (3139/s, 7.7%)
+[CPULoad-0] t=170s processed=1,440,014 (10552/s) staleDropped=126,309 (1543/s, 8.1%)
+[CPULoad-0] t=180s processed=1,545,897 (10587/s) staleDropped=153,343 (2703/s, 9.0%)
+[CPULoad-0] t=190s processed=1,650,926 (10503/s) staleDropped=174,423 (2108/s, 9.6%)
+[CPULoad-0] t=200s processed=1,757,288 (10636/s) staleDropped=188,923 (1450/s, 9.7%)
+[CPULoad-0] t=210s processed=1,863,678 (10638/s) staleDropped=221,726 (3280/s, 10.6%)
+[CPULoad-0] t=220s processed=1,969,669 (10599/s) staleDropped=224,091 (237/s, 10.2%)
+[CPULoad-0] t=230s processed=2,075,038 (10537/s) staleDropped=224,091 (0/s, 9.7%)
+[CPULoad-0] t=240s processed=2,160,941 (8590/s) staleDropped=224,091 (0/s, 9.4%)
+[CPULoad-0] t=250s processed=2,228,993 (6805/s) staleDropped=224,091 (0/s, 9.1%)
+[CPULoad-0] t=260s processed=2,296,894 (6790/s) staleDropped=224,091 (0/s, 8.9%)
+[CPULoad-0] t=270s processed=2,364,894 (6800/s) staleDropped=224,091 (0/s, 8.7%)
+[CPULoad-0] t=280s processed=2,432,997 (6810/s) staleDropped=224,091 (0/s, 8.4%)
+[CPULoad-0] t=290s processed=2,500,774 (6777/s) staleDropped=224,091 (0/s, 8.2%)
+[CPULoad-0] t=300s processed=2,568,741 (6797/s) staleDropped=224,091 (0/s, 8.0%)
+[CPULoad-0] FINAL duration=300.2s processed=2,569,125 staleDropped=224,091 (8.0%) total=2,793,216
