@@ -162,3 +162,17 @@ Archivos generados en results/autoscaler-sine/FCFS/:
   - METRICS-SUMMARY.txt      (este archivo)
   - metrics.csv              (fila lista para análisis comparativo)
 ==========================================
+
+========================================
+  Nexmark canonical metrics
+========================================
+  Cores avg:         5.15 cores
+  Cores p95:         6.78 cores
+  Cores peak:        6.78 cores
+  Time:              648.4 s
+  Cores × Time:      3336.0 core·s
+  Events processed:  16,045,257
+  Cost / Mevent:     207.91 core·s / Mevents
+  Throughput / core: 4,810 ev/s
+  (snapshots used:   19)
+========================================

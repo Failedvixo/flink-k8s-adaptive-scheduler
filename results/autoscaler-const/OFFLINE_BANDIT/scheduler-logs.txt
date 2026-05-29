@@ -10,7 +10,7 @@
 [SARSA] Optimal CPU range: 30.0% - 70.0%
 [OFFLINE_BANDIT] Initialized LinUCB meta-scheduler
 [OFFLINE_BANDIT] Arms: [FCFS, BALANCED, SARSA]
-[OFFLINE_BANDIT] Features (d=5): [bias, avg_cpu, max_cpu, cpu_imbalance, avg_mem]
+[OFFLINE_BANDIT] Features (d=9): [bias, avg_cpu, max_cpu, min_cpu, cpu_imbalance, cpu_velocity, avg_mem, elapsed_norm, saturation]
 [OFFLINE_BANDIT] alpha=1.0 decisionIntervalMs=30000
 [OFFLINE_BANDIT] Initial arm: FCFS
 ========================================
@@ -32,60 +32,60 @@ Starting scheduler loop...
   Metrics Server: ✓ AVAILABLE (using REAL metrics)
 
   Current Node CPU Usage:
-    minikube-m03: 0.4%
-    minikube-m02: 0.5%
-    minikube: 1.9%
+    minikube-m03: 0.9%
+    minikube-m02: 1.2%
+    minikube: 2.8%
 
-  Cluster Average: 0.9%
+  Cluster Average: 1.6%
 ========================================
 
 
-[2026-05-08 02:08:33] Found 5 pending TaskManager(s)
+[2026-05-19 21:26:26] Found 5 pending TaskManager(s)
 
-[SCHEDULING] Pod: flink-taskmanager-cccff75ff-6vn5v
+[SCHEDULING] Pod: flink-taskmanager-cccff75ff-crp6c
   Strategy: OFFLINE_BANDIT
-[OFFLINE_BANDIT] LinUCB scores: FCFS=0.529(exp=0.276|var=0.253) BALANCED=0.613(exp=0.420|var=0.193) SARSA=0.687(exp=0.468|var=0.219) 
+[OFFLINE_BANDIT] LinUCB scores: FCFS=0.556(exp=0.274|var=0.282) BALANCED=0.659(exp=0.428|var=0.231) SARSA=0.740(exp=0.479|var=0.262) 
 [OFFLINE_BANDIT] arm switch FCFS -> SARSA
 [SARSA] [EXPLORE] state=LOW_LOW eps=1.000 action=1
-[SARSA] [SELECTION] Node: minikube-m02 | State: LOW_LOW | Action: 1 | CPU: 1.7% | Reward: 0.517 | Q(s,a)=0.5000 | Total: 1
+[SARSA] [SELECTION] Node: minikube-m02 | State: LOW_LOW | Action: 1 | CPU: 1.2% | Reward: 0.512 | Q(s,a)=0.5000 | Total: 1
   Result: ✓ SCHEDULED to minikube-m02
-  Node CPU: 1.7% (real)
+  Node CPU: 1.2% (real)
   Total scheduled: 1
 
-[SCHEDULING] Pod: flink-taskmanager-cccff75ff-7jtmd
+[SCHEDULING] Pod: flink-taskmanager-cccff75ff-gffvh
   Strategy: OFFLINE_BANDIT
 [SARSA] [EXPLORE] state=LOW_LOW eps=0.707 action=2
-[SARSA] [UPDATE] s=LOW_LOW a=1 r=0.517 s'=LOW_LOW a'=2  Q: 0.5000 -> 0.5834
-[SARSA] [SELECTION] Node: minikube-m03 | State: LOW_LOW | Action: 2 | CPU: 1.7% | Reward: 0.517 | Q(s,a)=0.5000 | Total: 2
+[SARSA] [UPDATE] s=LOW_LOW a=1 r=0.512 s'=LOW_LOW a'=2  Q: 0.5000 -> 0.5824
+[SARSA] [SELECTION] Node: minikube-m03 | State: LOW_LOW | Action: 2 | CPU: 0.9% | Reward: 0.509 | Q(s,a)=0.5000 | Total: 2
   Result: ✓ SCHEDULED to minikube-m03
-  Node CPU: 1.7% (real)
+  Node CPU: 0.9% (real)
   Total scheduled: 2
 
-[SCHEDULING] Pod: flink-taskmanager-cccff75ff-8b8g4
+[SCHEDULING] Pod: flink-taskmanager-cccff75ff-jmch5
   Strategy: OFFLINE_BANDIT
-[SARSA] [EXPLORE] state=LOW_LOW eps=0.577 action=1
-[SARSA] [UPDATE] s=LOW_LOW a=2 r=0.517 s'=LOW_LOW a'=1  Q: 0.5000 -> 0.5967
-[SARSA] [SELECTION] Node: minikube-m02 | State: LOW_LOW | Action: 1 | CPU: 1.7% | Reward: 0.517 | Q(s,a)=0.5834 | Total: 3
-  Result: ✓ SCHEDULED to minikube-m02
-  Node CPU: 1.7% (real)
+[SARSA] [EXPLORE] state=LOW_LOW eps=0.577 action=2
+[SARSA] [UPDATE] s=LOW_LOW a=2 r=0.509 s'=LOW_LOW a'=2  Q: 0.5000 -> 0.5818
+[SARSA] [SELECTION] Node: minikube-m03 | State: LOW_LOW | Action: 2 | CPU: 0.9% | Reward: 0.509 | Q(s,a)=0.5818 | Total: 3
+  Result: ✓ SCHEDULED to minikube-m03
+  Node CPU: 0.9% (real)
   Total scheduled: 3
 
-[SCHEDULING] Pod: flink-taskmanager-cccff75ff-nlkn2
+[SCHEDULING] Pod: flink-taskmanager-cccff75ff-snddk
   Strategy: OFFLINE_BANDIT
-[SARSA] [EXPLOIT] state=LOW_LOW eps=0.500 action=2 Q=0.5967
-[SARSA] [UPDATE] s=LOW_LOW a=1 r=0.517 s'=LOW_LOW a'=2  Q: 0.5834 -> 0.6657
-[SARSA] [SELECTION] Node: minikube-m03 | State: LOW_LOW | Action: 2 | CPU: 1.7% | Reward: 0.517 | Q(s,a)=0.5967 | Total: 4
-  Result: ✓ SCHEDULED to minikube-m03
-  Node CPU: 1.7% (real)
+[SARSA] [EXPLOIT] state=LOW_LOW eps=0.500 action=1 Q=0.5824
+[SARSA] [UPDATE] s=LOW_LOW a=2 r=0.509 s'=LOW_LOW a'=1  Q: 0.5818 -> 0.6603
+[SARSA] [SELECTION] Node: minikube-m02 | State: LOW_LOW | Action: 1 | CPU: 1.2% | Reward: 0.512 | Q(s,a)=0.5824 | Total: 4
+  Result: ✓ SCHEDULED to minikube-m02
+  Node CPU: 1.2% (real)
   Total scheduled: 4
 
-[SCHEDULING] Pod: flink-taskmanager-cccff75ff-vcgvg
+[SCHEDULING] Pod: flink-taskmanager-cccff75ff-x7bzt
   Strategy: OFFLINE_BANDIT
-[SARSA] [EXPLOIT] state=LOW_LOW eps=0.447 action=1 Q=0.6657
-[SARSA] [UPDATE] s=LOW_LOW a=2 r=0.517 s'=LOW_LOW a'=1  Q: 0.5967 -> 0.6872
-[SARSA] [SELECTION] Node: minikube-m02 | State: LOW_LOW | Action: 1 | CPU: 1.7% | Reward: 0.517 | Q(s,a)=0.6657 | Total: 5
-  Result: ✓ SCHEDULED to minikube-m02
-  Node CPU: 1.7% (real)
+[SARSA] [EXPLOIT] state=LOW_LOW eps=0.447 action=2 Q=0.6603
+[SARSA] [UPDATE] s=LOW_LOW a=1 r=0.512 s'=LOW_LOW a'=2  Q: 0.5824 -> 0.6740
+[SARSA] [SELECTION] Node: minikube-m03 | State: LOW_LOW | Action: 2 | CPU: 0.9% | Reward: 0.509 | Q(s,a)=0.6603 | Total: 5
+  Result: ✓ SCHEDULED to minikube-m03
+  Node CPU: 0.9% (real)
   Total scheduled: 5
 
 ========================================

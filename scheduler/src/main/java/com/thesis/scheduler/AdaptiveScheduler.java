@@ -94,6 +94,21 @@ public class AdaptiveScheduler {
                         SarsaStrategy sarsa = (SarsaStrategy) strategies.get(SchedulingStrategyType.SARSA);
                         System.out.println(sarsa.getStatisticsSummary());
                     }
+                    if (currentStrategy == SchedulingStrategyType.OFFLINE_BANDIT) {
+                        OfflineBanditStrategy ob = (OfflineBanditStrategy)
+                            strategies.get(SchedulingStrategyType.OFFLINE_BANDIT);
+                        System.out.println(ob.getStatisticsSummary());
+                    }
+                    if (currentStrategy == SchedulingStrategyType.OFFLINE_BANDIT_V2) {
+                        OfflineBanditStrategy ob = (OfflineBanditStrategy)
+                            strategies.get(SchedulingStrategyType.OFFLINE_BANDIT_V2);
+                        System.out.println(ob.getStatisticsSummary());
+                    }
+                    if (currentStrategy == SchedulingStrategyType.OFFLINE_BANDIT_V3) {
+                        OfflineBanditStrategy ob = (OfflineBanditStrategy)
+                            strategies.get(SchedulingStrategyType.OFFLINE_BANDIT_V3);
+                        System.out.println(ob.getStatisticsSummary());
+                    }
                 }
 
                 if (!useFixedStrategy) {
@@ -268,6 +283,11 @@ public class AdaptiveScheduler {
         map.put(SchedulingStrategyType.BALANCED, new BalancedStrategy());
         map.put(SchedulingStrategyType.BANDIT, new BanditStrategy());
         map.put(SchedulingStrategyType.SARSA, new SarsaStrategy());
+        map.put(SchedulingStrategyType.OFFLINE_BANDIT, new OfflineBanditStrategy());
+        map.put(SchedulingStrategyType.OFFLINE_BANDIT_V2,
+                new OfflineBanditStrategy("/offline_bandit_v2_weights.json", "OFFLINE_BANDIT_V2"));
+        map.put(SchedulingStrategyType.OFFLINE_BANDIT_V3,
+                new OfflineBanditStrategy("/offline_bandit_v3_weights.json", "OFFLINE_BANDIT_V3"));
         return map;
     }
 
@@ -312,6 +332,11 @@ public class AdaptiveScheduler {
         if (countByStrategy.containsKey(SchedulingStrategyType.SARSA)) {
             SarsaStrategy sarsa = (SarsaStrategy) strategies.get(SchedulingStrategyType.SARSA);
             System.out.println(sarsa.getStatisticsSummary());
+        }
+        if (countByStrategy.containsKey(SchedulingStrategyType.OFFLINE_BANDIT)) {
+            OfflineBanditStrategy ob = (OfflineBanditStrategy)
+                strategies.get(SchedulingStrategyType.OFFLINE_BANDIT);
+            System.out.println(ob.getStatisticsSummary());
         }
 
         System.out.println("========================================\n");

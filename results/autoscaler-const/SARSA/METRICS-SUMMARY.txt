@@ -163,3 +163,17 @@ Archivos generados en results/autoscaler-const/SARSA/:
   - METRICS-SUMMARY.txt      (este archivo)
   - metrics.csv              (fila lista para análisis comparativo)
 ==========================================
+
+========================================
+  Nexmark canonical metrics
+========================================
+  Cores avg:         5.62 cores
+  Cores p95:         8.33 cores
+  Cores peak:        8.33 cores
+  Time:              619.3 s
+  Cores × Time:      3483.0 core·s
+  Events processed:  27,644,622
+  Cost / Mevent:     125.99 core·s / Mevents
+  Throughput / core: 7,937 ev/s
+  (snapshots used:   17)
+========================================

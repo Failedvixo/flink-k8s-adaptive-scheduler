@@ -164,3 +164,17 @@ Archivos generados en results/autoscaler-sine/BALANCED/:
   - METRICS-SUMMARY.txt      (este archivo)
   - metrics.csv              (fila lista para análisis comparativo)
 ==========================================
+
+========================================
+  Nexmark canonical metrics
+========================================
+  Cores avg:         5.26 cores
+  Cores p95:         8.15 cores
+  Cores peak:        8.15 cores
+  Time:              655.3 s
+  Cores × Time:      3449.3 core·s
+  Events processed:  16,799,237
+  Cost / Mevent:     205.33 core·s / Mevents
+  Throughput / core: 4,870 ev/s
+  (snapshots used:   19)
+========================================

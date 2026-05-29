@@ -1,0 +1,8 @@
+Waiting for response...
+No running jobs.
+No scheduled jobs.
+---------------------- Terminated Jobs -----------------------
+29.05.2026 01:09:05 : fb69286f7a6b8ced902c6a5473da3ddd : Nexmark-Config[rate=100k,par=8,win=TUM-10s,cpu=2500,maxAge=15000ms,cpuPar=2] (FINISHED)
+29.05.2026 01:19:00 : fa032acf99ead8c915c0577b337e8094 : Nexmark-Config[rate=60k,par=8,win=TUM-10s,cpu=2500,dist=SINE,maxAge=15000ms,cpuPar=2] (FINISHED)
+29.05.2026 01:28:48 : 8b4fe87b717930a2ca2d9b9dabac8482 : Nexmark-Config[rate=60k,par=8,win=TUM-10s,cpu=2500,dist=STEP,maxAge=15000ms,cpuPar=2] (FINISHED)
+--------------------------------------------------------------

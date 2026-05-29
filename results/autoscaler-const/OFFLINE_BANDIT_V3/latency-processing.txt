@@ -1,0 +1,416 @@
+[Latency-PROC-0] count=23872 min=470ms p50=4469ms p95=7586ms p99=8143ms max=8439ms avg=4417.1ms
+[Latency-PROC-7] count=24132 min=470ms p50=4493ms p95=7738ms p99=8267ms max=8601ms avg=4456.5ms
+[Latency-PROC-0] count=52264 min=470ms p50=8701ms p95=14514ms p99=14984ms max=15093ms avg=8395.1ms
+[Latency-PROC-7] count=52264 min=470ms p50=8647ms p95=14482ms p99=14984ms max=15093ms avg=8395.2ms
+[Latency-PROC-0] count=81110 min=470ms p50=11128ms p95=14744ms p99=15005ms max=16094ms avg=10006.6ms
+[Latency-PROC-7] count=81110 min=470ms p50=11097ms p95=14703ms p99=15001ms max=16095ms avg=10006.5ms
+[Latency-PROC-0] count=103071 min=470ms p50=12276ms p95=14885ms p99=15048ms max=16094ms avg=10764.6ms
+[Latency-PROC-7] count=103074 min=470ms p50=12271ms p95=14877ms p99=15064ms max=16095ms avg=10766.5ms
+[Latency-PROC-0] count=120301 min=470ms p50=12606ms p95=14883ms p99=15051ms max=16614ms avg=11094.8ms
+[Latency-PROC-7] count=120345 min=470ms p50=12630ms p95=14878ms p99=15076ms max=16613ms avg=11097.2ms
+[Latency-PROC-0] FINAL count=146410 min=470ms p50=12450ms p95=14860ms p99=15039ms max=16614ms avg=11194.2ms
+[Latency-PROC-7] FINAL count=146408 min=470ms p50=12390ms p95=14842ms p99=15053ms max=16613ms avg=11196.1ms
+[Latency-PROC-0] count=146410 min=470ms p50=12450ms p95=14860ms p99=15039ms max=16614ms avg=11194.2ms
+[Latency-PROC-7] count=146408 min=470ms p50=12390ms p95=14842ms p99=15053ms max=16613ms avg=11196.1ms
+[Latency-PROC-0] count=52729 min=81ms p50=3634ms p95=5261ms p99=5716ms max=6324ms avg=3286.8ms
+[Latency-PROC-7] count=52871 min=55ms p50=3630ms p95=5268ms p99=5744ms max=6325ms avg=3291.8ms
+[Latency-PROC-0] count=107553 min=81ms p50=5416ms p95=9887ms p99=10444ms max=11339ms avg=5610.1ms
+[Latency-PROC-7] count=107645 min=55ms p50=5407ms p95=9872ms p99=10428ms max=11339ms avg=5613.7ms
+[Latency-PROC-0] count=162191 min=81ms p50=7487ms p95=10455ms p99=11048ms max=11898ms avg=6846.6ms
+[Latency-PROC-7] count=162331 min=55ms p50=7332ms p95=10389ms p99=10962ms max=11898ms avg=6848.8ms
+[Latency-PROC-0] FINAL count=200204 min=81ms p50=8323ms p95=10934ms p99=11806ms max=12923ms avg=7412.9ms
+[Latency-PROC-7] FINAL count=200210 min=55ms p50=8277ms p95=10909ms p99=11813ms max=12923ms avg=7412.8ms
+[Latency-PROC-0] count=200204 min=81ms p50=8323ms p95=10934ms p99=11806ms max=12923ms avg=7412.9ms
+[Latency-PROC-7] count=200210 min=55ms p50=8277ms p95=10909ms p99=11813ms max=12923ms avg=7412.8ms
+[Latency-PROC-7] count=79347 min=55ms p50=1594ms p95=3230ms p99=3497ms max=3855ms avg=1636.0ms
+[Latency-PROC-0] count=79344 min=55ms p50=1603ms p95=3233ms p99=3476ms max=3855ms avg=1635.8ms
+[Latency-PROC-7] count=157570 min=55ms p50=3062ms p95=6073ms p99=6659ms max=7276ms avg=3105.2ms
+[Latency-PROC-0] count=157569 min=55ms p50=3079ms p95=6051ms p99=6670ms max=7296ms avg=3105.2ms
+[Latency-PROC-7] count=235531 min=55ms p50=4540ms p95=8137ms p99=8766ms max=10045ms avg=4430.7ms
+[Latency-PROC-0] count=235529 min=55ms p50=4528ms p95=8152ms p99=8717ms max=10046ms avg=4430.6ms
+[Latency-PROC-0] FINAL count=292708 min=55ms p50=5400ms p95=8991ms p99=9484ms max=10155ms avg=5139.7ms
+[Latency-PROC-7] FINAL count=292460 min=55ms p50=5457ms p95=9014ms p99=9523ms max=10155ms avg=5137.1ms
+[Latency-PROC-7] count=292460 min=55ms p50=5457ms p95=9014ms p99=9523ms max=10155ms avg=5137.1ms
+[Latency-PROC-0] count=292708 min=55ms p50=5400ms p95=8991ms p99=9484ms max=10155ms avg=5139.7ms
+[Latency-PROC-7] count=104776 min=23ms p50=514ms p95=1048ms p99=1185ms max=1504ms avg=548.3ms
+[Latency-PROC-0] count=104775 min=24ms p50=516ms p95=1042ms p99=1188ms max=1524ms avg=548.3ms
+[Latency-PROC-7] count=209728 min=23ms p50=788ms p95=1956ms p99=2225ms max=2631ms avg=903.7ms
+[Latency-PROC-0] count=209757 min=24ms p50=789ms p95=1929ms p99=2188ms max=2630ms avg=903.5ms
+[Latency-PROC-7] count=309847 min=23ms p50=1210ms p95=3832ms p99=4207ms max=4626ms avg=1426.1ms
+[Latency-PROC-0] count=309913 min=24ms p50=1189ms p95=3814ms p99=4176ms max=4626ms avg=1425.9ms
+[Latency-PROC-0] FINAL count=386856 min=24ms p50=1570ms p95=4227ms p99=5119ms max=6178ms avg=1836.7ms
+[Latency-PROC-7] FINAL count=386860 min=23ms p50=1576ms p95=4233ms p99=5149ms max=6178ms avg=1836.8ms
+[Latency-PROC-7] count=386860 min=23ms p50=1576ms p95=4233ms p99=5149ms max=6178ms avg=1836.8ms
+[Latency-PROC-0] count=386856 min=24ms p50=1570ms p95=4227ms p99=5119ms max=6178ms avg=1836.7ms
+[Latency-PROC-7] count=48215 min=1438ms p50=5487ms p95=6644ms p99=6806ms max=7201ms avg=5239.1ms
+[Latency-PROC-0] count=48955 min=1432ms p50=5461ms p95=6647ms p99=6797ms max=7198ms avg=5222.1ms
+[Latency-PROC-7] count=168435 min=414ms p50=4538ms p95=6293ms p99=6735ms max=7802ms avg=4468.3ms
+[Latency-PROC-0] count=168566 min=415ms p50=4547ms p95=6377ms p99=6777ms max=7822ms avg=4468.1ms
+[Latency-PROC-7] count=287477 min=61ms p50=4128ms p95=6154ms p99=6713ms max=8026ms avg=4013.6ms
+[Latency-PROC-0] count=287743 min=80ms p50=4089ms p95=6208ms p99=6763ms max=8024ms avg=4012.1ms
+[Latency-PROC-7] count=405148 min=61ms p50=3591ms p95=6001ms p99=6623ms max=8026ms avg=3521.7ms
+[Latency-PROC-0] count=405257 min=66ms p50=3576ms p95=6034ms p99=6707ms max=8024ms avg=3522.4ms
+[Latency-PROC-7] count=519388 min=54ms p50=3201ms p95=5885ms p99=6518ms max=8026ms avg=3241.5ms
+[Latency-PROC-0] count=519836 min=51ms p50=3176ms p95=5907ms p99=6646ms max=8024ms avg=3241.2ms
+[Latency-PROC-7] count=634334 min=27ms p50=2968ms p95=5746ms p99=6438ms max=8026ms avg=3041.7ms
+[Latency-PROC-0] count=634412 min=27ms p50=2941ms p95=5748ms p99=6564ms max=8024ms avg=3041.7ms
+[Latency-PROC-7] count=750692 min=23ms p50=2874ms p95=5772ms p99=6579ms max=8026ms avg=2957.9ms
+[Latency-PROC-0] count=750992 min=22ms p50=2852ms p95=5813ms p99=6649ms max=8024ms avg=2957.9ms
+[Latency-PROC-7] count=871577 min=12ms p50=2699ms p95=5698ms p99=6528ms max=8026ms avg=2778.8ms
+[Latency-PROC-0] count=872191 min=12ms p50=2688ms p95=5715ms p99=6611ms max=8024ms avg=2777.6ms
+[Latency-PROC-7] count=990428 min=12ms p50=2511ms p95=5567ms p99=6463ms max=8026ms avg=2579.7ms
+[Latency-PROC-0] count=990827 min=12ms p50=2527ms p95=5597ms p99=6590ms max=8024ms avg=2579.4ms
+[Latency-PROC-7] count=1105322 min=12ms p50=2325ms p95=5503ms p99=6411ms max=8026ms avg=2406.8ms
+[Latency-PROC-0] count=1105596 min=11ms p50=2326ms p95=5486ms p99=6542ms max=8024ms avg=2406.5ms
+[Latency-PROC-7] count=1219024 min=12ms p50=2099ms p95=5420ms p99=6370ms max=8026ms avg=2256.7ms
+[Latency-PROC-0] count=1219544 min=11ms p50=2100ms p95=5402ms p99=6501ms max=8024ms avg=2256.0ms
+[Latency-PROC-7] count=1333170 min=12ms p50=1795ms p95=5361ms p99=6313ms max=8026ms avg=2125.9ms
+[Latency-PROC-0] count=1333650 min=11ms p50=1838ms p95=5332ms p99=6483ms max=8024ms avg=2125.6ms
+[Latency-PROC-7] count=1450844 min=12ms p50=1547ms p95=5270ms p99=6293ms max=8026ms avg=2000.3ms
+[Latency-PROC-0] count=1451147 min=11ms p50=1546ms p95=5272ms p99=6425ms max=8024ms avg=2000.1ms
+[Latency-PROC-7] count=1566135 min=12ms p50=1292ms p95=5188ms p99=6262ms max=8026ms avg=1877.3ms
+[Latency-PROC-0] count=1566754 min=11ms p50=1301ms p95=5211ms p99=6420ms max=8024ms avg=1876.8ms
+[Latency-PROC-7] count=1680585 min=12ms p50=1083ms p95=5152ms p99=6246ms max=8026ms avg=1762.6ms
+[Latency-PROC-0] count=1681182 min=11ms p50=1059ms p95=5144ms p99=6360ms max=8024ms avg=1762.1ms
+[Latency-PROC-7] count=1794217 min=11ms p50=890ms p95=5097ms p99=6220ms max=8026ms avg=1663.5ms
+[Latency-PROC-0] count=1794348 min=11ms p50=889ms p95=5088ms p99=6343ms max=8024ms avg=1663.5ms
+[Latency-PROC-7] count=1907920 min=11ms p50=679ms p95=5046ms p99=6205ms max=8026ms avg=1578.3ms
+[Latency-PROC-0] count=1908453 min=11ms p50=679ms p95=5048ms p99=6330ms max=8024ms avg=1577.9ms
+[Latency-PROC-7] count=2022186 min=11ms p50=488ms p95=5003ms p99=6180ms max=8026ms avg=1500.6ms
+[Latency-PROC-0] count=2022746 min=11ms p50=477ms p95=4984ms p99=6290ms max=8024ms avg=1500.2ms
+[Latency-PROC-7] count=2135120 min=11ms p50=354ms p95=4928ms p99=6147ms max=8026ms avg=1430.7ms
+[Latency-PROC-0] count=2135362 min=11ms p50=350ms p95=4914ms p99=6253ms max=8024ms avg=1430.6ms
+[Latency-PROC-7] count=2236401 min=11ms p50=392ms p95=4843ms p99=6125ms max=8026ms avg=1399.3ms
+[Latency-PROC-0] count=2236747 min=11ms p50=391ms p95=4837ms p99=6240ms max=8024ms avg=1399.3ms
+[Latency-PROC-7] count=2352646 min=11ms p50=470ms p95=4784ms p99=6110ms max=8026ms avg=1391.5ms
+[Latency-PROC-0] count=2353529 min=11ms p50=470ms p95=4761ms p99=6204ms max=8024ms avg=1391.5ms
+[Latency-PROC-7] count=2467920 min=11ms p50=528ms p95=4730ms p99=6102ms max=8026ms avg=1374.3ms
+[Latency-PROC-0] count=2468782 min=11ms p50=514ms p95=4706ms p99=6145ms max=8024ms avg=1374.2ms
+[Latency-PROC-7] count=2583355 min=11ms p50=547ms p95=4672ms p99=6080ms max=8026ms avg=1357.4ms
+[Latency-PROC-0] count=2583598 min=11ms p50=533ms p95=4658ms p99=6111ms max=8024ms avg=1357.4ms
+[Latency-PROC-7] count=2701014 min=11ms p50=558ms p95=4643ms p99=6044ms max=8026ms avg=1329.4ms
+[Latency-PROC-0] count=2701894 min=11ms p50=521ms p95=4625ms p99=6066ms max=8024ms avg=1329.2ms
+[Latency-PROC-7] count=2818192 min=9ms p50=495ms p95=4624ms p99=6028ms max=8026ms avg=1287.6ms
+[Latency-PROC-0] count=2818721 min=11ms p50=476ms p95=4579ms p99=6019ms max=8024ms avg=1287.4ms
+[Latency-PROC-7] count=2932401 min=9ms p50=419ms p95=4580ms p99=5997ms max=8026ms avg=1244.4ms
+[Latency-PROC-0] count=2933313 min=11ms p50=415ms p95=4539ms p99=6005ms max=8024ms avg=1244.1ms
+[Latency-PROC-7] count=3044762 min=9ms p50=367ms p95=4542ms p99=5952ms max=8026ms avg=1206.7ms
+[Latency-PROC-0] count=3045493 min=10ms p50=368ms p95=4506ms p99=5980ms max=8024ms avg=1206.5ms
+[Latency-PROC-7] count=3159288 min=9ms p50=344ms p95=4529ms p99=5947ms max=8026ms avg=1171.7ms
+[Latency-PROC-0] count=3159950 min=10ms p50=340ms p95=4476ms p99=5958ms max=8024ms avg=1171.6ms
+[Latency-PROC-0] FINAL count=3269164 min=10ms p50=318ms p95=4468ms p99=5948ms max=8024ms avg=1139.6ms
+[Latency-PROC-7] FINAL count=3269163 min=9ms p50=312ms p95=4492ms p99=5916ms max=8026ms avg=1139.6ms
+[Latency-PROC-7] count=3269163 min=9ms p50=312ms p95=4492ms p99=5916ms max=8026ms avg=1139.6ms
+[Latency-PROC-0] count=3269164 min=10ms p50=318ms p95=4468ms p99=5948ms max=8024ms avg=1139.6ms
+[Latency-PROC-1] count=23871 min=470ms p50=4488ms p95=7620ms p99=8196ms max=8439ms avg=4416.7ms
+[Latency-PROC-3] count=23871 min=474ms p50=4502ms p95=7624ms p99=8200ms max=8419ms avg=4417.0ms
+[Latency-PROC-1] count=52243 min=470ms p50=8520ms p95=14514ms p99=14988ms max=15093ms avg=8393.1ms
+[Latency-PROC-3] count=52264 min=474ms p50=8782ms p95=14529ms p99=14991ms max=15093ms avg=8395.5ms
+[Latency-PROC-1] count=81109 min=470ms p50=11010ms p95=14699ms p99=15001ms max=16092ms avg=10007.8ms
+[Latency-PROC-3] count=81109 min=474ms p50=11081ms p95=14709ms p99=14990ms max=16092ms avg=10006.8ms
+[Latency-PROC-1] count=102708 min=470ms p50=12212ms p95=14865ms p99=15082ms max=16092ms avg=10769.4ms
+[Latency-PROC-3] count=103650 min=474ms p50=12203ms p95=14863ms p99=15049ms max=16092ms avg=10782.5ms
+[Latency-PROC-1] count=120022 min=470ms p50=12606ms p95=14897ms p99=15280ms max=17377ms avg=11119.3ms
+[Latency-PROC-3] count=121137 min=474ms p50=12627ms p95=14911ms p99=15341ms max=17375ms avg=11135.4ms
+[Latency-PROC-1] FINAL count=146404 min=470ms p50=12376ms p95=14878ms p99=15217ms max=17377ms avg=11217.5ms
+[Latency-PROC-3] FINAL count=146405 min=474ms p50=12423ms p95=14885ms p99=15214ms max=17375ms avg=11216.0ms
+[Latency-PROC-1] count=146404 min=470ms p50=12376ms p95=14878ms p99=15217ms max=17377ms avg=11217.5ms
+[Latency-PROC-3] count=146405 min=474ms p50=12423ms p95=14885ms p99=15214ms max=17375ms avg=11216.0ms
+[Latency-PROC-1] count=53271 min=85ms p50=3645ms p95=5316ms p99=5798ms max=6325ms avg=3306.5ms
+[Latency-PROC-3] count=53271 min=81ms p50=3658ms p95=5356ms p99=5784ms max=6319ms avg=3307.2ms
+[Latency-PROC-1] count=107903 min=85ms p50=5530ms p95=9905ms p99=10466ms max=11320ms avg=5623.4ms
+[Latency-PROC-3] count=107903 min=81ms p50=5455ms p95=9896ms p99=10455ms max=11339ms avg=5623.5ms
+[Latency-PROC-1] count=162637 min=85ms p50=7414ms p95=10417ms p99=11032ms max=11877ms avg=6854.5ms
+[Latency-PROC-3] count=162818 min=81ms p50=7459ms p95=10425ms p99=11023ms max=11877ms avg=6856.4ms
+[Latency-PROC-1] FINAL count=200204 min=85ms p50=8311ms p95=10910ms p99=11763ms max=12923ms avg=7413.2ms
+[Latency-PROC-3] FINAL count=200204 min=81ms p50=8291ms p95=10920ms p99=11772ms max=12923ms avg=7413.1ms
+[Latency-PROC-1] count=200204 min=85ms p50=8311ms p95=10910ms p99=11763ms max=12923ms avg=7413.2ms
+[Latency-PROC-3] count=200204 min=81ms p50=8291ms p95=10920ms p99=11772ms max=12923ms avg=7413.1ms
+[Latency-PROC-1] count=78600 min=49ms p50=1583ms p95=3212ms p99=3458ms max=3853ms avg=1621.9ms
+[Latency-PROC-3] count=79347 min=49ms p50=1592ms p95=3227ms p99=3493ms max=3854ms avg=1636.1ms
+[Latency-PROC-1] count=157220 min=49ms p50=3094ms p95=6046ms p99=6645ms max=7221ms avg=3097.4ms
+[Latency-PROC-3] count=157671 min=49ms p50=3076ms p95=6093ms p99=6680ms max=7296ms avg=3107.3ms
+[Latency-PROC-1] count=235393 min=49ms p50=4514ms p95=8121ms p99=8773ms max=10026ms avg=4428.5ms
+[Latency-PROC-3] count=235529 min=49ms p50=4559ms p95=8163ms p99=8721ms max=10025ms avg=4430.6ms
+[Latency-PROC-1] FINAL count=292804 min=49ms p50=5514ms p95=9053ms p99=9526ms max=10155ms avg=5140.4ms
+[Latency-PROC-3] FINAL count=292804 min=49ms p50=5428ms p95=9020ms p99=9504ms max=10155ms avg=5140.6ms
+[Latency-PROC-1] count=292804 min=49ms p50=5514ms p95=9053ms p99=9526ms max=10155ms avg=5140.4ms
+[Latency-PROC-3] count=292804 min=49ms p50=5428ms p95=9020ms p99=9504ms max=10155ms avg=5140.6ms
+[Latency-PROC-1] count=104112 min=23ms p50=515ms p95=1047ms p99=1194ms max=1505ms avg=546.0ms
+[Latency-PROC-3] count=104361 min=22ms p50=514ms p95=1046ms p99=1187ms max=1505ms avg=547.0ms
+[Latency-PROC-1] count=208678 min=23ms p50=768ms p95=1922ms p99=2190ms max=2630ms avg=899.7ms
+[Latency-PROC-3] count=208787 min=22ms p50=775ms p95=1937ms p99=2186ms max=2630ms avg=900.1ms
+[Latency-PROC-1] count=309300 min=23ms p50=1163ms p95=3818ms p99=4215ms max=4606ms avg=1423.4ms
+[Latency-PROC-3] count=309363 min=22ms p50=1141ms p95=3776ms p99=4186ms max=4606ms avg=1423.9ms
+[Latency-PROC-1] FINAL count=386782 min=23ms p50=1524ms p95=4233ms p99=5089ms max=6179ms avg=1836.0ms
+[Latency-PROC-3] FINAL count=386783 min=22ms p50=1528ms p95=4209ms p99=5128ms max=6199ms avg=1836.1ms
+[Latency-PROC-1] count=386782 min=23ms p50=1524ms p95=4233ms p99=5089ms max=6179ms avg=1836.0ms
+[Latency-PROC-3] count=386783 min=22ms p50=1528ms p95=4209ms p99=5128ms max=6199ms avg=1836.1ms
+[Latency-PROC-1] count=48072 min=1432ms p50=5497ms p95=6914ms p99=7059ms max=7181ms avg=5317.3ms
+[Latency-PROC-3] count=48210 min=1417ms p50=5484ms p95=6917ms p99=7065ms max=7181ms avg=5317.8ms
+[Latency-PROC-1] count=168244 min=413ms p50=4555ms p95=6538ms p99=7004ms max=7822ms avg=4491.5ms
+[Latency-PROC-3] count=168435 min=432ms p50=4539ms p95=6540ms p99=7019ms max=7822ms avg=4490.6ms
+[Latency-PROC-1] count=287300 min=80ms p50=4128ms p95=6258ms p99=6960ms max=8025ms avg=4027.7ms
+[Latency-PROC-3] count=287611 min=61ms p50=4115ms p95=6281ms p99=6980ms max=8008ms avg=4026.0ms
+[Latency-PROC-1] count=405024 min=67ms p50=3589ms p95=6061ms p99=6919ms max=8025ms avg=3531.1ms
+[Latency-PROC-3] count=405145 min=61ms p50=3574ms p95=6067ms p99=6910ms max=8008ms avg=3531.2ms
+[Latency-PROC-1] count=519245 min=51ms p50=3206ms p95=5883ms p99=6867ms max=8025ms avg=3248.8ms
+[Latency-PROC-3] count=519493 min=52ms p50=3204ms p95=5906ms p99=6800ms max=8008ms avg=3249.1ms
+[Latency-PROC-1] count=634078 min=24ms p50=3003ms p95=5741ms p99=6759ms max=8025ms avg=3047.5ms
+[Latency-PROC-3] count=634413 min=24ms p50=2969ms p95=5796ms p99=6749ms max=8008ms avg=3047.7ms
+[Latency-PROC-1] count=750569 min=21ms p50=2911ms p95=5798ms p99=6761ms max=8025ms avg=2962.6ms
+[Latency-PROC-3] count=750788 min=13ms p50=2872ms p95=5847ms p99=6755ms max=8008ms avg=2963.4ms
+[Latency-PROC-1] count=871471 min=12ms p50=2797ms p95=5664ms p99=6719ms max=8025ms avg=2783.3ms
+[Latency-PROC-3] count=871713 min=12ms p50=2743ms p95=5684ms p99=6714ms max=8008ms avg=2782.8ms
+[Latency-PROC-1] count=990327 min=12ms p50=2604ms p95=5577ms p99=6617ms max=8025ms avg=2583.6ms
+[Latency-PROC-3] count=990427 min=12ms p50=2564ms p95=5587ms p99=6696ms max=8008ms avg=2583.5ms
+[Latency-PROC-1] count=1105320 min=12ms p50=2401ms p95=5502ms p99=6526ms max=8025ms avg=2410.1ms
+[Latency-PROC-3] count=1105323 min=12ms p50=2372ms p95=5510ms p99=6625ms max=8008ms avg=2410.2ms
+[Latency-PROC-1] count=1219018 min=12ms p50=2221ms p95=5401ms p99=6477ms max=8025ms avg=2259.7ms
+[Latency-PROC-3] count=1219502 min=12ms p50=2170ms p95=5430ms p99=6589ms max=8008ms avg=2259.0ms
+[Latency-PROC-1] count=1333300 min=12ms p50=1910ms p95=5310ms p99=6436ms max=8025ms avg=2128.4ms
+[Latency-PROC-3] count=1333304 min=11ms p50=1946ms p95=5362ms p99=6563ms max=8008ms avg=2128.5ms
+[Latency-PROC-1] count=1450834 min=12ms p50=1655ms p95=5244ms p99=6377ms max=8025ms avg=2002.8ms
+[Latency-PROC-3] count=1451053 min=11ms p50=1683ms p95=5286ms p99=6514ms max=8008ms avg=2002.8ms
+[Latency-PROC-1] count=1566369 min=12ms p50=1369ms p95=5197ms p99=6364ms max=8025ms avg=1879.3ms
+[Latency-PROC-3] count=1566498 min=11ms p50=1395ms p95=5224ms p99=6440ms max=8008ms avg=1879.4ms
+[Latency-PROC-1] count=1680773 min=12ms p50=1104ms p95=5130ms p99=6305ms max=8025ms avg=1764.5ms
+[Latency-PROC-3] count=1680886 min=11ms p50=1139ms p95=5180ms p99=6415ms max=8008ms avg=1764.6ms
+[Latency-PROC-1] count=1794208 min=12ms p50=911ms p95=5044ms p99=6288ms max=8025ms avg=1665.5ms
+[Latency-PROC-3] count=1794348 min=11ms p50=967ms p95=5105ms p99=6372ms max=8008ms avg=1665.5ms
+[Latency-PROC-1] count=1907810 min=12ms p50=700ms p95=4970ms p99=6257ms max=8025ms avg=1580.2ms
+[Latency-PROC-3] count=1908302 min=11ms p50=810ms p95=5028ms p99=6318ms max=8008ms avg=1579.9ms
+[Latency-PROC-1] count=2022185 min=12ms p50=470ms p95=4894ms p99=6214ms max=8025ms avg=1502.3ms
+[Latency-PROC-3] count=2022529 min=11ms p50=592ms p95=4964ms p99=6257ms max=8008ms avg=1502.2ms
+[Latency-PROC-1] count=2135118 min=12ms p50=339ms p95=4826ms p99=6203ms max=8025ms avg=1432.3ms
+[Latency-PROC-3] count=2135155 min=11ms p50=408ms p95=4882ms p99=6225ms max=8008ms avg=1432.4ms
+[Latency-PROC-1] count=2236395 min=12ms p50=370ms p95=4804ms p99=6184ms max=8025ms avg=1400.9ms
+[Latency-PROC-3] count=2236622 min=11ms p50=444ms p95=4850ms p99=6191ms max=8008ms avg=1400.9ms
+[Latency-PROC-1] count=2352645 min=12ms p50=448ms p95=4739ms p99=6151ms max=8025ms avg=1393.0ms
+[Latency-PROC-3] count=2352975 min=11ms p50=541ms p95=4786ms p99=6114ms max=8008ms avg=1393.0ms
+[Latency-PROC-1] count=2468042 min=12ms p50=514ms p95=4702ms p99=6138ms max=8025ms avg=1375.6ms
+[Latency-PROC-3] count=2468428 min=11ms p50=586ms p95=4730ms p99=6112ms max=8008ms avg=1375.7ms
+[Latency-PROC-1] count=2583454 min=12ms p50=517ms p95=4653ms p99=6104ms max=8025ms avg=1358.7ms
+[Latency-PROC-3] count=2583599 min=11ms p50=602ms p95=4682ms p99=6091ms max=8008ms avg=1358.7ms
+[Latency-PROC-1] count=2701007 min=12ms p50=512ms p95=4626ms p99=6062ms max=8025ms avg=1330.7ms
+[Latency-PROC-3] count=2701329 min=11ms p50=605ms p95=4655ms p99=6076ms max=8008ms avg=1330.6ms
+[Latency-PROC-1] count=2818194 min=12ms p50=459ms p95=4567ms p99=6034ms max=8025ms avg=1288.8ms
+[Latency-PROC-3] count=2818499 min=11ms p50=526ms p95=4598ms p99=6065ms max=8008ms avg=1288.7ms
+[Latency-PROC-1] count=2932395 min=10ms p50=402ms p95=4534ms p99=5967ms max=8025ms avg=1245.6ms
+[Latency-PROC-3] count=2932610 min=11ms p50=440ms p95=4575ms p99=6065ms max=8008ms avg=1245.6ms
+[Latency-PROC-1] count=3044757 min=9ms p50=361ms p95=4515ms p99=5947ms max=8025ms avg=1207.8ms
+[Latency-PROC-3] count=3045101 min=11ms p50=377ms p95=4545ms p99=6042ms max=8008ms avg=1207.7ms
+[Latency-PROC-1] count=3159063 min=9ms p50=327ms p95=4461ms p99=5886ms max=8025ms avg=1172.9ms
+[Latency-PROC-3] count=3159385 min=11ms p50=346ms p95=4501ms p99=6037ms max=8008ms avg=1172.8ms
+[Latency-PROC-1] FINAL count=3269164 min=9ms p50=303ms p95=4422ms p99=5862ms max=8025ms avg=1140.6ms
+[Latency-PROC-3] FINAL count=3269164 min=11ms p50=324ms p95=4474ms p99=6033ms max=8008ms avg=1140.6ms
+[Latency-PROC-1] count=3269164 min=9ms p50=303ms p95=4422ms p99=5862ms max=8025ms avg=1140.6ms
+[Latency-PROC-3] count=3269164 min=11ms p50=324ms p95=4474ms p99=6033ms max=8008ms avg=1140.6ms
+[Latency-PROC-5] count=25079 min=598ms p50=4643ms p95=8065ms p99=8506ms max=8772ms avg=4604.4ms
+[Latency-PROC-6] count=25079 min=592ms p50=4638ms p95=8037ms p99=8541ms max=8772ms avg=4604.4ms
+[Latency-PROC-5] count=53484 min=598ms p50=8788ms p95=14563ms p99=14997ms max=15093ms avg=8505.1ms
+[Latency-PROC-6] count=53484 min=592ms p50=8822ms p95=14567ms p99=15004ms max=15093ms avg=8504.8ms
+[Latency-PROC-5] count=82297 min=598ms p50=11125ms p95=14723ms p99=15003ms max=16092ms avg=10056.9ms
+[Latency-PROC-6] count=82878 min=592ms p50=11231ms p95=14714ms p99=15004ms max=16092ms avg=10083.2ms
+[Latency-PROC-5] count=102908 min=598ms p50=12218ms p95=15026ms p99=16077ms max=17109ms avg=10828.9ms
+[Latency-PROC-6] count=104387 min=592ms p50=12286ms p95=15028ms p99=16043ms max=17110ms avg=10859.0ms
+[Latency-PROC-5] count=121713 min=598ms p50=12645ms p95=15032ms p99=16018ms max=17109ms avg=11199.4ms
+[Latency-PROC-6] count=122538 min=592ms p50=12705ms p95=15037ms p99=16007ms max=17110ms avg=11209.9ms
+[Latency-PROC-5] FINAL count=146402 min=598ms p50=12467ms p95=14997ms p99=15949ms max=17109ms avg=11262.8ms
+[Latency-PROC-6] FINAL count=146402 min=592ms p50=12467ms p95=15000ms p99=15963ms max=17110ms avg=11262.9ms
+[Latency-PROC-5] count=146402 min=598ms p50=12467ms p95=14997ms p99=15949ms max=17109ms avg=11262.8ms
+[Latency-PROC-6] count=146402 min=592ms p50=12467ms p95=15000ms p99=15963ms max=17110ms avg=11262.9ms
+[Latency-PROC-5] count=52870 min=81ms p50=3652ms p95=5277ms p99=5750ms max=6319ms avg=3292.3ms
+[Latency-PROC-6] count=53402 min=81ms p50=3664ms p95=5341ms p99=5795ms max=6319ms avg=3312.5ms
+[Latency-PROC-5] count=107596 min=81ms p50=5503ms p95=9844ms p99=10415ms max=11339ms avg=5612.2ms
+[Latency-PROC-6] count=108039 min=81ms p50=5503ms p95=9950ms p99=10457ms max=11339ms avg=5628.5ms
+[Latency-PROC-5] count=162192 min=81ms p50=7446ms p95=10425ms p99=11003ms max=11897ms avg=6846.8ms
+[Latency-PROC-6] count=162820 min=81ms p50=7546ms p95=10434ms p99=11047ms max=11897ms avg=6856.2ms
+[Latency-PROC-5] FINAL count=200130 min=81ms p50=8337ms p95=10888ms p99=11781ms max=12923ms avg=7411.7ms
+[Latency-PROC-6] FINAL count=200206 min=81ms p50=8335ms p95=10895ms p99=11787ms max=12923ms avg=7413.1ms
+[Latency-PROC-5] count=200130 min=81ms p50=8337ms p95=10888ms p99=11781ms max=12923ms avg=7411.7ms
+[Latency-PROC-6] count=200206 min=81ms p50=8335ms p95=10895ms p99=11787ms max=12923ms avg=7413.1ms
+[Latency-PROC-5] count=79346 min=55ms p50=1565ms p95=3233ms p99=3493ms max=3876ms avg=1636.2ms
+[Latency-PROC-6] count=79346 min=55ms p50=1567ms p95=3220ms p99=3463ms max=3855ms avg=1635.9ms
+[Latency-PROC-5] count=157670 min=55ms p50=3100ms p95=6089ms p99=6638ms max=7296ms avg=3107.5ms
+[Latency-PROC-6] count=157984 min=55ms p50=3095ms p95=6104ms p99=6705ms max=7304ms avg=3113.6ms
+[Latency-PROC-5] count=235531 min=55ms p50=4528ms p95=8153ms p99=8841ms max=10026ms avg=4430.8ms
+[Latency-PROC-6] count=235752 min=55ms p50=4660ms p95=8186ms p99=8863ms max=10026ms avg=4434.9ms
+[Latency-PROC-5] FINAL count=292707 min=55ms p50=5494ms p95=9047ms p99=9545ms max=10136ms avg=5139.9ms
+[Latency-PROC-6] FINAL count=292805 min=55ms p50=5588ms p95=9021ms p99=9513ms max=10155ms avg=5140.6ms
+[Latency-PROC-5] count=292707 min=55ms p50=5494ms p95=9047ms p99=9545ms max=10136ms avg=5139.9ms
+[Latency-PROC-6] count=292805 min=55ms p50=5588ms p95=9021ms p99=9513ms max=10155ms avg=5140.6ms
+[Latency-PROC-5] count=104777 min=27ms p50=514ms p95=1051ms p99=1211ms max=1505ms avg=548.1ms
+[Latency-PROC-6] count=104776 min=22ms p50=515ms p95=1050ms p99=1201ms max=1505ms avg=548.2ms
+[Latency-PROC-5] count=209461 min=27ms p50=765ms p95=1940ms p99=2200ms max=2627ms avg=902.4ms
+[Latency-PROC-6] count=209594 min=22ms p50=791ms p95=1945ms p99=2183ms max=2627ms avg=902.8ms
+[Latency-PROC-5] count=309591 min=27ms p50=1160ms p95=3828ms p99=4209ms max=4606ms avg=1424.6ms
+[Latency-PROC-6] count=309592 min=22ms p50=1153ms p95=3755ms p99=4172ms max=4606ms avg=1424.8ms
+[Latency-PROC-5] FINAL count=386787 min=27ms p50=1558ms p95=4226ms p99=5100ms max=6199ms avg=1836.1ms
+[Latency-PROC-6] FINAL count=386787 min=22ms p50=1534ms p95=4259ms p99=5168ms max=6179ms avg=1836.2ms
+[Latency-PROC-5] count=386787 min=27ms p50=1558ms p95=4226ms p99=5100ms max=6199ms avg=1836.1ms
+[Latency-PROC-6] count=386787 min=22ms p50=1534ms p95=4259ms p99=5168ms max=6179ms avg=1836.2ms
+[Latency-PROC-5] count=49546 min=1439ms p50=5550ms p95=7122ms p99=7285ms max=7385ms avg=5353.6ms
+[Latency-PROC-6] count=49545 min=1439ms p50=5513ms p95=7102ms p99=7289ms max=7364ms avg=5355.5ms
+[Latency-PROC-5] count=169656 min=414ms p50=4572ms p95=6745ms p99=7225ms max=7801ms avg=4513.6ms
+[Latency-PROC-6] count=169794 min=414ms p50=4577ms p95=6689ms p99=7210ms max=7801ms avg=4514.6ms
+[Latency-PROC-5] count=288874 min=62ms p50=4102ms p95=6463ms p99=7203ms max=8008ms avg=4031.9ms
+[Latency-PROC-6] count=288873 min=62ms p50=4116ms p95=6361ms p99=7137ms max=8009ms avg=4032.3ms
+[Latency-PROC-5] count=406394 min=61ms p50=3573ms p95=6170ms p99=7121ms max=8008ms avg=3535.4ms
+[Latency-PROC-6] count=406399 min=62ms p50=3546ms p95=6120ms p99=7048ms max=8009ms avg=3535.7ms
+[Latency-PROC-5] count=520696 min=52ms p50=3199ms p95=5995ms p99=7031ms max=8008ms avg=3253.9ms
+[Latency-PROC-6] count=520818 min=52ms p50=3169ms p95=5931ms p99=6986ms max=8009ms avg=3254.2ms
+[Latency-PROC-5] count=635517 min=24ms p50=2965ms p95=5833ms p99=6947ms max=8008ms avg=3050.9ms
+[Latency-PROC-6] count=635516 min=24ms p50=2933ms p95=5763ms p99=6906ms max=8009ms avg=3051.1ms
+[Latency-PROC-5] count=751908 min=14ms p50=2862ms p95=5890ms p99=6933ms max=8008ms avg=2966.6ms
+[Latency-PROC-6] count=751904 min=13ms p50=2847ms p95=5804ms p99=6875ms max=8009ms avg=2966.7ms
+[Latency-PROC-5] count=872971 min=14ms p50=2714ms p95=5777ms p99=6906ms max=8008ms avg=2784.7ms
+[Latency-PROC-6] count=873182 min=12ms p50=2708ms p95=5696ms p99=6830ms max=8009ms avg=2784.6ms
+[Latency-PROC-5] count=991847 min=14ms p50=2538ms p95=5681ms p99=6843ms max=8008ms avg=2584.9ms
+[Latency-PROC-6] count=992122 min=12ms p50=2528ms p95=5576ms p99=6786ms max=8009ms avg=2584.6ms
+[Latency-PROC-5] count=1106433 min=11ms p50=2342ms p95=5565ms p99=6785ms max=8008ms avg=2411.7ms
+[Latency-PROC-6] count=1106687 min=10ms p50=2337ms p95=5492ms p99=6684ms max=8009ms avg=2411.6ms
+[Latency-PROC-5] count=1220728 min=11ms p50=2119ms p95=5464ms p99=6728ms max=8008ms avg=2260.5ms
+[Latency-PROC-6] count=1220945 min=10ms p50=2124ms p95=5438ms p99=6648ms max=8009ms avg=2260.3ms
+[Latency-PROC-5] count=1334848 min=11ms p50=1888ms p95=5408ms p99=6688ms max=8008ms avg=2129.8ms
+[Latency-PROC-6] count=1334875 min=10ms p50=1876ms p95=5387ms p99=6596ms max=8009ms avg=2129.9ms
+[Latency-PROC-5] count=1452268 min=11ms p50=1574ms p95=5346ms p99=6666ms max=8008ms avg=2004.3ms
+[Latency-PROC-6] count=1452269 min=10ms p50=1611ms p95=5312ms p99=6568ms max=8009ms avg=2004.4ms
+[Latency-PROC-5] count=1567887 min=11ms p50=1320ms p95=5275ms p99=6603ms max=8008ms avg=1880.2ms
+[Latency-PROC-6] count=1567889 min=10ms p50=1353ms p95=5225ms p99=6518ms max=8009ms avg=1880.3ms
+[Latency-PROC-5] count=1682174 min=11ms p50=1047ms p95=5190ms p99=6518ms max=8008ms avg=1765.5ms
+[Latency-PROC-6] count=1682173 min=10ms p50=1119ms p95=5175ms p99=6467ms max=8009ms avg=1765.6ms
+[Latency-PROC-5] count=1795449 min=11ms p50=877ms p95=5127ms p99=6466ms max=8008ms avg=1666.7ms
+[Latency-PROC-6] count=1795435 min=10ms p50=936ms p95=5141ms p99=6435ms max=8009ms avg=1666.8ms
+[Latency-PROC-5] count=1909259 min=11ms p50=676ms p95=5085ms p99=6449ms max=8008ms avg=1581.2ms
+[Latency-PROC-6] count=1909262 min=10ms p50=713ms p95=5072ms p99=6318ms max=8009ms avg=1581.3ms
+[Latency-PROC-5] count=2023607 min=11ms p50=472ms p95=5018ms p99=6380ms max=8008ms avg=1503.3ms
+[Latency-PROC-6] count=2023607 min=10ms p50=505ms p95=5024ms p99=6289ms max=8009ms avg=1503.4ms
+[Latency-PROC-5] count=2136152 min=11ms p50=355ms p95=4969ms p99=6288ms max=8008ms avg=1433.6ms
+[Latency-PROC-6] count=2136367 min=10ms p50=363ms p95=4947ms p99=6217ms max=8009ms avg=1433.6ms
+[Latency-PROC-5] count=2237815 min=11ms p50=382ms p95=4927ms p99=6223ms max=8008ms avg=1402.6ms
+[Latency-PROC-6] count=2237817 min=10ms p50=399ms p95=4916ms p99=6194ms max=8009ms avg=1402.7ms
+[Latency-PROC-5] count=2354345 min=11ms p50=457ms p95=4881ms p99=6184ms max=8008ms avg=1394.5ms
+[Latency-PROC-6] count=2354467 min=10ms p50=504ms p95=4865ms p99=6167ms max=8009ms avg=1394.6ms
+[Latency-PROC-5] count=2469470 min=11ms p50=504ms p95=4793ms p99=6184ms max=8008ms avg=1377.1ms
+[Latency-PROC-6] count=2469935 min=10ms p50=555ms p95=4837ms p99=6129ms max=8009ms avg=1377.1ms
+[Latency-PROC-5] count=2584877 min=11ms p50=513ms p95=4733ms p99=6148ms max=8008ms avg=1360.0ms
+[Latency-PROC-6] count=2584877 min=10ms p50=572ms p95=4771ms p99=6075ms max=8009ms avg=1360.1ms
+[Latency-PROC-5] count=2702523 min=11ms p50=512ms p95=4673ms p99=6107ms max=8008ms avg=1331.7ms
+[Latency-PROC-6] count=2702724 min=10ms p50=574ms p95=4747ms p99=6063ms max=8009ms avg=1331.7ms
+[Latency-PROC-5] count=2819581 min=10ms p50=458ms p95=4633ms p99=6088ms max=8008ms avg=1289.7ms
+[Latency-PROC-6] count=2819581 min=9ms p50=506ms p95=4681ms p99=6022ms max=8009ms avg=1289.8ms
+[Latency-PROC-5] count=2933846 min=10ms p50=385ms p95=4605ms p99=6029ms max=8008ms avg=1246.5ms
+[Latency-PROC-6] count=2933978 min=9ms p50=422ms p95=4656ms p99=6011ms max=8009ms avg=1246.5ms
+[Latency-PROC-5] count=3046240 min=10ms p50=349ms p95=4568ms p99=6007ms max=8008ms avg=1208.7ms
+[Latency-PROC-6] count=3046326 min=9ms p50=371ms p95=4598ms p99=5979ms max=8009ms avg=1208.8ms
+[Latency-PROC-5] count=3160635 min=10ms p50=326ms p95=4529ms p99=5993ms max=8008ms avg=1173.8ms
+[Latency-PROC-6] count=3160762 min=9ms p50=343ms p95=4547ms p99=5944ms max=8009ms avg=1173.8ms
+[Latency-PROC-5] FINAL count=3269165 min=10ms p50=303ms p95=4490ms p99=5989ms max=8008ms avg=1141.9ms
+[Latency-PROC-6] FINAL count=3269161 min=9ms p50=316ms p95=4511ms p99=5914ms max=8009ms avg=1142.0ms
+[Latency-PROC-5] count=3269165 min=10ms p50=303ms p95=4490ms p99=5989ms max=8008ms avg=1141.9ms
+[Latency-PROC-6] count=3269161 min=9ms p50=316ms p95=4511ms p99=5914ms max=8009ms avg=1142.0ms
+[Latency-PROC-4] count=23652 min=476ms p50=4454ms p95=7584ms p99=8127ms max=8405ms avg=4386.1ms
+[Latency-PROC-2] count=23871 min=471ms p50=4473ms p95=7632ms p99=8180ms max=8419ms avg=4417.3ms
+[Latency-PROC-4] count=51972 min=476ms p50=8549ms p95=14463ms p99=14982ms max=15093ms avg=8368.2ms
+[Latency-PROC-2] count=52243 min=471ms p50=8721ms p95=14526ms p99=14994ms max=15093ms avg=8393.8ms
+[Latency-PROC-4] count=80824 min=476ms p50=10972ms p95=14681ms p99=14998ms max=16098ms avg=9994.5ms
+[Latency-PROC-2] count=81110 min=471ms p50=11048ms p95=14713ms p99=15005ms max=16097ms avg=10007.2ms
+[Latency-PROC-2] count=102076 min=471ms p50=12252ms p95=14866ms p99=15049ms max=16097ms avg=10751.6ms
+[Latency-PROC-4] count=103123 min=476ms p50=12253ms p95=14892ms p99=15098ms max=16098ms avg=10771.8ms
+[Latency-PROC-2] count=120022 min=471ms p50=12601ms p95=14880ms p99=15061ms max=16611ms avg=11096.8ms
+[Latency-PROC-4] count=120344 min=476ms p50=12581ms p95=14884ms p99=15083ms max=16098ms avg=11101.4ms
+[Latency-PROC-2] FINAL count=146407 min=471ms p50=12369ms p95=14844ms p99=15044ms max=16611ms avg=11198.6ms
+[Latency-PROC-4] FINAL count=146407 min=476ms p50=12378ms p95=14858ms p99=15056ms max=16098ms avg=11199.2ms
+[Latency-PROC-2] count=146407 min=471ms p50=12369ms p95=14844ms p99=15044ms max=16611ms avg=11198.6ms
+[Latency-PROC-4] count=146407 min=476ms p50=12378ms p95=14858ms p99=15056ms max=16098ms avg=11199.2ms
+[Latency-PROC-2] count=53803 min=91ms p50=3643ms p95=5379ms p99=5844ms max=6330ms avg=3329.7ms
+[Latency-PROC-4] count=53939 min=82ms p50=3662ms p95=5402ms p99=5877ms max=6318ms avg=3334.4ms
+[Latency-PROC-2] count=108439 min=91ms p50=5435ms p95=9900ms p99=10449ms max=11339ms avg=5642.6ms
+[Latency-PROC-4] count=108712 min=82ms p50=5483ms p95=9917ms p99=10430ms max=11339ms avg=5652.1ms
+[Latency-PROC-2] count=163290 min=91ms p50=7411ms p95=10433ms p99=11017ms max=11877ms avg=6863.2ms
+[Latency-PROC-4] count=163464 min=82ms p50=7505ms p95=10413ms p99=11005ms max=11898ms avg=6865.7ms
+[Latency-PROC-2] FINAL count=200203 min=91ms p50=8295ms p95=10931ms p99=11788ms max=12922ms avg=7413.5ms
+[Latency-PROC-4] FINAL count=200203 min=82ms p50=8259ms p95=10937ms p99=11829ms max=12922ms avg=7413.0ms
+[Latency-PROC-2] count=200203 min=91ms p50=8295ms p95=10931ms p99=11788ms max=12922ms avg=7413.5ms
+[Latency-PROC-4] count=200203 min=82ms p50=8259ms p95=10937ms p99=11829ms max=12922ms avg=7413.0ms
+[Latency-PROC-2] count=79347 min=48ms p50=1574ms p95=3234ms p99=3488ms max=3855ms avg=1636.0ms
+[Latency-PROC-4] count=79617 min=49ms p50=1596ms p95=3231ms p99=3485ms max=3856ms avg=1640.7ms
+[Latency-PROC-2] count=157983 min=48ms p50=3103ms p95=6101ms p99=6686ms max=7296ms avg=3113.4ms
+[Latency-PROC-4] count=157982 min=49ms p50=3136ms p95=6104ms p99=6680ms max=7296ms avg=3113.4ms
+[Latency-PROC-2] count=236363 min=48ms p50=4619ms p95=8208ms p99=8926ms max=10026ms avg=4444.6ms
+[Latency-PROC-4] count=236363 min=49ms p50=4603ms p95=8169ms p99=8852ms max=10025ms avg=4444.7ms
+[Latency-PROC-2] FINAL count=292687 min=48ms p50=5576ms p95=9054ms p99=9523ms max=10155ms avg=5139.1ms
+[Latency-PROC-4] FINAL count=292688 min=49ms p50=5464ms p95=9034ms p99=9523ms max=10136ms avg=5139.1ms
+[Latency-PROC-2] count=292687 min=48ms p50=5576ms p95=9054ms p99=9523ms max=10155ms avg=5139.1ms
+[Latency-PROC-4] count=292688 min=49ms p50=5464ms p95=9034ms p99=9523ms max=10136ms avg=5139.1ms
+[Latency-PROC-2] count=103931 min=26ms p50=515ms p95=1047ms p99=1189ms max=1504ms avg=545.2ms
+[Latency-PROC-4] count=103981 min=26ms p50=511ms p95=1039ms p99=1173ms max=1504ms avg=545.5ms
+[Latency-PROC-2] count=208678 min=26ms p50=796ms p95=1937ms p99=2200ms max=2630ms avg=899.8ms
+[Latency-PROC-4] count=208678 min=26ms p50=777ms p95=1943ms p99=2204ms max=2631ms avg=900.0ms
+[Latency-PROC-2] count=308919 min=26ms p50=1172ms p95=3815ms p99=4185ms max=4606ms avg=1422.2ms
+[Latency-PROC-4] count=309301 min=26ms p50=1183ms p95=3783ms p99=4178ms max=4606ms avg=1423.6ms
+[Latency-PROC-2] FINAL count=386805 min=26ms p50=1569ms p95=4252ms p99=5139ms max=6198ms avg=1836.4ms
+[Latency-PROC-4] FINAL count=386806 min=26ms p50=1549ms p95=4245ms p99=5111ms max=6198ms avg=1836.4ms
+[Latency-PROC-2] count=386805 min=26ms p50=1569ms p95=4252ms p99=5139ms max=6198ms avg=1836.4ms
+[Latency-PROC-4] count=386806 min=26ms p50=1549ms p95=4245ms p99=5111ms max=6198ms avg=1836.4ms
+[Latency-PROC-2] count=48198 min=1418ms p50=5583ms p95=7276ms p99=7465ms max=7545ms avg=5448.3ms
+[Latency-PROC-4] count=48336 min=1438ms p50=5588ms p95=7331ms p99=7491ms max=7554ms avg=5451.2ms
+[Latency-PROC-2] count=168252 min=413ms p50=4553ms p95=6832ms p99=7336ms max=7821ms avg=4528.8ms
+[Latency-PROC-4] count=168433 min=432ms p50=4563ms p95=6882ms p99=7412ms max=7822ms avg=4529.1ms
+[Latency-PROC-2] count=287298 min=81ms p50=4096ms p95=6408ms p99=7286ms max=8007ms avg=4050.0ms
+[Latency-PROC-4] count=287476 min=60ms p50=4113ms p95=6446ms p99=7346ms max=8008ms avg=4049.8ms
+[Latency-PROC-2] count=405018 min=68ms p50=3583ms p95=6115ms p99=7172ms max=8007ms avg=3547.0ms
+[Latency-PROC-4] count=405144 min=54ms p50=3544ms p95=6100ms p99=7209ms max=8008ms avg=3547.4ms
+[Latency-PROC-2] count=519268 min=52ms p50=3218ms p95=5916ms p99=7077ms max=8007ms avg=3261.1ms
+[Latency-PROC-4] count=519487 min=54ms p50=3156ms p95=5902ms p99=7122ms max=8008ms avg=3261.8ms
+[Latency-PROC-2] count=634219 min=25ms p50=2991ms p95=5782ms p99=6990ms max=8007ms avg=3057.6ms
+[Latency-PROC-4] count=634332 min=25ms p50=2948ms p95=5738ms p99=7039ms max=8008ms avg=3058.2ms
+[Latency-PROC-2] count=750682 min=21ms p50=2902ms p95=5797ms p99=6915ms max=8007ms avg=2971.5ms
+[Latency-PROC-4] count=750788 min=14ms p50=2852ms p95=5789ms p99=7021ms max=8008ms avg=2972.3ms
+[Latency-PROC-2] count=871572 min=13ms p50=2753ms p95=5705ms p99=6841ms max=8007ms avg=2790.5ms
+[Latency-PROC-4] count=871711 min=14ms p50=2693ms p95=5690ms p99=6970ms max=8008ms avg=2790.5ms
+[Latency-PROC-2] count=990421 min=13ms p50=2587ms p95=5626ms p99=6778ms max=8007ms avg=2590.0ms
+[Latency-PROC-4] count=990425 min=14ms p50=2512ms p95=5559ms p99=6925ms max=8008ms avg=2590.3ms
+[Latency-PROC-2] count=1105315 min=13ms p50=2414ms p95=5527ms p99=6741ms max=8007ms avg=2416.0ms
+[Latency-PROC-4] count=1105317 min=11ms p50=2328ms p95=5436ms p99=6843ms max=8008ms avg=2416.4ms
+[Latency-PROC-2] count=1219023 min=13ms p50=2203ms p95=5453ms p99=6661ms max=8007ms avg=2265.1ms
+[Latency-PROC-4] count=1219268 min=11ms p50=2113ms p95=5348ms p99=6705ms max=8008ms avg=2265.0ms
+[Latency-PROC-2] count=1333173 min=13ms p50=1945ms p95=5374ms p99=6581ms max=8007ms avg=2133.5ms
+[Latency-PROC-4] count=1333304 min=11ms p50=1849ms p95=5289ms p99=6616ms max=8008ms avg=2133.6ms
+[Latency-PROC-2] count=1450835 min=13ms p50=1670ms p95=5302ms p99=6541ms max=8007ms avg=2007.4ms
+[Latency-PROC-4] count=1450916 min=11ms p50=1598ms p95=5242ms p99=6570ms max=8008ms avg=2007.6ms
+[Latency-PROC-2] count=1566242 min=13ms p50=1422ms p95=5237ms p99=6492ms max=8007ms avg=1883.7ms
+[Latency-PROC-4] count=1566504 min=11ms p50=1334ms p95=5170ms p99=6509ms max=8008ms avg=1883.7ms
+[Latency-PROC-2] count=1680679 min=13ms p50=1162ms p95=5158ms p99=6428ms max=8007ms avg=1768.6ms
+[Latency-PROC-4] count=1680781 min=11ms p50=1073ms p95=5100ms p99=6440ms max=8008ms avg=1768.7ms
+[Latency-PROC-2] count=1794210 min=12ms p50=992ms p95=5098ms p99=6384ms max=8007ms avg=1669.2ms
+[Latency-PROC-4] count=1794305 min=11ms p50=905ms p95=5028ms p99=6342ms max=8008ms avg=1669.4ms
+[Latency-PROC-2] count=1907788 min=12ms p50=799ms p95=5026ms p99=6289ms max=8007ms avg=1583.6ms
+[Latency-PROC-4] count=1908020 min=11ms p50=671ms p95=4954ms p99=6337ms max=8008ms avg=1583.7ms
+[Latency-PROC-2] count=2022181 min=12ms p50=570ms p95=4989ms p99=6245ms max=8007ms avg=1505.5ms
+[Latency-PROC-4] count=2022394 min=11ms p50=490ms p95=4916ms p99=6300ms max=8008ms avg=1505.6ms
+[Latency-PROC-2] count=2135121 min=12ms p50=421ms p95=4944ms p99=6198ms max=8007ms avg=1435.3ms
+[Latency-PROC-4] count=2135156 min=11ms p50=364ms p95=4859ms p99=6252ms max=8008ms avg=1435.5ms
+[Latency-PROC-2] count=2236320 min=12ms p50=454ms p95=4917ms p99=6189ms max=8007ms avg=1403.8ms
+[Latency-PROC-4] count=2236622 min=11ms p50=387ms p95=4824ms p99=6197ms max=8008ms avg=1403.9ms
+[Latency-PROC-2] count=2352644 min=12ms p50=516ms p95=4875ms p99=6177ms max=8007ms avg=1395.7ms
+[Latency-PROC-4] count=2353097 min=11ms p50=471ms p95=4748ms p99=6169ms max=8008ms avg=1395.9ms
+[Latency-PROC-2] count=2467845 min=12ms p50=565ms p95=4834ms p99=6174ms max=8007ms avg=1378.3ms
+[Latency-PROC-4] count=2468409 min=11ms p50=530ms p95=4673ms p99=6123ms max=8008ms avg=1378.4ms
+[Latency-PROC-2] count=2583451 min=12ms p50=574ms p95=4785ms p99=6149ms max=8007ms avg=1361.2ms
+[Latency-PROC-4] count=2583601 min=11ms p50=548ms p95=4629ms p99=6103ms max=8008ms avg=1361.4ms
+[Latency-PROC-2] count=2700998 min=12ms p50=565ms p95=4729ms p99=6093ms max=8007ms avg=1333.1ms
+[Latency-PROC-4] count=2701720 min=11ms p50=533ms p95=4613ms p99=6080ms max=8008ms avg=1333.1ms
+[Latency-PROC-2] count=2818196 min=9ms p50=504ms p95=4668ms p99=6028ms max=8007ms avg=1291.1ms
+[Latency-PROC-4] count=2818498 min=11ms p50=469ms p95=4576ms p99=6042ms max=8008ms avg=1291.1ms
+[Latency-PROC-2] count=2932397 min=9ms p50=427ms p95=4636ms p99=6025ms max=8007ms avg=1247.8ms
+[Latency-PROC-4] count=2932656 min=11ms p50=402ms p95=4545ms p99=5998ms max=8008ms avg=1247.9ms
+[Latency-PROC-2] count=3044753 min=9ms p50=379ms p95=4604ms p99=6004ms max=8007ms avg=1209.9ms
+[Latency-PROC-4] count=3045116 min=11ms p50=355ms p95=4498ms p99=5966ms max=8008ms avg=1210.0ms
+[Latency-PROC-2] count=3159063 min=9ms p50=349ms p95=4578ms p99=6001ms max=8007ms avg=1174.9ms
+[Latency-PROC-4] count=3159682 min=11ms p50=333ms p95=4457ms p99=5937ms max=8008ms avg=1175.0ms
+[Latency-PROC-4] FINAL count=3269165 min=11ms p50=309ms p95=4406ms p99=5916ms max=8008ms avg=1142.8ms
+[Latency-PROC-2] FINAL count=3269163 min=9ms p50=325ms p95=4550ms p99=5964ms max=8007ms avg=1142.6ms
+[Latency-PROC-2] count=3269163 min=9ms p50=325ms p95=4550ms p99=5964ms max=8007ms avg=1142.6ms
+[Latency-PROC-4] count=3269165 min=11ms p50=309ms p95=4406ms p99=5916ms max=8008ms avg=1142.8ms

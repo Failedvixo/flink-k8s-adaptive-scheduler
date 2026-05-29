@@ -162,3 +162,17 @@ Archivos generados en results/autoscaler-step/ADAPTIVE/:
   - METRICS-SUMMARY.txt      (este archivo)
   - metrics.csv              (fila lista para análisis comparativo)
 ==========================================
+
+========================================
+  Nexmark canonical metrics
+========================================
+  Cores avg:         2.50 cores
+  Cores p95:         3.75 cores
+  Cores peak:        3.75 cores
+  Time:              654.9 s
+  Cores × Time:      1637.0 core·s
+  Events processed:  5,273,272
+  Cost / Mevent:     310.44 core·s / Mevents
+  Throughput / core: 3,221 ev/s
+  (snapshots used:   24)
+========================================

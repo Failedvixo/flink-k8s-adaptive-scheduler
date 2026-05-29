@@ -1,0 +1,179 @@
+==========================================
+  MÉTRICAS COMPLETAS - OFFLINE_BANDIT_V3
+==========================================
+Fecha: Thu May 28 21:37:52 -04 2026
+Job ID: 8b4fe87b717930a2ca2d9b9dabac8482
+Job Name: Nexmark-Config[rate=60k,par=8,win=TUM-10s,cpu=2500,dist=STEP,maxAge=15000ms,cpuPar=2]
+
+CONFIGURACIÓN:
+- Workload:                autoscaler-step
+- Estrategia:              OFFLINE_BANDIT_V3
+- Modo:                    FIXED_STRATEGY=OFFLINE_BANDIT_V3
+- Eventos/seg (base):      60000
+- Distribución llegada:    STEP
+- Duración configurada:    300s
+- Paralelismo global:      8
+- Ventana:                 10s
+- CPU load por evento:     2500 iter
+- Max event age (SLA):     15000ms 
+- TaskManagers:            5
+- Nodos utilizados:        3
+- Imagen scheduler:        adaptive-scheduler:offline_bandit_v3-1780018016
+
+------------------------------------------
+1. ESTADO DEL JOB
+------------------------------------------
+   Estado:        FINISHED
+   Duración:      538785 ms (538.78 s)
+   Inicio:        1780018128212
+   Fin:           1780018666997
+
+------------------------------------------
+2. THROUGHPUT
+------------------------------------------
+   TRABAJO ÚTIL PROCESADO (métrica principal):
+     Stage de medición: Latency Tracker (post CPU-load)
+     Eventos procesados: 7278651
+     Throughput:         13509 ev/s
+
+   THROUGHPUT POR ETAPA (records out / duration):
+     Source emitted:     14888 ev/s   (8021608 records)
+     Filter out:         13509 ev/s   (7278651 records)
+     CPU Load out:       13509 ev/s   (7278651 records)
+     Latency Tracker:    13509 ev/s   (7278651 records)
+     Transform out:      chained ev/s   (0 records)
+     Window out:         59 ev/s   (32000 records, aggregated)
+     Sink in:            59 ev/s   (32000 records)
+
+   Nota: "chained" indica que Flink fusionó el operador con otro vertex,
+   por lo que sus records están reflejados en el siguiente stage.
+
+------------------------------------------
+3. SOURCE STATS (desde logs del TaskManager)
+------------------------------------------
+   Total generado:    12620700
+   Total emitido:     8758616
+   Total descartado:  3818082 (cola llena)
+   Drop %:            30.25%
+
+   Throughput generado: 23424 ev/s
+   Throughput emitido:  16256 ev/s (entra al grafo)
+   Throughput procesado: 13509 ev/s (sale del CPU-load) ← MÉTRICA PRINCIPAL
+
+------------------------------------------
+3b. STALENESS STATS (desde logs del CPULoad)
+------------------------------------------
+   Eventos procesados (CPU-load): 11294767
+   Eventos descartados (stale):   0
+   Stale %:                       0%
+   Max event age configurado:     15000ms
+
+   Nota: "stale" son eventos que entraron al grafo pero cuya edad
+   (System.currentTimeMillis() - event.timestamp) excedía maxEventAge
+   al llegar al CPU-load stage. Fueron descartados sin gastar CPU.
+   Esto modela un SLA de latencia: si la estrategia de scheduling
+   causa congestión → más stale drops → menos throughput útil.
+
+------------------------------------------
+4. LATENCIA END-TO-END
+------------------------------------------
+   PROCESSING (event-time -> fin de CPU-load):
+     p50: 1956 ms
+     p95: 5599 ms
+     p99: 6158 ms
+     avg: 2214.8 ms
+
+   TOTAL (event-time -> sink, incluye delay del window):
+     p50: 5542 ms
+     p95: 22992 ms
+     p99: 25470 ms
+     avg: 8761.1 ms
+
+   Nota: la latencia TOTAL incluye necesariamente hasta 10s
+   adicionales por el delay del Tumbling Window.
+
+------------------------------------------
+5. MÉTRICAS POR OPERADOR
+   Source: Source: Bid Generator -> Watermark Assigner (par=4):
+     Records in:        0
+     Records out:       8021608
+     Backpressure time: 395868ms
+     Idle time:         0ms
+   Filter: High Value Bids (par=8):
+     Records in:        8021608
+     Records out:       7278651
+     Backpressure time: 846460ms
+     Idle time:         1565102ms
+   CPU Load Simulator (2500 iter/event, maxAge=15000ms) (par=4):
+     Records in:        7278651
+     Records out:       7278651
+     Backpressure time: 0ms
+     Idle time:         503064ms
+   Latency Tracker (processing) -> Transform: USD to EUR (par=8):
+     Records in:        7278651
+     Records out:       7278651
+     Backpressure time: 0ms
+     Idle time:         2395575ms
+   Window: Tumbling (par=8):
+     Records in:        7278651
+     Records out:       32000
+     Backpressure time: 0ms
+     Idle time:         2382846ms
+   Sink: Sink: Tracked Console (par=2):
+     Records in:        32000
+     Records out:       0
+     Backpressure time: 0ms
+     Idle time:         605196ms
+
+------------------------------------------
+6. DISTRIBUCIÓN DE PODS
+------------------------------------------
+    minikube: 2 TaskManagers
+    minikube-m02: 2 TaskManagers
+    minikube-m03: 1 TaskManagers
+
+------------------------------------------
+7. SCHEDULING
+------------------------------------------
+   Decisiones de scheduling: 5
+   Cambios de estrategia:    0
+
+   Switches detectados:
+
+
+------------------------------------------
+8. RECURSOS DEL CLUSTER (final)
+------------------------------------------
+NAME           CPU(cores)   CPU(%)   MEMORY(bytes)   MEMORY(%)   
+minikube       304m         2%       1584Mi          20%         
+minikube-m02   1369m        11%      1716Mi          21%         
+minikube-m03   523m         4%       784Mi           9%          
+
+==========================================
+Archivos generados en results/autoscaler-step/OFFLINE_BANDIT_V3/:
+  - job-details.json         (raw JSON del job)
+  - taskmanager-placement.txt (pods por nodo)
+  - taskmanager-full.log     (logs completos del TM)
+  - source-stats.txt         (gen/emit/drop por subtask)
+  - cpuload-stats.txt        (processed/staleDropped por subtask)
+  - latency-processing.txt   (latencia post CPU-load)
+  - latency-total.txt        (latencia event-time -> sink)
+  - scheduler-logs.txt       (decisiones del scheduler)
+  - node-metrics.txt         (CPU/memoria por nodo)
+  - METRICS-SUMMARY.txt      (este archivo)
+  - metrics.csv              (fila lista para análisis comparativo)
+==========================================
+
+========================================
+  Nexmark canonical metrics
+========================================
+  Cores avg:         2.85 cores
+  Cores p95:         3.60 cores
+  Cores peak:        3.60 cores
+  Time:              538.8 s
+  Cores × Time:      1537.0 core·s
+  Events processed:  7,278,651
+  Cost / Mevent:     211.16 core·s / Mevents
+  Throughput / core: 4,736 ev/s
+  (snapshots used:   25)
+========================================

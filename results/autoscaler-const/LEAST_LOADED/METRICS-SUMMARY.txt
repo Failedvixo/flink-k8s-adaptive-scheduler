@@ -162,3 +162,17 @@ Archivos generados en results/autoscaler-const/LEAST_LOADED/:
   - METRICS-SUMMARY.txt      (este archivo)
   - metrics.csv              (fila lista para análisis comparativo)
 ==========================================
+
+========================================
+  Nexmark canonical metrics
+========================================
+  Cores avg:         6.28 cores
+  Cores p95:         9.44 cores
+  Cores peak:        9.44 cores
+  Time:              622.2 s
+  Cores × Time:      3906.6 core·s
+  Events processed:  26,511,007
+  Cost / Mevent:     147.36 core·s / Mevents
+  Throughput / core: 6,786 ev/s
+  (snapshots used:   17)
+========================================

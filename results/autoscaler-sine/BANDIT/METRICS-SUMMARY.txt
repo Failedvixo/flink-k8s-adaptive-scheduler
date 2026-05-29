@@ -164,3 +164,17 @@ Archivos generados en results/autoscaler-sine/BANDIT/:
   - METRICS-SUMMARY.txt      (este archivo)
   - metrics.csv              (fila lista para análisis comparativo)
 ==========================================
+
+========================================
+  Nexmark canonical metrics
+========================================
+  Cores avg:         6.21 cores
+  Cores p95:         8.14 cores
+  Cores peak:        8.14 cores
+  Time:              467.3 s
+  Cores × Time:      2900.0 core·s
+  Events processed:  16,318,804
+  Cost / Mevent:     177.71 core·s / Mevents
+  Throughput / core: 5,627 ev/s
+  (snapshots used:   24)
+========================================

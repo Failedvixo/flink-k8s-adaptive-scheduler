@@ -1,7 +1,0 @@
-NAME                                 CPU(cores)   MEMORY(bytes)   
-flink-jobmanager-7d66cfdb47-mjc2m    27m          571Mi           
-flink-taskmanager-66d45446c5-9sgqj   762m         468Mi           
-flink-taskmanager-66d45446c5-hvs7z   18m          347Mi           
-flink-taskmanager-66d45446c5-j9hl8   761m         436Mi           
-flink-taskmanager-66d45446c5-k2ggz   766m         463Mi           
-flink-taskmanager-66d45446c5-ml8z4   747m         423Mi           
