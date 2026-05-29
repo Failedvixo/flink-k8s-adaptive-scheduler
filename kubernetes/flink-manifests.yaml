@@ -1,16 +1,14 @@
 # ============================================
-# FLINK CLUSTER - Kubernetes Manifests
+# FLINK CLUSTER - With Adaptive Scheduler
 # ============================================
 
 ---
-# Namespace
 apiVersion: v1
 kind: Namespace
 metadata:
   name: flink
 
 ---
-# ConfigMap
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -26,7 +24,6 @@ data:
     parallelism.default: 2
 
 ---
-# ServiceAccount
 apiVersion: v1
 kind: ServiceAccount
 metadata:
@@ -34,7 +31,6 @@ metadata:
   namespace: flink
 
 ---
-# JobManager Service
 apiVersion: v1
 kind: Service
 metadata:
@@ -54,7 +50,6 @@ spec:
     component: jobmanager
 
 ---
-# JobManager Deployment
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -94,16 +89,23 @@ spec:
             taskmanager.numberOfTaskSlots: 2
             parallelism.default: 2
             slot.request.timeout: 120000
+            jobmanager.scheduler: adaptive
+            pipeline.max-parallelism: 120
+            state.savepoints.dir: file:///tmp/savepoints
+            state.checkpoints.dir: file:///tmp/checkpoints
+            execution.checkpointing.interval: 30s
+            execution.checkpointing.mode: AT_LEAST_ONCE
+            jobmanager.adaptive-scheduler.resource-stabilization-timeout: 10s
+            jobmanager.adaptive-scheduler.resource-wait-timeout: 60s
 
 ---
-# TaskManager Deployment
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: flink-taskmanager
   namespace: flink
 spec:
-  replicas: 3
+  replicas: 5
   selector:
     matchLabels:
       app: flink
@@ -116,10 +118,7 @@ spec:
         priority: "5"
     spec:
       serviceAccountName: flink
-      
-      # ← USE ADAPTIVE SCHEDULER
       schedulerName: adaptive-scheduler
-      
       containers:
       - name: taskmanager
         image: flink:1.18.0
@@ -137,3 +136,8 @@ spec:
             taskmanager.numberOfTaskSlots: 2
             parallelism.default: 2
             slot.request.timeout: 120000
+            jobmanager.scheduler: adaptive
+            pipeline.max-parallelism: 120
+            state.checkpoints.dir: file:///tmp/checkpoints
+            execution.checkpointing.interval: 30s
+            execution.checkpointing.mode: AT_LEAST_ONCE

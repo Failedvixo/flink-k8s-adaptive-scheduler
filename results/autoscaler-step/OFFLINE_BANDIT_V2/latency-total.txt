@@ -1,0 +1,16 @@
+[Latency-TOTAL-0] FINAL count=2500 min=5396ms p50=5563ms p95=6373ms p99=6375ms max=6375ms avg=5687.0ms
+[Latency-TOTAL-1] FINAL count=2500 min=5396ms p50=5563ms p95=6373ms p99=6375ms max=6375ms avg=5687.0ms
+[Latency-TOTAL-0] FINAL count=3000 min=3436ms p50=5565ms p95=8151ms p99=8167ms max=8167ms avg=5611.4ms
+[Latency-TOTAL-1] FINAL count=3000 min=3436ms p50=5566ms p95=8151ms p99=8167ms max=8167ms avg=5611.5ms
+[Latency-TOTAL-0] FINAL count=3000 min=3462ms p50=5558ms p95=22927ms p99=22961ms max=22961ms avg=9045.9ms
+[Latency-TOTAL-1] FINAL count=3000 min=3462ms p50=5558ms p95=22927ms p99=22961ms max=22961ms avg=9038.5ms
+[Latency-TOTAL-0] FINAL count=2000 min=5347ms p50=5533ms p95=5621ms p99=5623ms max=5623ms avg=5505.8ms
+[Latency-TOTAL-1] FINAL count=2000 min=5347ms p50=5533ms p95=5621ms p99=5623ms max=5623ms avg=5505.7ms
+[Latency-TOTAL-0] FINAL count=3000 min=5414ms p50=5549ms p95=22605ms p99=22631ms max=22631ms avg=9536.8ms
+[Latency-TOTAL-1] FINAL count=3000 min=5414ms p50=5549ms p95=22605ms p99=22631ms max=22631ms avg=9543.6ms
+[Latency-TOTAL-0] FINAL count=2000 min=5406ms p50=5572ms p95=5635ms p99=5636ms max=5636ms avg=5549.7ms
+[Latency-TOTAL-1] FINAL count=2000 min=5406ms p50=5572ms p95=5635ms p99=5636ms max=5636ms avg=5549.8ms
+[Latency-TOTAL-1] FINAL count=3000 min=5388ms p50=5526ms p95=22001ms p99=22017ms max=22017ms avg=9332.7ms
+[Latency-TOTAL-0] FINAL count=3000 min=5388ms p50=5526ms p95=22001ms p99=22017ms max=22017ms avg=9326.0ms
+[Latency-TOTAL-0] FINAL count=15500 min=5353ms p50=5599ms p95=18040ms p99=25198ms max=25209ms avg=9905.8ms
+[Latency-TOTAL-1] FINAL count=15500 min=5353ms p50=5597ms p95=18040ms p99=25198ms max=25209ms avg=9905.9ms

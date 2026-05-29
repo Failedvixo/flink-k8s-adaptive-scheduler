@@ -4,6 +4,7 @@
 #
 # Matriz: 6 estrategias × 3 distribuciones = 18 experimentos.
 # Configuración base: 200k ev/s, par=8, cpuLoad=1000, 5 TMs, 180s.
+# Staleness SLA: maxEventAge=5000ms (descarta eventos > 5s de antigüedad).
 #
 # Cada experimento genera su propio METRICS-SUMMARY.txt + metrics.csv en
 # results/<workload>/<strategy>/
@@ -26,6 +27,8 @@ DURATION=180          # segundos por experimento
 PARALLELISM=8
 WINDOW=10             # segundos de ventana tumbling
 CPU_LOAD=1000         # iteraciones de trabajo sintético por evento
+CPU_LOAD_PAR=0        # paralelismo del vertex CPU-Load (0 = usar globalParallelism)
+MAX_EVENT_AGE=5000    # SLA: descartar eventos > 5 segundos de antigüedad
 
 # Estrategias. Formato: "STRATEGY:ADAPTIVE_MODE"
 # ADAPTIVE_MODE=true solo para ADAPTIVE. Las demás usan FIXED_STRATEGY.
@@ -75,12 +78,13 @@ echo "=========================================="
 echo "  RUN-EXPERIMENTS — MATRIZ COMPLETA"
 echo "=========================================="
 echo "Configuración base:"
-echo "  Rate:         $RATE ev/s"
-echo "  Duration:     ${DURATION}s"
-echo "  Parallelism:  $PARALLELISM"
-echo "  Window:       ${WINDOW}s"
-echo "  CPU load:     $CPU_LOAD iter/event"
-echo "  TaskManagers: 5"
+echo "  Rate:          $RATE ev/s"
+echo "  Duration:      ${DURATION}s"
+echo "  Parallelism:   $PARALLELISM"
+echo "  Window:        ${WINDOW}s"
+echo "  CPU load:      $CPU_LOAD iter/event"
+echo "  Max event age: ${MAX_EVENT_AGE}ms (staleness SLA)"
+echo "  TaskManagers:  5"
 echo ""
 echo "Estrategias (${#STRATEGIES[@]}):"
 for s in "${STRATEGIES[@]}"; do
@@ -149,7 +153,9 @@ for WORKLOAD in "${DISTRIBUTIONS[@]}"; do
          "$PARALLELISM" \
          "$WINDOW" \
          "$CPU_LOAD" \
-         "$DIST"; then
+         "$DIST" \
+         "$CPU_LOAD_PAR" \
+         "$MAX_EVENT_AGE"; then
       SUCCEEDED+=("$STRATEGY/$WORKLOAD")
       echo ""
       echo "  ✓ $EXP_ID OK"
@@ -229,27 +235,19 @@ for WORKLOAD in "${DISTRIBUTIONS[@]}"; do
 | Paralelismo | $PARALLELISM |
 | Ventana | ${WINDOW}s |
 | CPU load | $CPU_LOAD iter/evento |
+| Max event age | ${MAX_EVENT_AGE}ms |
 | TaskManagers | 5 |
 
 ## Resultados
 
-| Estrategia | Estado | Throughput procesado | Eventos procesados | Drop % | Nodos | Lat p50 | Lat p95 | Lat p99 |
-|------------|--------|---------------------:|-------------------:|-------:|------:|--------:|--------:|--------:|
+| Estrategia | Estado | Throughput procesado | Eventos procesados | Source Drop % | Stale Drop % | Nodos | Lat p50 | Lat p95 | Lat p99 |
+|------------|--------|---------------------:|-------------------:|--------------:|-------------:|------:|--------:|--------:|--------:|
 MDHEADER
 
   for entry in "${STRATEGIES[@]}"; do
     STRATEGY="${entry%%:*}"
     CSV="results/$WORKLOAD/$STRATEGY/metrics.csv"
     if [ -f "$CSV" ]; then
-      # Columnas del CSV (index 1-based):
-      #  1 strategy       2 workload       3 distribution    4 rate
-      #  5 duration_sec   6 cpu_load       7 parallelism     8 state
-      #  9 throughput_processed  10 throughput_generated    11 throughput_emitted
-      # 12 processed_events      13 total_generated          14 total_dropped
-      # 15 drop_pct     16 nodes_used      17 total_tms
-      # 18 scheduling_decisions  19 strategy_switches
-      # 20 lat_proc_p50  21 lat_proc_p95  22 lat_proc_p99  23 lat_proc_avg
-      # 24 lat_total_p50 25 lat_total_p95 26 lat_total_p99 27 lat_total_avg
       ROW=$(tail -n 1 "$CSV")
       STATE=$(echo "$ROW" | cut -d',' -f8)
       TP=$(echo "$ROW" | cut -d',' -f9)
@@ -259,9 +257,10 @@ MDHEADER
       P50=$(echo "$ROW" | cut -d',' -f20)
       P95=$(echo "$ROW" | cut -d',' -f21)
       P99=$(echo "$ROW" | cut -d',' -f22)
-      echo "| $STRATEGY | $STATE | ${TP} ev/s | ${PROC_EV} | ${DROP}% | ${NODES} | ${P50} ms | ${P95} ms | ${P99} ms |" >> "$COMP_FILE"
+      STALE=$(echo "$ROW" | cut -d',' -f30)
+      echo "| $STRATEGY | $STATE | ${TP} ev/s | ${PROC_EV} | ${DROP}% | ${STALE}% | ${NODES} | ${P50} ms | ${P95} ms | ${P99} ms |" >> "$COMP_FILE"
     else
-      echo "| $STRATEGY | FAILED | - | - | - | - | - | - | - |" >> "$COMP_FILE"
+      echo "| $STRATEGY | FAILED | - | - | - | - | - | - | - | - |" >> "$COMP_FILE"
     fi
   done
 
@@ -270,9 +269,11 @@ MDHEADER
 ## Notas
 
 - **Throughput procesado**: eventos que salieron del Latency Tracker (post CPU-Load).
-  Es el trabajo útil real — excluye eventos descartados en la cola del source.
-- **Eventos procesados**: total absoluto de eventos que completaron el pipeline.
-- **Drop %**: % de eventos generados que no entraron al grafo (cola saturada).
+  Es el trabajo útil real — excluye eventos descartados en source Y en pipeline.
+- **Source Drop %**: eventos generados que no entraron al grafo (cola del source saturada).
+- **Stale Drop %**: eventos que entraron al grafo pero fueron descartados en el CPU-load
+  por exceder el SLA de ${MAX_EVENT_AGE}ms. Esta es la métrica clave para comparar
+  estrategias: refleja la congestión causada por mala distribución de TaskManagers.
 - **Latencia**: p50/p95/p99 del procesamiento (event-time → fin de CPU-load),
   promediada entre subtasks. No incluye delay del window tumbling.
 
@@ -308,6 +309,7 @@ cat > "$GLOBAL_FILE" << GHEADER
 | Paralelismo | $PARALLELISM |
 | Ventana | ${WINDOW}s |
 | CPU load | $CPU_LOAD iter/evento |
+| Max event age | ${MAX_EVENT_AGE}ms |
 | TaskManagers | 5 |
 
 ## Matriz: Throughput procesado (ev/s)
@@ -331,9 +333,32 @@ for entry in "${STRATEGIES[@]}"; do
   echo "$ROW_STR" >> "$GLOBAL_FILE"
 done
 
+cat >> "$GLOBAL_FILE" << GMID1
+
+## Matriz: Source Drop % (cola del source saturada)
+
+| Estrategia |$DIST_HEADER
+|------------|$DIST_SEP
+GMID1
+
+for entry in "${STRATEGIES[@]}"; do
+  STRATEGY="${entry%%:*}"
+  ROW_STR="| $STRATEGY |"
+  for WORKLOAD in "${DISTRIBUTIONS[@]}"; do
+    CSV="results/$WORKLOAD/$STRATEGY/metrics.csv"
+    if [ -f "$CSV" ]; then
+      DROP=$(tail -n 1 "$CSV" | cut -d',' -f15)
+      ROW_STR+=" ${DROP}% |"
+    else
+      ROW_STR+=" - |"
+    fi
+  done
+  echo "$ROW_STR" >> "$GLOBAL_FILE"
+done
+
 cat >> "$GLOBAL_FILE" << GMID2
 
-## Matriz: Drop % (eventos descartados por saturación)
+## Matriz: Stale Drop % (eventos descartados por SLA de latencia)
 
 | Estrategia |$DIST_HEADER
 |------------|$DIST_SEP
@@ -345,8 +370,8 @@ for entry in "${STRATEGIES[@]}"; do
   for WORKLOAD in "${DISTRIBUTIONS[@]}"; do
     CSV="results/$WORKLOAD/$STRATEGY/metrics.csv"
     if [ -f "$CSV" ]; then
-      DROP=$(tail -n 1 "$CSV" | cut -d',' -f15)
-      ROW_STR+=" ${DROP}% |"
+      STALE=$(tail -n 1 "$CSV" | cut -d',' -f30)
+      ROW_STR+=" ${STALE}% |"
     else
       ROW_STR+=" - |"
     fi
@@ -404,15 +429,17 @@ cat >> "$GLOBAL_FILE" << GLOBALEND
 
 ## Lectura recomendada
 
-1. **Comparar dentro de cada distribución** (ver \`results/<dist>/COMPARISON.md\`)
+1. **Comparar Stale Drop % entre estrategias**: la métrica que mejor refleja
+   el impacto del scheduler. Más stale drops = peor distribución de TMs →
+   más congestión → eventos esperan demasiado → se descartan por SLA.
+2. **Comparar dentro de cada distribución** (ver \`results/<dist>/COMPARISON.md\`)
    para ver qué estrategia gana en cada régimen.
-2. **Comparar una misma estrategia entre distribuciones** (filas de arriba)
+3. **Comparar una misma estrategia entre distribuciones** (filas de arriba)
    para ver la robustez de cada estrategia ante variabilidad de carga.
-3. **Relación drop% vs throughput procesado**: la estrategia ideal maximiza
-   throughput procesado minimizando drop%. Si ambos son altos, el pipeline
-   está saturado y la estrategia elige bien qué eventos descartar. Si
-   throughput procesado es bajo y drop% es alto, la estrategia está
-   distribuyendo mal y saturando un nodo.
+4. **Relación source drop% vs stale drop% vs throughput procesado**:
+   - Source drop%: la cola del source se llenó (problema de ingesta)
+   - Stale drop%: el pipeline está congestionado (problema de scheduling)
+   - La estrategia ideal minimiza ambos drops maximizando throughput procesado.
 
 Datos raw: \`results/all-metrics.csv\`.
 

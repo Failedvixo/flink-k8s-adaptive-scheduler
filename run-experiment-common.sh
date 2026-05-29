@@ -13,14 +13,24 @@ run_strategy_experiment() {
   local WINDOW="${7:-10}"
   local CPU_LOAD="${8:-0}"
   local ARRIVAL_DIST="${9:-CONSTANT}"
+  local CPU_LOAD_PAR="${10:-0}"
+  local MAX_EVENT_AGE="${11:-0}"
+  local USE_AUTOSCALER="${12:-false}"
 
   local RESULTS_DIR="results/$WORKLOAD/$STRATEGY"
   mkdir -p "$RESULTS_DIR"
 
+  # Guard against Nexmark env-vars leaking into the old ConfigurableGraphJob
+  # benchmark (autoscaler-*). Without this, a shell that previously sourced
+  # experiment-q{5,8}.sh would silently run Nexmark-Q8 inside autoscaler-*/...
+  if [[ "$WORKLOAD" == autoscaler-* ]]; then
+    unset JOB_CLASS EXTRA_JOB_ARGS HEAVY_VERTEX_PATTERN
+  fi
+
   echo "=========================================="
   echo "  EXPERIMENTO: $STRATEGY ($WORKLOAD)"
   echo "  Rate=$RATE ev/s  Duration=${DURATION}s  Parallelism=$PARALLELISM"
-  echo "  CPULoad=$CPU_LOAD iter  ArrivalDist=$ARRIVAL_DIST"
+  echo "  CPULoad=$CPU_LOAD iter  CPULoadPar=$CPU_LOAD_PAR  ArrivalDist=$ARRIVAL_DIST  MaxEventAge=${MAX_EVENT_AGE}ms  Autoscaler=$USE_AUTOSCALER"
   echo "=========================================="
 
   local CONTAINER_NAME
@@ -84,7 +94,19 @@ run_strategy_experiment() {
   echo "[4/8] Desplegando scheduler..."
   kubectl set image deployment/adaptive-scheduler -n kube-system \
     "${CONTAINER_NAME}=adaptive-scheduler:${TAG}"
-  if [ "$ADAPTIVE_MODE" = "true" ]; then
+
+  # STRATEGY=DEFAULT  →  bypass the adaptive K8s scheduler entirely.
+  # Patch TM deployment.schedulerName = default-scheduler so kube-scheduler
+  # places pods. Cleanup at end of function restores adaptive-scheduler.
+  local _DEFAULT_MODE="false"
+  if [ "$STRATEGY" = "DEFAULT" ]; then
+    _DEFAULT_MODE="true"
+    echo "  Mode: K8s DEFAULT scheduler (bypass adaptive)"
+    kubectl set env deployment/adaptive-scheduler -n kube-system \
+      --containers="${CONTAINER_NAME}" FIXED_STRATEGY- 2>/dev/null || true
+    kubectl patch deployment flink-taskmanager -n flink --type=strategic \
+      -p '{"spec":{"template":{"spec":{"schedulerName":"default-scheduler"}}}}'
+  elif [ "$ADAPTIVE_MODE" = "true" ]; then
     kubectl set env deployment/adaptive-scheduler -n kube-system \
       --containers="${CONTAINER_NAME}" FIXED_STRATEGY-
   else
@@ -96,30 +118,39 @@ run_strategy_experiment() {
   sleep 10
 
   local POD_NAME
-  POD_NAME=$(kubectl get pod -n kube-system -l app=adaptive-scheduler \
-    -o jsonpath='{.items[0].metadata.name}')
 
-  local expected_banner
-  if [ "$ADAPTIVE_MODE" = "true" ]; then
-    expected_banner="Mode: ADAPTIVE"
+  if [ "$_DEFAULT_MODE" = "true" ]; then
+    echo "  ✓ DEFAULT mode: adaptive-scheduler bypassed (no banner check)"
   else
-    expected_banner="Mode: FIXED STRATEGY ($STRATEGY)"
-  fi
-
-  local found="false"
-  for i in {1..30}; do
-    if kubectl logs -n kube-system "$POD_NAME" 2>/dev/null \
-         | grep -qF "$expected_banner"; then
-      echo "  ✓ $expected_banner"
-      found="true"
-      break
+    local expected_banner
+    if [ "$ADAPTIVE_MODE" = "true" ]; then
+      expected_banner="Mode: ADAPTIVE"
+    else
+      expected_banner="Mode: FIXED STRATEGY ($STRATEGY)"
     fi
-    sleep 2
-  done
-  if [ "$found" != "true" ]; then
-    echo "ERROR: scheduler no arrancó"
-    kubectl logs -n kube-system "$POD_NAME" --tail=50
-    return 1
+
+    # Re-resolve POD_NAME each iteration so a mid-rollout pod replacement
+    # (CrashLoop, OOM, lingering Terminating from a prior rollout) doesn't
+    # leave us tailing a vanished pod for 60s.
+    local found="false"
+    for i in {1..30}; do
+      POD_NAME=$(kubectl get pod -n kube-system -l app=adaptive-scheduler \
+        --field-selector=status.phase=Running \
+        -o jsonpath='{.items[0].metadata.name}' 2>/dev/null)
+      if [ -n "$POD_NAME" ] && kubectl logs -n kube-system "$POD_NAME" 2>/dev/null \
+           | grep -qF "$expected_banner"; then
+        echo "  ✓ $expected_banner  (pod=$POD_NAME)"
+        found="true"
+        break
+      fi
+      sleep 2
+    done
+    if [ "$found" != "true" ]; then
+      echo "ERROR: scheduler no arrancó"
+      kubectl get pods -n kube-system -l app=adaptive-scheduler 2>&1 | head -5
+      [ -n "$POD_NAME" ] && kubectl logs -n kube-system "$POD_NAME" --tail=50 2>&1
+      return 1
+    fi
   fi
 
   echo ""
@@ -149,43 +180,92 @@ run_strategy_experiment() {
   done
   sleep 5
 
-  echo ""
-  echo "[6/8] Ejecutando job..."
-  local JOB_OUTPUT
-  JOB_OUTPUT=$(kubectl exec -n flink deployment/flink-jobmanager -- \
-    flink run -d /tmp/nexmark.jar "$RATE" "$DURATION" "$PARALLELISM" "$WINDOW" "$CPU_LOAD" "$ARRIVAL_DIST" 2>&1)
-  local JOB_ID
-  JOB_ID=$(echo "$JOB_OUTPUT" | grep -oP 'JobID \K[0-9a-f]{32}')
-
-  if [ -z "$JOB_ID" ]; then
-    echo "ERROR: No se pudo obtener Job ID"
-    echo "$JOB_OUTPUT"
-    kubectl set env deployment/adaptive-scheduler -n kube-system \
-      --containers="${CONTAINER_NAME}" FIXED_STRATEGY- 2>/dev/null || true
-    return 1
+  echo "  Verificando JAR en JobManager..."
+  local SCRIPT_DIR
+  SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  local LOCAL_JAR="$SCRIPT_DIR/flink-nexmark-job/target/flink-nexmark-job-1.0.0.jar"
+  local JM_POD
+  JM_POD=$(kubectl get pod -l component=jobmanager -n flink -o jsonpath='{.items[0].metadata.name}')
+  if ! kubectl exec -n flink "$JM_POD" -- test -f /tmp/nexmark.jar 2>/dev/null; then
+    echo "  JAR no encontrado — subiendo..."
+    kubectl cp "$LOCAL_JAR" "$JM_POD":/tmp/nexmark.jar
+    echo "  ✓ JAR subido"
+  else
+    echo "  ✓ JAR OK"
   fi
-  echo "Job ID: $JOB_ID"
-  sleep 30
-
-  local JOB_STATUS
-  JOB_STATUS=$(kubectl exec -n flink deployment/flink-jobmanager -- \
-    curl -s "http://localhost:8081/jobs/$JOB_ID" | jq -r '.state' 2>/dev/null)
-  echo "Job Status: $JOB_STATUS"
 
   echo ""
-  echo "[7/8] Monitoreando job..."
-  local num_samples=$(( DURATION / 30 ))
-  [ "$num_samples" -lt 1 ] && num_samples=1
-  for (( i=1; i<=num_samples; i++ )); do
+  local JOB_ID
+  if [ "$USE_AUTOSCALER" = "true" ]; then
+    echo "[6/8] Ejecutando job con autoscaler..."
+    local SCRIPT_DIR
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    RATE="$RATE" DURATION="$DURATION" PARALLELISM="$PARALLELISM" \
+    WINDOW="$WINDOW" CPU_LOAD="$CPU_LOAD" ARRIVAL_DIST="$ARRIVAL_DIST" \
+    INITIAL_CPU_PAR="$CPU_LOAD_PAR" MAX_EVENT_AGE="$MAX_EVENT_AGE" \
+    RESULTS_DIR="$RESULTS_DIR" \
+    bash "$SCRIPT_DIR/autoscaler.sh"
+
     echo ""
-    echo "=== Muestra $i/$num_samples ==="
-    kubectl top nodes
-    kubectl get pods -n flink -l component=taskmanager -o wide | awk 'NR>1 {print $1, $7}'
+    echo "[7/8] Monitoreo delegado al autoscaler."
+    JOB_ID=$(cat "$RESULTS_DIR/job-id.txt" 2>/dev/null)
+    if [ -z "$JOB_ID" ]; then
+      echo "ERROR: autoscaler.sh no generó job-id.txt"
+      return 1
+    fi
+    echo "Job ID: $JOB_ID"
+    echo "  Esperando que el job termine..."
+    for i in {1..60}; do
+      local _state
+      _state=$(kubectl exec -n flink deployment/flink-jobmanager -- \
+        curl -s "http://localhost:8081/jobs/$JOB_ID" 2>/dev/null | \
+        python3 -c "import sys,json; print(json.load(sys.stdin).get('state','UNKNOWN'))" 2>/dev/null)
+      if [[ "$_state" == "FINISHED" || "$_state" == "FAILED" || "$_state" == "CANCELED" ]]; then
+        echo "  Job $JOB_ID: $_state"
+        break
+      fi
+      sleep 5
+    done
+  else
+    echo "[6/8] Ejecutando job..."
+    local _CLS_ARG=""
+    if [ -n "${JOB_CLASS:-}" ]; then _CLS_ARG="-c ${JOB_CLASS}"; fi
+    local JOB_OUTPUT
+    # shellcheck disable=SC2086
+    JOB_OUTPUT=$(kubectl exec -n flink deployment/flink-jobmanager -- \
+      flink run -d $_CLS_ARG /tmp/nexmark.jar "$RATE" "$DURATION" "$PARALLELISM" "$WINDOW" "$CPU_LOAD" "$ARRIVAL_DIST" "$CPU_LOAD_PAR" "$MAX_EVENT_AGE" ${EXTRA_JOB_ARGS:-} 2>&1)
+    JOB_ID=$(echo "$JOB_OUTPUT" | grep -oP 'JobID \K[0-9a-f]{32}')
+
+    if [ -z "$JOB_ID" ]; then
+      echo "ERROR: No se pudo obtener Job ID"
+      echo "$JOB_OUTPUT"
+      kubectl set env deployment/adaptive-scheduler -n kube-system \
+        --containers="${CONTAINER_NAME}" FIXED_STRATEGY- 2>/dev/null || true
+      return 1
+    fi
+    echo "Job ID: $JOB_ID"
     sleep 30
-  done
-  echo ""
-  echo "Esperando que el job termine..."
-  sleep 30
+
+    local JOB_STATUS
+    JOB_STATUS=$(kubectl exec -n flink deployment/flink-jobmanager -- \
+      curl -s "http://localhost:8081/jobs/$JOB_ID" | jq -r '.state' 2>/dev/null)
+    echo "Job Status: $JOB_STATUS"
+
+    echo ""
+    echo "[7/8] Monitoreando job..."
+    local num_samples=$(( DURATION / 30 ))
+    [ "$num_samples" -lt 1 ] && num_samples=1
+    for (( i=1; i<=num_samples; i++ )); do
+      echo ""
+      echo "=== Muestra $i/$num_samples ==="
+      kubectl top nodes
+      kubectl get pods -n flink -l component=taskmanager -o wide | awk 'NR>1 {print $1, $7}'
+      sleep 30
+    done
+    echo ""
+    echo "Esperando que el job termine..."
+    sleep 30
+  fi
 
   echo ""
   echo "[8/8] Recolectando evidencias..."
@@ -202,6 +282,7 @@ run_strategy_experiment() {
   kubectl logs -n flink -l component=taskmanager --tail=5000 2>/dev/null \
     > "$RESULTS_DIR/taskmanager-full.log" || true
   grep "Source-" "$RESULTS_DIR/taskmanager-full.log" > "$RESULTS_DIR/source-stats.txt" 2>/dev/null || true
+  grep "CPULoad-" "$RESULTS_DIR/taskmanager-full.log" > "$RESULTS_DIR/cpuload-stats.txt" 2>/dev/null || true
   grep "Latency-PROC" "$RESULTS_DIR/taskmanager-full.log" > "$RESULTS_DIR/latency-processing.txt" 2>/dev/null || true
   grep "Latency-TOTAL" "$RESULTS_DIR/taskmanager-full.log" > "$RESULTS_DIR/latency-total.txt" 2>/dev/null || true
   grep "Sink-" "$RESULTS_DIR/taskmanager-full.log" > "$RESULTS_DIR/sink-stats.txt" 2>/dev/null || true
@@ -222,16 +303,13 @@ run_strategy_experiment() {
   # ========================================
   # THROUGHPUT POR ETAPA DEL GRAFO
   # ========================================
-  # Identificamos los vertices por nombre (contiene substring característico)
-  # para ser robustos ante el orden exacto del plan.
-
   local NUM_VERTICES
   NUM_VERTICES=$(jq -r '.vertices | length' "$RESULTS_DIR/job-details.json")
 
-  # Inicializar todos en N/A
   local SOURCE_OUT=0 FILTER_OUT=0 CPU_LOAD_OUT=0 LATENCY_OUT=0 TRANSFORM_OUT=0 WINDOW_OUT=0 SINK_IN=0
   local SOURCE_NAME="" FILTER_NAME="" CPU_LOAD_NAME="" LATENCY_NAME="" TRANSFORM_NAME="" WINDOW_NAME="" SINK_NAME=""
   local SOURCE_PAR=0 FILTER_PAR=0 CPU_LOAD_PAR=0 LATENCY_PAR=0 TRANSFORM_PAR=0 WINDOW_PAR=0 SINK_PAR=0
+  local HEAVY_NAME="" HEAVY_IN=0 HEAVY_OUT=0 HEAVY_PAR=0
 
   for ((v=0; v<NUM_VERTICES; v++)); do
     local vname vout vin vpar
@@ -240,9 +318,13 @@ run_strategy_experiment() {
     vin=$(jq -r ".vertices[$v].metrics[\"read-records\"] // 0" "$RESULTS_DIR/job-details.json")
     vpar=$(jq -r ".vertices[$v].parallelism" "$RESULTS_DIR/job-details.json")
 
-    # Clasificar por nombre. El chaining de Flink puede unir operadores;
-    # usamos la primera clasificación que haga match.
-    if [[ "$vname" == *"Source: Bid Generator"* ]]; then
+    # Heavy vertex (Nexmark): operator that performs the CPU-bound work.
+    # When set by the experiment script, it owns the "processed" throughput.
+    if [ -n "${HEAVY_VERTEX_PATTERN:-}" ] && [[ "$vname" == *"$HEAVY_VERTEX_PATTERN"* ]]; then
+      HEAVY_NAME="$vname"; HEAVY_IN="$vin"; HEAVY_OUT="$vout"; HEAVY_PAR="$vpar"
+    fi
+
+    if [[ "$vname" == "Source:"* || "$vname" == *"Source: Bid Generator"* ]]; then
       SOURCE_NAME="$vname"; SOURCE_OUT="$vout"; SOURCE_PAR="$vpar"
     elif [[ "$vname" == *"CPU Load Simulator"* ]]; then
       CPU_LOAD_NAME="$vname"; CPU_LOAD_OUT="$vout"; CPU_LOAD_PAR="$vpar"
@@ -259,17 +341,13 @@ run_strategy_experiment() {
     fi
   done
 
-  # ---- Buscar "processed events" ----
-  # Prioridad para el throughput "honesto":
-  # 1. Latency Tracker (si existe chained): justo después del CPU-load, antes del window
-  # 2. Transform: USD to EUR: también está después del CPU-load
-  # 3. CPU Load Simulator: si no hay transform, este es el último procesamiento pesado
-  # 4. Filter: fallback
-  # 5. Source: último fallback
-
+  # Throughput honesto: prioridad de métricas
   local PROCESSED_EVENTS=0
   local PROCESSED_STAGE=""
-  if [ "$LATENCY_OUT" -gt 0 ] 2>/dev/null; then
+  if [ -n "$HEAVY_NAME" ] && [ "$HEAVY_IN" -gt 0 ] 2>/dev/null; then
+    PROCESSED_EVENTS=$HEAVY_IN
+    PROCESSED_STAGE="$HEAVY_NAME (heavy vertex)"
+  elif [ "$LATENCY_OUT" -gt 0 ] 2>/dev/null; then
     PROCESSED_EVENTS=$LATENCY_OUT
     PROCESSED_STAGE="Latency Tracker (post CPU-load)"
   elif [ "$TRANSFORM_OUT" -gt 0 ] 2>/dev/null; then
@@ -286,13 +364,11 @@ run_strategy_experiment() {
     PROCESSED_STAGE="Source (fallback)"
   fi
 
-  # Throughput honesto = eventos procesados / duración
   local THROUGHPUT_PROCESSED="N/A"
   if [ "$DURATION_MS" != "0" ] && [ "$DURATION_MS" != "null" ] && [ "$PROCESSED_EVENTS" -gt 0 ]; then
     THROUGHPUT_PROCESSED=$(echo "scale=0; $PROCESSED_EVENTS * 1000 / $DURATION_MS" | bc)
   fi
 
-  # Throughput del source (compatibilidad)
   local THROUGHPUT_SOURCE="N/A"
   if [ "$DURATION_MS" != "0" ] && [ "$DURATION_MS" != "null" ] && [ "$SOURCE_OUT" -gt 0 ]; then
     THROUGHPUT_SOURCE=$(echo "scale=0; $SOURCE_OUT * 1000 / $DURATION_MS" | bc)
@@ -323,10 +399,12 @@ run_strategy_experiment() {
   TOTAL_TMS=$(kubectl get pods -n flink -l component=taskmanager --no-headers 2>/dev/null | wc -l)
   NODES_USED=$(awk 'NR>1 {print $7}' "$RESULTS_DIR/taskmanager-placement.txt" | sort -u | wc -l)
 
-  # Scheduling stats
+  # Scheduling stats — `grep -c` exits 1 on 0 matches, so `|| echo 0`
+  # would smuggle a stray "0\n" into the variable and break the CSV row.
+  # Use awk: single value, no failure exit.
   local SCHEDULING_DECISIONS STRATEGY_SWITCHES
-  SCHEDULING_DECISIONS=$(grep -c "\[SCHEDULING\]" "$RESULTS_DIR/scheduler-logs.txt" 2>/dev/null || echo "0")
-  STRATEGY_SWITCHES=$(grep -c "STRATEGY SWITCH" "$RESULTS_DIR/scheduler-logs.txt" 2>/dev/null || echo "0")
+  SCHEDULING_DECISIONS=$(awk '/\[SCHEDULING\]/{c++} END{print c+0}' "$RESULTS_DIR/scheduler-logs.txt" 2>/dev/null || echo 0)
+  STRATEGY_SWITCHES=$(awk '/STRATEGY SWITCH/{c++} END{print c+0}' "$RESULTS_DIR/scheduler-logs.txt" 2>/dev/null || echo 0)
 
   # Source stats: generado, emitido, dropped
   local TOTAL_GENERATED=0 TOTAL_DROPPED=0 TOTAL_EMITTED=0 DROP_PCT="N/A"
@@ -350,6 +428,24 @@ run_strategy_experiment() {
   if [ "$DURATION_MS" != "0" ] && [ "$DURATION_MS" != "null" ] && [ "$TOTAL_GENERATED" -gt 0 ]; then
     THROUGHPUT_GENERATED=$(echo "scale=0; $TOTAL_GENERATED * 1000 / $DURATION_MS" | bc)
     THROUGHPUT_EMITTED=$(echo "scale=0; $TOTAL_EMITTED * 1000 / $DURATION_MS" | bc)
+  fi
+
+  # ========================================
+  # STALE DROPS (from CPULoad FINAL logs)
+  # ========================================
+  local TOTAL_STALE_DROPPED=0 TOTAL_CPULOAD_PROCESSED=0 STALE_PCT="N/A"
+  if [ -f "$RESULTS_DIR/cpuload-stats.txt" ] && [ -s "$RESULTS_DIR/cpuload-stats.txt" ]; then
+    while IFS= read -r line; do
+      local sp sd
+      sp=$(echo "$line" | grep -oP 'processed=\K[0-9,]+' | tr -d ',')
+      sd=$(echo "$line" | grep -oP 'staleDropped=\K[0-9,]+' | tr -d ',')
+      [ -n "$sp" ] && TOTAL_CPULOAD_PROCESSED=$(( TOTAL_CPULOAD_PROCESSED + sp ))
+      [ -n "$sd" ] && TOTAL_STALE_DROPPED=$(( TOTAL_STALE_DROPPED + sd ))
+    done < <(grep "FINAL" "$RESULTS_DIR/cpuload-stats.txt")
+    local stale_total=$(( TOTAL_CPULOAD_PROCESSED + TOTAL_STALE_DROPPED ))
+    if [ "$stale_total" -gt 0 ]; then
+      STALE_PCT=$(echo "scale=2; $TOTAL_STALE_DROPPED * 100 / $stale_total" | bc)
+    fi
   fi
 
   # Latencia: percentiles promediados entre subtasks
@@ -392,6 +488,7 @@ CONFIGURACIÓN:
 - Paralelismo global:      $PARALLELISM
 - Ventana:                 ${WINDOW}s
 - CPU load por evento:     $CPU_LOAD iter
+- Max event age (SLA):     ${MAX_EVENT_AGE}ms $([ "$MAX_EVENT_AGE" = "0" ] && echo "(DISABLED)" || echo "")
 - TaskManagers:            $TOTAL_TMS
 - Nodos utilizados:        $NODES_USED
 - Imagen scheduler:        adaptive-scheduler:$TAG
@@ -429,12 +526,26 @@ CONFIGURACIÓN:
 ------------------------------------------
    Total generado:    $TOTAL_GENERATED
    Total emitido:     $TOTAL_EMITTED
-   Total descartado:  $TOTAL_DROPPED
+   Total descartado:  $TOTAL_DROPPED (cola llena)
    Drop %:            ${DROP_PCT}%
 
    Throughput generado: $THROUGHPUT_GENERATED ev/s
    Throughput emitido:  $THROUGHPUT_EMITTED ev/s (entra al grafo)
    Throughput procesado: $THROUGHPUT_PROCESSED ev/s (sale del CPU-load) ← MÉTRICA PRINCIPAL
+
+------------------------------------------
+3b. STALENESS STATS (desde logs del CPULoad)
+------------------------------------------
+   Eventos procesados (CPU-load): $TOTAL_CPULOAD_PROCESSED
+   Eventos descartados (stale):   $TOTAL_STALE_DROPPED
+   Stale %:                       ${STALE_PCT}%
+   Max event age configurado:     ${MAX_EVENT_AGE}ms
+
+   Nota: "stale" son eventos que entraron al grafo pero cuya edad
+   (System.currentTimeMillis() - event.timestamp) excedía maxEventAge
+   al llegar al CPU-load stage. Fueron descartados sin gastar CPU.
+   Esto modela un SLA de latencia: si la estrategia de scheduling
+   causa congestión → más stale drops → menos throughput útil.
 
 ------------------------------------------
 4. LATENCIA END-TO-END
@@ -482,6 +593,7 @@ Archivos generados en $RESULTS_DIR/:
   - taskmanager-placement.txt (pods por nodo)
   - taskmanager-full.log     (logs completos del TM)
   - source-stats.txt         (gen/emit/drop por subtask)
+  - cpuload-stats.txt        (processed/staleDropped por subtask)
   - latency-processing.txt   (latencia post CPU-load)
   - latency-total.txt        (latencia event-time -> sink)
   - scheduler-logs.txt       (decisiones del scheduler)
@@ -491,10 +603,10 @@ Archivos generados en $RESULTS_DIR/:
 ==========================================
 SUMMARY
 
-  # CSV con throughput honesto como métrica principal
+  # CSV con throughput honesto como métrica principal + stale stats
   cat > "$RESULTS_DIR/metrics.csv" << CSV
-strategy,workload,distribution,rate,duration_sec,cpu_load,parallelism,state,throughput_processed,throughput_generated,throughput_emitted,processed_events,total_generated,total_dropped,drop_pct,nodes_used,total_tms,scheduling_decisions,strategy_switches,lat_proc_p50,lat_proc_p95,lat_proc_p99,lat_proc_avg,lat_total_p50,lat_total_p95,lat_total_p99,lat_total_avg
-$STRATEGY,$WORKLOAD,$ARRIVAL_DIST,$RATE,$DURATION_SEC,$CPU_LOAD,$PARALLELISM,$STATE,$THROUGHPUT_PROCESSED,$THROUGHPUT_GENERATED,$THROUGHPUT_EMITTED,$PROCESSED_EVENTS,$TOTAL_GENERATED,$TOTAL_DROPPED,$DROP_PCT,$NODES_USED,$TOTAL_TMS,$SCHEDULING_DECISIONS,$STRATEGY_SWITCHES,$LAT_PROC_AVG_P50,$LAT_PROC_AVG_P95,$LAT_PROC_AVG_P99,$LAT_PROC_AVG_AVG,$LAT_TOTAL_AVG_P50,$LAT_TOTAL_AVG_P95,$LAT_TOTAL_AVG_P99,$LAT_TOTAL_AVG_AVG
+strategy,workload,distribution,rate,duration_sec,cpu_load,parallelism,state,throughput_processed,throughput_generated,throughput_emitted,processed_events,total_generated,total_dropped,drop_pct,nodes_used,total_tms,scheduling_decisions,strategy_switches,lat_proc_p50,lat_proc_p95,lat_proc_p99,lat_proc_avg,lat_total_p50,lat_total_p95,lat_total_p99,lat_total_avg,max_event_age,stale_dropped,stale_pct
+$STRATEGY,$WORKLOAD,$ARRIVAL_DIST,$RATE,$DURATION_SEC,$CPU_LOAD,$PARALLELISM,$STATE,$THROUGHPUT_PROCESSED,$THROUGHPUT_GENERATED,$THROUGHPUT_EMITTED,$PROCESSED_EVENTS,$TOTAL_GENERATED,$TOTAL_DROPPED,$DROP_PCT,$NODES_USED,$TOTAL_TMS,$SCHEDULING_DECISIONS,$STRATEGY_SWITCHES,$LAT_PROC_AVG_P50,$LAT_PROC_AVG_P95,$LAT_PROC_AVG_P99,$LAT_PROC_AVG_AVG,$LAT_TOTAL_AVG_P50,$LAT_TOTAL_AVG_P95,$LAT_TOTAL_AVG_P99,$LAT_TOTAL_AVG_AVG,$MAX_EVENT_AGE,$TOTAL_STALE_DROPPED,$STALE_PCT
 CSV
 
   echo ""
@@ -507,11 +619,26 @@ CSV
   echo "Resultados en: $RESULTS_DIR/"
   echo "CSV: $RESULTS_DIR/metrics.csv"
 
+  # Append Nexmark canonical metrics (Cores, Time, Cost/Mevent) to METRICS-SUMMARY.txt
+  local SCRIPT_DIR
+  SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  if [ -f "$SCRIPT_DIR/scripts/compute_nexmark_metrics.py" ]; then
+    python3 "$SCRIPT_DIR/scripts/compute_nexmark_metrics.py" "$RESULTS_DIR" 2>&1 \
+      | sed 's/^/  /' || true
+  fi
+
   if [ "$ADAPTIVE_MODE" != "true" ]; then
     echo ""
     echo "Limpiando FIXED_STRATEGY..."
     kubectl set env deployment/adaptive-scheduler -n kube-system \
       --containers="${CONTAINER_NAME}" FIXED_STRATEGY- 2>/dev/null || true
+  fi
+
+  if [ "$_DEFAULT_MODE" = "true" ]; then
+    echo ""
+    echo "Restaurando schedulerName=adaptive-scheduler en TM deployment..."
+    kubectl patch deployment flink-taskmanager -n flink --type=strategic \
+      -p '{"spec":{"template":{"spec":{"schedulerName":"adaptive-scheduler"}}}}' 2>/dev/null || true
   fi
 
   return 0

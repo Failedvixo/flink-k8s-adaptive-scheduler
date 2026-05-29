@@ -1,0 +1,9 @@
+Waiting for response...
+No running jobs.
+No scheduled jobs.
+---------------------- Terminated Jobs -----------------------
+21.05.2026 19:50:51 : 90245b7c1ee7feabe099d0235b1d98f6 : Nexmark-Q8 (FINISHED)
+21.05.2026 19:57:56 : 7e584d6a6e7156e93e786adff045387e : Nexmark-Q8 (FINISHED)
+21.05.2026 20:04:48 : bcb0beec8545d5d1e897538ae3e5b44b : Nexmark-Q8 (FINISHED)
+21.05.2026 20:11:34 : 2302a6e1d6aad4713e97f4c3c93f19e1 : Nexmark-Q8 (FINISHED)
+--------------------------------------------------------------

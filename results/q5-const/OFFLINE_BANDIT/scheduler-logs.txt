@@ -1,0 +1,109 @@
+[main] INFO com.thesis.scheduler.metrics.ClusterMetrics - [ClusterMetrics] ✓ Metrics Server is available - using REAL metrics
+[BANDIT] Initialized Multi-Armed Bandit Strategy with UCB1
+[BANDIT] Exploration parameter: 1.4142135623730951
+[BANDIT] Optimal CPU range: 30.0% - 70.0%
+[SARSA] Initialized SARSA Strategy (on-policy TD control)
+[SARSA] alpha=0.2 gamma=0.8 epsilon_min=0.05
+[SARSA] Optimal CPU range: 30.0% - 70.0%
+[SARSA] Initialized SARSA Strategy (on-policy TD control)
+[SARSA] alpha=0.2 gamma=0.8 epsilon_min=0.05
+[SARSA] Optimal CPU range: 30.0% - 70.0%
+[OFFLINE_BANDIT] Initialized LinUCB meta-scheduler
+[OFFLINE_BANDIT] Arms: [FCFS, BALANCED, SARSA]
+[OFFLINE_BANDIT] Features (d=9): [bias, avg_cpu, max_cpu, min_cpu, cpu_imbalance, cpu_velocity, avg_mem, elapsed_norm, saturation]
+[OFFLINE_BANDIT] alpha=1.0 decisionIntervalMs=30000
+[OFFLINE_BANDIT] Initial arm: FCFS
+[BANDIT] Initialized Multi-Armed Bandit Strategy with UCB1
+[BANDIT] Exploration parameter: 1.4142135623730951
+[BANDIT] Optimal CPU range: 30.0% - 70.0%
+[OFFLINE_BANDIT_V2] Initialized LinUCB meta-scheduler
+[OFFLINE_BANDIT_V2] Arms: [BANDIT, LEAST_LOADED, BALANCED]
+[OFFLINE_BANDIT_V2] Features (d=9): [bias, avg_cpu, max_cpu, min_cpu, cpu_imbalance, cpu_velocity, avg_mem, elapsed_norm, saturation]
+[OFFLINE_BANDIT_V2] alpha=1.0 decisionIntervalMs=30000
+[OFFLINE_BANDIT_V2] Initial arm: BANDIT
+========================================
+  Adaptive Scheduler for Flink v1.2
+  (with Real Metrics + BANDIT + SARSA)
+========================================
+Configuration:
+  CPU Low Threshold: 40.0%
+  CPU High Threshold: 80.0%
+  Strategy Cooldown: 30s
+  Mode: FIXED STRATEGY (OFFLINE_BANDIT)
+========================================
+
+Starting scheduler loop...
+
+========================================
+  CLUSTER METRICS STATUS
+========================================
+  Metrics Server: ✓ AVAILABLE (using REAL metrics)
+
+  Current Node CPU Usage:
+    minikube-m03: 0.9%
+    minikube-m02: 1.9%
+    minikube: 2.6%
+
+  Cluster Average: 1.8%
+========================================
+
+
+[2026-05-21 00:34:49] Found 5 pending TaskManager(s)
+
+[SCHEDULING] Pod: flink-taskmanager-cccff75ff-6rb9j
+  Strategy: OFFLINE_BANDIT
+[OFFLINE_BANDIT] LinUCB scores: FCFS=0.558(exp=0.273|var=0.285) BALANCED=0.658(exp=0.428|var=0.230) SARSA=0.747(exp=0.484|var=0.264) 
+[OFFLINE_BANDIT] arm switch FCFS -> SARSA
+[SARSA] [EXPLORE] state=LOW_LOW eps=1.000 action=2
+[SARSA] [SELECTION] Node: minikube-m03 | State: LOW_LOW | Action: 2 | CPU: 0.9% | Reward: 0.509 | Q(s,a)=0.5000 | Total: 1
+  Result: ✓ SCHEDULED to minikube-m03
+  Node CPU: 0.9% (real)
+  Total scheduled: 1
+
+[SCHEDULING] Pod: flink-taskmanager-cccff75ff-fqcxt
+  Strategy: OFFLINE_BANDIT
+[SARSA] [EXPLOIT] state=LOW_LOW eps=0.707 action=2 Q=0.5000
+[SARSA] [UPDATE] s=LOW_LOW a=2 r=0.509 s'=LOW_LOW a'=2  Q: 0.5000 -> 0.5819
+[SARSA] [SELECTION] Node: minikube-m03 | State: LOW_LOW | Action: 2 | CPU: 0.9% | Reward: 0.509 | Q(s,a)=0.5819 | Total: 2
+  Result: ✓ SCHEDULED to minikube-m03
+  Node CPU: 0.9% (real)
+  Total scheduled: 2
+
+[SCHEDULING] Pod: flink-taskmanager-cccff75ff-p6w2x
+  Strategy: OFFLINE_BANDIT
+[SARSA] [EXPLORE] state=LOW_LOW eps=0.577 action=1
+[SARSA] [UPDATE] s=LOW_LOW a=2 r=0.509 s'=LOW_LOW a'=1  Q: 0.5819 -> 0.6474
+[SARSA] [SELECTION] Node: minikube-m02 | State: LOW_LOW | Action: 1 | CPU: 1.9% | Reward: 0.519 | Q(s,a)=0.5000 | Total: 3
+  Result: ✓ SCHEDULED to minikube-m02
+  Node CPU: 1.9% (real)
+  Total scheduled: 3
+
+[SCHEDULING] Pod: flink-taskmanager-cccff75ff-tzpcj
+  Strategy: OFFLINE_BANDIT
+[SARSA] [EXPLORE] state=LOW_LOW eps=0.500 action=2
+[SARSA] [UPDATE] s=LOW_LOW a=1 r=0.519 s'=LOW_LOW a'=2  Q: 0.5000 -> 0.6074
+[SARSA] [SELECTION] Node: minikube-m03 | State: LOW_LOW | Action: 2 | CPU: 0.9% | Reward: 0.509 | Q(s,a)=0.6474 | Total: 4
+  Result: ✓ SCHEDULED to minikube-m03
+  Node CPU: 0.9% (real)
+  Total scheduled: 4
+
+[SCHEDULING] Pod: flink-taskmanager-cccff75ff-wvsfj
+  Strategy: OFFLINE_BANDIT
+[SARSA] [EXPLORE] state=LOW_LOW eps=0.447 action=1
+[SARSA] [UPDATE] s=LOW_LOW a=2 r=0.509 s'=LOW_LOW a'=1  Q: 0.6474 -> 0.7169
+[SARSA] [SELECTION] Node: minikube-m02 | State: LOW_LOW | Action: 1 | CPU: 1.9% | Reward: 0.519 | Q(s,a)=0.6074 | Total: 5
+  Result: ✓ SCHEDULED to minikube-m02
+  Node CPU: 1.9% (real)
+  Total scheduled: 5
+
+========================================
+  OFFLINE_BANDIT STATISTICS
+========================================
+Total meta-decisions: 1
+Current arm: SARSA
+Arm selection counts:
+  SARSA        1 (100.0%)
+  BALANCED     0 (0.0%)
+  FCFS         0 (0.0%)
+========================================
+

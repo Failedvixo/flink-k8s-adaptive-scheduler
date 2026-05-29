@@ -1,0 +1,2 @@
+strategy,workload,distribution,rate,duration_sec,cpu_load,parallelism,state,throughput_processed,throughput_generated,throughput_emitted,processed_events,total_generated,total_dropped,drop_pct,nodes_used,total_tms,scheduling_decisions,strategy_switches,lat_proc_p50,lat_proc_p95,lat_proc_p99,lat_proc_avg,lat_total_p50,lat_total_p95,lat_total_p99,lat_total_avg,max_event_age,stale_dropped,stale_pct
+DEFAULT,autoscaler-const,CONSTANT,100000,618.08,2500,8,FINISHED,42900,47206,47206,26516486,29177500,0,0,3,5,0,0,5492,8099,8630,5133.9,15159,27340,30786,17190.1,15000,195589,.43

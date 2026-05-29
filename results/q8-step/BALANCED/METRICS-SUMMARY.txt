@@ -1,0 +1,199 @@
+==========================================
+  MÉTRICAS COMPLETAS - BALANCED
+==========================================
+Fecha: Thu May 21 12:34:19 -04 2026
+Job ID: 02928fc67b313f6b010b982ded5764fa
+Job Name: Nexmark-Q8
+
+CONFIGURACIÓN:
+- Workload:                q8-step
+- Estrategia:              BALANCED
+- Modo:                    FIXED_STRATEGY=BALANCED
+- Eventos/seg (base):      60000
+- Distribución llegada:    STEP
+- Duración configurada:    300s
+- Paralelismo global:      8
+- Ventana:                 10s
+- CPU load por evento:     2500 iter
+- Max event age (SLA):     15000ms 
+- TaskManagers:            5
+- Nodos utilizados:        3
+- Imagen scheduler:        adaptive-scheduler:balanced-1779380839
+
+------------------------------------------
+1. ESTADO DEL JOB
+------------------------------------------
+   Estado:        FINISHED
+   Duración:      303581 ms (303.58 s)
+   Inicio:        1779380943199
+   Fin:           1779381246780
+
+------------------------------------------
+2. THROUGHPUT
+------------------------------------------
+   TRABAJO ÚTIL PROCESADO (métrica principal):
+     Stage de medición: new-users-join (heavy vertex)
+     Eventos procesados: 1033578
+     Throughput:         3404 ev/s
+
+   THROUGHPUT POR ETAPA (records out / duration):
+     Source emitted:     42310 ev/s   (12844714 records)
+     Filter out:         N/A ev/s   (0 records)
+     CPU Load out:       chained ev/s   (0 records)
+     Latency Tracker:    chained ev/s   (0 records)
+     Transform out:      chained ev/s   (0 records)
+     Window out:         N/A ev/s   (0 records, aggregated)
+     Sink in:            0 ev/s   (5 records)
+
+   Nota: "chained" indica que Flink fusionó el operador con otro vertex,
+   por lo que sus records están reflejados en el siguiente stage.
+
+------------------------------------------
+3. SOURCE STATS (desde logs del TaskManager)
+------------------------------------------
+   Total generado:    0
+   Total emitido:     0
+   Total descartado:  0 (cola llena)
+   Drop %:            N/A%
+
+   Throughput generado: N/A ev/s
+   Throughput emitido:  N/A ev/s (entra al grafo)
+   Throughput procesado: 3404 ev/s (sale del CPU-load) ← MÉTRICA PRINCIPAL
+
+------------------------------------------
+3b. STALENESS STATS (desde logs del CPULoad)
+------------------------------------------
+   Eventos procesados (CPU-load): 0
+   Eventos descartados (stale):   0
+   Stale %:                       N/A%
+   Max event age configurado:     15000ms
+
+   Nota: "stale" son eventos que entraron al grafo pero cuya edad
+   (System.currentTimeMillis() - event.timestamp) excedía maxEventAge
+   al llegar al CPU-load stage. Fueron descartados sin gastar CPU.
+   Esto modela un SLA de latencia: si la estrategia de scheduling
+   causa congestión → más stale drops → menos throughput útil.
+
+------------------------------------------
+4. LATENCIA END-TO-END
+------------------------------------------
+   PROCESSING (event-time -> fin de CPU-load):
+     p50: N/A ms
+     p95: N/A ms
+     p99: N/A ms
+     avg: N/A ms
+
+   TOTAL (event-time -> sink, incluye delay del window):
+     p50: N/A ms
+     p95: N/A ms
+     p99: N/A ms
+     avg: N/A ms
+
+   Nota: la latencia TOTAL incluye necesariamente hasta 10s
+   adicionales por el delay del Tumbling Window.
+
+------------------------------------------
+5. MÉTRICAS POR OPERADOR
+   Source: nexmark-source (par=8):
+     Records in:        0
+     Records out:       12844714
+     Backpressure time: 3452ms
+     Idle time:         0ms
+   Timestamps/Watermarks (par=8):
+     Records in:        12844714
+     Records out:       12844714
+     Backpressure time: 127ms
+     Idle time:         2401006ms
+   filter-persons (par=8):
+     Records in:        12844714
+     Records out:       257577
+     Backpressure time: 0ms
+     Idle time:         2469045ms
+   project-person (par=8):
+     Records in:        257577
+     Records out:       257577
+     Backpressure time: 0ms
+     Idle time:         2486778ms
+   Map (par=8):
+     Records in:        257577
+     Records out:       257577
+     Backpressure time: 0ms
+     Idle time:         2485547ms
+   filter-auctions (par=8):
+     Records in:        12844714
+     Records out:       776001
+     Backpressure time: 0ms
+     Idle time:         2459599ms
+   project-auction (par=8):
+     Records in:        776001
+     Records out:       776001
+     Backpressure time: 0ms
+     Idle time:         2491617ms
+   Map (par=8):
+     Records in:        776001
+     Records out:       776001
+     Backpressure time: 0ms
+     Idle time:         2511007ms
+   new-users-join (par=2):
+     Records in:        1033578
+     Records out:       5
+     Backpressure time: 0ms
+     Idle time:         611298ms
+   Sink: q8-sink (par=8):
+     Records in:        5
+     Records out:       0
+     Backpressure time: 0ms
+     Idle time:         2493833ms
+
+------------------------------------------
+6. DISTRIBUCIÓN DE PODS
+------------------------------------------
+    minikube: 2 TaskManagers
+    minikube-m02: 2 TaskManagers
+    minikube-m03: 1 TaskManagers
+
+------------------------------------------
+7. SCHEDULING
+------------------------------------------
+   Decisiones de scheduling: 5
+   Cambios de estrategia:    0
+
+   Switches detectados:
+
+
+------------------------------------------
+8. RECURSOS DEL CLUSTER (final)
+------------------------------------------
+NAME           CPU(cores)   CPU(%)   MEMORY(bytes)   MEMORY(%)   
+minikube       280m         2%       1665Mi          21%         
+minikube-m02   252m         2%       1855Mi          23%         
+minikube-m03   128m         1%       958Mi           12%         
+
+==========================================
+Archivos generados en results/q8-step/BALANCED/:
+  - job-details.json         (raw JSON del job)
+  - taskmanager-placement.txt (pods por nodo)
+  - taskmanager-full.log     (logs completos del TM)
+  - source-stats.txt         (gen/emit/drop por subtask)
+  - cpuload-stats.txt        (processed/staleDropped por subtask)
+  - latency-processing.txt   (latencia post CPU-load)
+  - latency-total.txt        (latencia event-time -> sink)
+  - scheduler-logs.txt       (decisiones del scheduler)
+  - node-metrics.txt         (CPU/memoria por nodo)
+  - METRICS-SUMMARY.txt      (este archivo)
+  - metrics.csv              (fila lista para análisis comparativo)
+==========================================
+
+========================================
+  Nexmark canonical metrics
+========================================
+  Cores avg:         1.43 cores
+  Cores p95:         2.00 cores
+  Cores peak:        2.00 cores
+  Time:              303.6 s
+  Cores × Time:      435.3 core·s
+  Events processed:  1,033,578
+  Cost / Mevent:     421.20 core·s / Mevents
+  Throughput / core: 2,374 ev/s
+  (snapshots used:   27)
+========================================

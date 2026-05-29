@@ -1,0 +1,6 @@
+[Q8-Sink-1] received=1 lastPair=(person=434652567,auction=955682746,name=p434652567)
+[Q8-Sink-2] received=1 lastPair=(person=130772867,auction=1941798291,name=p130772867)
+[Q8-Sink-2] received=2 lastPair=(person=1159170625,auction=198621840,name=p1159170625)
+[Q8-Sink-4] received=1 lastPair=(person=1403420815,auction=15306806,name=p1403420815)
+[Q8-Sink-3] received=1 lastPair=(person=2040307912,auction=1690403409,name=p2040307912)
+[Q8-Sink-3] received=2 lastPair=(person=651015614,auction=705514510,name=p651015614)
