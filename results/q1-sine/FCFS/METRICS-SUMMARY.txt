@@ -1,0 +1,172 @@
+==========================================
+  MÉTRICAS COMPLETAS - FCFS
+==========================================
+Fecha: Tue Jun  9 00:00:25 -04 2026
+Job ID: 7b5ab0630e26f82c1fc6d25d5f4c5e22
+Job Name: Nexmark-Q1
+
+CONFIGURACIÓN:
+- Workload:                q1-sine
+- Estrategia:              FCFS
+- Modo:                    FIXED_STRATEGY=FCFS
+- Eventos/seg (base):      60000
+- Distribución llegada:    SINE
+- Duración configurada:    600s
+- Paralelismo global:      8
+- Ventana:                 10s
+- CPU load por evento:     2500 iter
+- Max event age (SLA):     15000ms 
+- TaskManagers:            5
+- Nodos utilizados:        1
+- Imagen scheduler:        adaptive-scheduler:fcfs-1780976914
+
+------------------------------------------
+1. ESTADO DEL JOB
+------------------------------------------
+   Estado:        FINISHED
+   Duración:      605834 ms (605.83 s)
+   Inicio:        1780977006767
+   Fin:           1780977612601
+
+------------------------------------------
+2. THROUGHPUT
+------------------------------------------
+   TRABAJO ÚTIL PROCESADO (métrica principal):
+     Stage de medición: q1-currency (heavy vertex)
+     Eventos procesados: 13597854
+     Throughput:         22444 ev/s
+
+   THROUGHPUT POR ETAPA (records out / duration):
+     Source emitted:     24494 ev/s   (14839875 records)
+     Filter out:         N/A ev/s   (0 records)
+     CPU Load out:       chained ev/s   (0 records)
+     Latency Tracker:    chained ev/s   (0 records)
+     Transform out:      chained ev/s   (0 records)
+     Window out:         N/A ev/s   (0 records, aggregated)
+     Sink in:            22444 ev/s   (13597854 records)
+
+   Nota: "chained" indica que Flink fusionó el operador con otro vertex,
+   por lo que sus records están reflejados en el siguiente stage.
+
+------------------------------------------
+3. SOURCE STATS (desde logs del TaskManager)
+------------------------------------------
+   Total generado:    0
+   Total emitido:     0
+   Total descartado:  0 (cola llena)
+   Drop %:            N/A%
+
+   Throughput generado: N/A ev/s
+   Throughput emitido:  N/A ev/s (entra al grafo)
+   Throughput procesado: 22444 ev/s (sale del CPU-load) ← MÉTRICA PRINCIPAL
+
+------------------------------------------
+3b. STALENESS STATS (desde logs del CPULoad)
+------------------------------------------
+   Eventos procesados (CPU-load): 0
+   Eventos descartados (stale):   0
+   Stale %:                       N/A%
+   Max event age configurado:     15000ms
+
+   Nota: "stale" son eventos que entraron al grafo pero cuya edad
+   (System.currentTimeMillis() - event.timestamp) excedía maxEventAge
+   al llegar al CPU-load stage. Fueron descartados sin gastar CPU.
+   Esto modela un SLA de latencia: si la estrategia de scheduling
+   causa congestión → más stale drops → menos throughput útil.
+
+------------------------------------------
+4. LATENCIA END-TO-END
+------------------------------------------
+   PROCESSING (event-time -> fin de CPU-load):
+     p50: N/A ms
+     p95: N/A ms
+     p99: N/A ms
+     avg: N/A ms
+
+   TOTAL (event-time -> sink, incluye delay del window):
+     p50: N/A ms
+     p95: N/A ms
+     p99: N/A ms
+     avg: N/A ms
+
+   Nota: la latencia TOTAL incluye necesariamente hasta 10s
+   adicionales por el delay del Tumbling Window.
+
+------------------------------------------
+5. MÉTRICAS POR OPERADOR
+   Source: nexmark-source (par=8):
+     Records in:        0
+     Records out:       14839875
+     Backpressure time: 4966ms
+     Idle time:         0ms
+   Timestamps/Watermarks (par=8):
+     Records in:        14839875
+     Records out:       14839875
+     Backpressure time: 4738ms
+     Idle time:         4858180ms
+   filter-bids-q1 (par=8):
+     Records in:        14839875
+     Records out:       13597854
+     Backpressure time: 5723ms
+     Idle time:         5205056ms
+   q1-currency (par=2):
+     Records in:        13597854
+     Records out:       13597854
+     Backpressure time: 96ms
+     Idle time:         1280642ms
+   Sink: q1-sink (par=8):
+     Records in:        13597854
+     Records out:       0
+     Backpressure time: 0ms
+     Idle time:         5176418ms
+
+------------------------------------------
+6. DISTRIBUCIÓN DE PODS
+------------------------------------------
+    minikube: 5 TaskManagers
+
+------------------------------------------
+7. SCHEDULING
+------------------------------------------
+   Decisiones de scheduling: 5
+   Cambios de estrategia:    0
+
+   Switches detectados:
+
+
+------------------------------------------
+8. RECURSOS DEL CLUSTER (final)
+------------------------------------------
+NAME           CPU(cores)   CPU(%)   MEMORY(bytes)   MEMORY(%)   
+minikube       504m         4%       1902Mi          24%         
+minikube-m02   96m          0%       1311Mi          16%         
+minikube-m03   43m          0%       410Mi           5%          
+
+==========================================
+Archivos generados en results/q1-sine/FCFS/:
+  - job-details.json         (raw JSON del job)
+  - taskmanager-placement.txt (pods por nodo)
+  - taskmanager-full.log     (logs completos del TM)
+  - source-stats.txt         (gen/emit/drop por subtask)
+  - cpuload-stats.txt        (processed/staleDropped por subtask)
+  - latency-processing.txt   (latencia post CPU-load)
+  - latency-total.txt        (latencia event-time -> sink)
+  - scheduler-logs.txt       (decisiones del scheduler)
+  - node-metrics.txt         (CPU/memoria por nodo)
+  - METRICS-SUMMARY.txt      (este archivo)
+  - metrics.csv              (fila lista para análisis comparativo)
+==========================================
+
+========================================
+  Nexmark canonical metrics
+========================================
+  Cores avg:         1.02 cores
+  Cores p95:         2.36 cores
+  Cores peak:        2.36 cores
+  Time:              605.8 s
+  Cores × Time:      617.7 core·s
+  Events processed:  13,597,854
+  Cost / Mevent:     45.43 core·s / Mevents
+  Throughput / core: 22,012 ev/s
+  (snapshots used:   55)
+========================================

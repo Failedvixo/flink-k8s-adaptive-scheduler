@@ -38,13 +38,15 @@ DISTS = BENCHMARKS["original"]
 BENCH_LABEL = "original"
 
 STRATEGIES = ["FCFS", "BALANCED", "LEAST_LOADED", "BANDIT", "SARSA", "ADAPTIVE",
-              "OFFLINE_BANDIT", "OFFLINE_BANDIT_V2", "OFFLINE_BANDIT_V3", "DEFAULT"]
+              "OFFLINE_BANDIT", "OFFLINE_BANDIT_V2", "OFFLINE_BANDIT_V3",
+              "OFFLINE_BANDIT_V4", "OFFLINE_BANDIT_V5", "SARSA_META", "DEFAULT"]
 
 # Display label override: data is loaded from results/.../{STRATEGY}/ on disk,
 # but in plots/CSVs we show DISPLAY_NAMES[s] (or s itself if not mapped).
 # Change the value here if you want a different label on the chart/CSV.
 DISPLAY_NAMES = {
     "OFFLINE_BANDIT_V3": "LLM_BANDIT",
+    "SARSA_META": "SARSA_META",
 }
 
 

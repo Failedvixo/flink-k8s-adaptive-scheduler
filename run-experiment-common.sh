@@ -113,6 +113,13 @@ run_strategy_experiment() {
     kubectl set env deployment/adaptive-scheduler -n kube-system \
       --containers="${CONTAINER_NAME}" "FIXED_STRATEGY=${STRATEGY}"
   fi
+  # Propagate HEAVY_VERTEX_PATTERN + FLINK_REST_URL so the OFFLINE_BANDIT_V5
+  # strategy can fetch busy_inst from the right vertex / cluster service.
+  # Setting them every iteration is idempotent and harmless for V<5.
+  kubectl set env deployment/adaptive-scheduler -n kube-system \
+    --containers="${CONTAINER_NAME}" \
+    "HEAVY_VERTEX_PATTERN=${HEAVY_VERTEX_PATTERN:-}" \
+    "FLINK_REST_URL=${FLINK_REST_URL:-http://flink-jobmanager.flink.svc.cluster.local:8081}"
   kubectl rollout restart deployment/adaptive-scheduler -n kube-system
   kubectl rollout status deployment/adaptive-scheduler -n kube-system --timeout=120s
   sleep 10

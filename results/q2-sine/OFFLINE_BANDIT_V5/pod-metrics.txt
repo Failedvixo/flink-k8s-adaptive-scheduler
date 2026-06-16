@@ -1,0 +1,7 @@
+NAME                                CPU(cores)   MEMORY(bytes)   
+flink-jobmanager-64c9d4dc-q4rjz     32m          577Mi           
+flink-taskmanager-cccff75ff-54z79   71m          445Mi           
+flink-taskmanager-cccff75ff-8xmrs   267m         481Mi           
+flink-taskmanager-cccff75ff-ktsld   16m          374Mi           
+flink-taskmanager-cccff75ff-rlww5   111m         429Mi           
+flink-taskmanager-cccff75ff-x6w4f   109m         466Mi           

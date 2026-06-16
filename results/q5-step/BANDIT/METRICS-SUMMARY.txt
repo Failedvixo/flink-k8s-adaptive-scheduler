@@ -1,8 +1,8 @@
 ==========================================
   MÉTRICAS COMPLETAS - BANDIT
 ==========================================
-Fecha: Wed May 20 20:11:16 -04 2026
-Job ID: 02754edd1a7a842680c41a862db5c7c1
+Fecha: Tue Jun  9 16:05:01 -04 2026
+Job ID: 97f5a5a0a9ed4e21d24476e8cc4434b7
 Job Name: Nexmark-Q5
 
 CONFIGURACIÓN:
@@ -11,39 +11,39 @@ CONFIGURACIÓN:
 - Modo:                    FIXED_STRATEGY=BANDIT
 - Eventos/seg (base):      60000
 - Distribución llegada:    STEP
-- Duración configurada:    300s
+- Duración configurada:    600s
 - Paralelismo global:      8
 - Ventana:                 10s
 - CPU load por evento:     2500 iter
 - Max event age (SLA):     15000ms 
 - TaskManagers:            5
 - Nodos utilizados:        3
-- Imagen scheduler:        adaptive-scheduler:bandit-1779321788
+- Imagen scheduler:        adaptive-scheduler:bandit-1781034758
 
 ------------------------------------------
 1. ESTADO DEL JOB
 ------------------------------------------
    Estado:        FINISHED
-   Duración:      321595 ms (321.59 s)
-   Inicio:        1779321945462
-   Fin:           1779322267057
+   Duración:      625440 ms (625.44 s)
+   Inicio:        1781034861825
+   Fin:           1781035487265
 
 ------------------------------------------
 2. THROUGHPUT
 ------------------------------------------
    TRABAJO ÚTIL PROCESADO (métrica principal):
      Stage de medición: hot-items-count (heavy vertex)
-     Eventos procesados: 10765651
-     Throughput:         33475 ev/s
+     Eventos procesados: 23638600
+     Throughput:         37795 ev/s
 
    THROUGHPUT POR ETAPA (records out / duration):
-     Source emitted:     36392 ev/s   (11703697 records)
+     Source emitted:     41097 ev/s   (25704249 records)
      Filter out:         N/A ev/s   (0 records)
      CPU Load out:       chained ev/s   (0 records)
      Latency Tracker:    chained ev/s   (0 records)
      Transform out:      chained ev/s   (0 records)
      Window out:         N/A ev/s   (0 records, aggregated)
-     Sink in:            0 ev/s   (64 records)
+     Sink in:            0 ev/s   (105 records)
 
    Nota: "chained" indica que Flink fusionó el operador con otro vertex,
    por lo que sus records están reflejados en el siguiente stage.
@@ -58,7 +58,7 @@ CONFIGURACIÓN:
 
    Throughput generado: N/A ev/s
    Throughput emitido:  N/A ev/s (entra al grafo)
-   Throughput procesado: 33475 ev/s (sale del CPU-load) ← MÉTRICA PRINCIPAL
+   Throughput procesado: 37795 ev/s (sale del CPU-load) ← MÉTRICA PRINCIPAL
 
 ------------------------------------------
 3b. STALENESS STATS (desde logs del CPULoad)
@@ -96,44 +96,44 @@ CONFIGURACIÓN:
 5. MÉTRICAS POR OPERADOR
    Source: nexmark-source (par=8):
      Records in:        0
-     Records out:       11703697
-     Backpressure time: 5215ms
+     Records out:       25704249
+     Backpressure time: 6654ms
      Idle time:         0ms
    Timestamps/Watermarks (par=8):
-     Records in:        11703697
-     Records out:       11703697
-     Backpressure time: 2577ms
-     Idle time:         2403958ms
+     Records in:        25704249
+     Records out:       25704249
+     Backpressure time: 2601ms
+     Idle time:         4800703ms
    filter-bids (par=8):
-     Records in:        11703697
-     Records out:       10765651
-     Backpressure time: 2498ms
-     Idle time:         2473122ms
+     Records in:        25704249
+     Records out:       23638600
+     Backpressure time: 2718ms
+     Idle time:         4960251ms
    project-bid (par=8):
-     Records in:        10765651
-     Records out:       10765651
-     Backpressure time: 2774ms
-     Idle time:         2469751ms
+     Records in:        23638600
+     Records out:       23638600
+     Backpressure time: 4703ms
+     Idle time:         4958491ms
    to-tuple (par=8):
-     Records in:        10765651
-     Records out:       10765651
-     Backpressure time: 3669ms
-     Idle time:         2472997ms
+     Records in:        23638600
+     Records out:       23638600
+     Backpressure time: 9384ms
+     Idle time:         4982055ms
    hot-items-count (par=2):
-     Records in:        10765651
-     Records out:       52988
+     Records in:        23638600
+     Records out:       93882
      Backpressure time: 0ms
-     Idle time:         567928ms
+     Idle time:         1161945ms
    top-hot-auction (par=1):
-     Records in:        52988
-     Records out:       64
+     Records in:        93882
+     Records out:       105
      Backpressure time: 0ms
-     Idle time:         318818ms
+     Idle time:         621577ms
    Sink: q5-sink (par=8):
-     Records in:        64
+     Records in:        105
      Records out:       0
      Backpressure time: 0ms
-     Idle time:         2488263ms
+     Idle time:         5056988ms
 
 ------------------------------------------
 6. DISTRIBUCIÓN DE PODS
@@ -155,9 +155,9 @@ CONFIGURACIÓN:
 8. RECURSOS DEL CLUSTER (final)
 ------------------------------------------
 NAME           CPU(cores)   CPU(%)   MEMORY(bytes)   MEMORY(%)   
-minikube       381m         3%       1761Mi          22%         
-minikube-m02   278m         2%       1701Mi          21%         
-minikube-m03   63m          0%       717Mi           9%          
+minikube       261m         2%       1705Mi          21%         
+minikube-m02   234m         1%       1821Mi          23%         
+minikube-m03   123m         1%       835Mi           10%         
 
 ==========================================
 Archivos generados en results/q5-step/BANDIT/:
@@ -177,13 +177,13 @@ Archivos generados en results/q5-step/BANDIT/:
 ========================================
   Nexmark canonical metrics
 ========================================
-  Cores avg:         2.32 cores
-  Cores p95:         4.10 cores
-  Cores peak:        4.10 cores
-  Time:              321.6 s
-  Cores × Time:      746.7 core·s
-  Events processed:  10,765,651
-  Cost / Mevent:     69.36 core·s / Mevents
-  Throughput / core: 14,418 ev/s
-  (snapshots used:   25)
+  Cores avg:         1.24 cores
+  Cores p95:         1.77 cores
+  Cores peak:        1.77 cores
+  Time:              625.4 s
+  Cores × Time:      778.1 core·s
+  Events processed:  23,638,600
+  Cost / Mevent:     32.92 core·s / Mevents
+  Throughput / core: 30,380 ev/s
+  (snapshots used:   60)
 ========================================

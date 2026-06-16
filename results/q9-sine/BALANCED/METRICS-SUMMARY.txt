@@ -1,0 +1,179 @@
+==========================================
+  MÉTRICAS COMPLETAS - BALANCED
+==========================================
+Fecha: Wed Jun 10 00:19:34 -04 2026
+Job ID: 480a1f1f242f18d976a22c8d9b4672aa
+Job Name: Nexmark-Q9
+
+CONFIGURACIÓN:
+- Workload:                q9-sine
+- Estrategia:              BALANCED
+- Modo:                    FIXED_STRATEGY=BALANCED
+- Eventos/seg (base):      60000
+- Distribución llegada:    SINE
+- Duración configurada:    600s
+- Paralelismo global:      8
+- Ventana:                 10s
+- CPU load por evento:     2500 iter
+- Max event age (SLA):     15000ms 
+- TaskManagers:            5
+- Nodos utilizados:        3
+- Imagen scheduler:        adaptive-scheduler:balanced-1781064438
+
+------------------------------------------
+1. ESTADO DEL JOB
+------------------------------------------
+   Estado:        FINISHED
+   Duración:      609842 ms (609.84 s)
+   Inicio:        1781064560799
+   Fin:           1781065170641
+
+------------------------------------------
+2. THROUGHPUT
+------------------------------------------
+   TRABAJO ÚTIL PROCESADO (métrica principal):
+     Stage de medición: q9-winning-bid (heavy vertex)
+     Eventos procesados: 12874796
+     Throughput:         21111 ev/s
+
+   THROUGHPUT POR ETAPA (records out / duration):
+     Source emitted:     23127 ev/s   (14104269 records)
+     Filter out:         N/A ev/s   (0 records)
+     CPU Load out:       chained ev/s   (0 records)
+     Latency Tracker:    chained ev/s   (0 records)
+     Transform out:      chained ev/s   (0 records)
+     Window out:         N/A ev/s   (0 records, aggregated)
+     Sink in:            16 ev/s   (10000 records)
+
+   Nota: "chained" indica que Flink fusionó el operador con otro vertex,
+   por lo que sus records están reflejados en el siguiente stage.
+
+------------------------------------------
+3. SOURCE STATS (desde logs del TaskManager)
+------------------------------------------
+   Total generado:    0
+   Total emitido:     0
+   Total descartado:  0 (cola llena)
+   Drop %:            N/A%
+
+   Throughput generado: N/A ev/s
+   Throughput emitido:  N/A ev/s (entra al grafo)
+   Throughput procesado: 21111 ev/s (sale del CPU-load) ← MÉTRICA PRINCIPAL
+
+------------------------------------------
+3b. STALENESS STATS (desde logs del CPULoad)
+------------------------------------------
+   Eventos procesados (CPU-load): 0
+   Eventos descartados (stale):   0
+   Stale %:                       N/A%
+   Max event age configurado:     15000ms
+
+   Nota: "stale" son eventos que entraron al grafo pero cuya edad
+   (System.currentTimeMillis() - event.timestamp) excedía maxEventAge
+   al llegar al CPU-load stage. Fueron descartados sin gastar CPU.
+   Esto modela un SLA de latencia: si la estrategia de scheduling
+   causa congestión → más stale drops → menos throughput útil.
+
+------------------------------------------
+4. LATENCIA END-TO-END
+------------------------------------------
+   PROCESSING (event-time -> fin de CPU-load):
+     p50: N/A ms
+     p95: N/A ms
+     p99: N/A ms
+     avg: N/A ms
+
+   TOTAL (event-time -> sink, incluye delay del window):
+     p50: N/A ms
+     p95: N/A ms
+     p99: N/A ms
+     avg: N/A ms
+
+   Nota: la latencia TOTAL incluye necesariamente hasta 10s
+   adicionales por el delay del Tumbling Window.
+
+------------------------------------------
+5. MÉTRICAS POR OPERADOR
+   Source: nexmark-source (par=8):
+     Records in:        0
+     Records out:       14104269
+     Backpressure time: 4137ms
+     Idle time:         0ms
+   Timestamps/Watermarks (par=8):
+     Records in:        14104269
+     Records out:       14104269
+     Backpressure time: 115ms
+     Idle time:         4869843ms
+   filter-bids-q9 (par=8):
+     Records in:        14104269
+     Records out:       12874796
+     Backpressure time: 13ms
+     Idle time:         5192027ms
+   to-auction-price-q9 (par=8):
+     Records in:        12874796
+     Records out:       12874796
+     Backpressure time: 0ms
+     Idle time:         5204177ms
+   q9-winning-bid (par=2):
+     Records in:        12874796
+     Records out:       10000
+     Backpressure time: 0ms
+     Idle time:         1281142ms
+   Sink: q9-sink (par=8):
+     Records in:        10000
+     Records out:       0
+     Backpressure time: 0ms
+     Idle time:         5240622ms
+
+------------------------------------------
+6. DISTRIBUCIÓN DE PODS
+------------------------------------------
+    minikube: 2 TaskManagers
+    minikube-m02: 2 TaskManagers
+    minikube-m03: 1 TaskManagers
+
+------------------------------------------
+7. SCHEDULING
+------------------------------------------
+   Decisiones de scheduling: 5
+   Cambios de estrategia:    0
+
+   Switches detectados:
+
+
+------------------------------------------
+8. RECURSOS DEL CLUSTER (final)
+------------------------------------------
+NAME           CPU(cores)   CPU(%)   MEMORY(bytes)   MEMORY(%)   
+minikube       281m         2%       1615Mi          20%         
+minikube-m02   220m         1%       1812Mi          22%         
+minikube-m03   145m         1%       874Mi           11%         
+
+==========================================
+Archivos generados en results/q9-sine/BALANCED/:
+  - job-details.json         (raw JSON del job)
+  - taskmanager-placement.txt (pods por nodo)
+  - taskmanager-full.log     (logs completos del TM)
+  - source-stats.txt         (gen/emit/drop por subtask)
+  - cpuload-stats.txt        (processed/staleDropped por subtask)
+  - latency-processing.txt   (latencia post CPU-load)
+  - latency-total.txt        (latencia event-time -> sink)
+  - scheduler-logs.txt       (decisiones del scheduler)
+  - node-metrics.txt         (CPU/memoria por nodo)
+  - METRICS-SUMMARY.txt      (este archivo)
+  - metrics.csv              (fila lista para análisis comparativo)
+==========================================
+
+========================================
+  Nexmark canonical metrics
+========================================
+  Cores avg:         0.87 cores
+  Cores p95:         1.60 cores
+  Cores peak:        1.60 cores
+  Time:              609.8 s
+  Cores × Time:      528.3 core·s
+  Events processed:  12,874,796
+  Cost / Mevent:     41.03 core·s / Mevents
+  Throughput / core: 24,372 ev/s
+  (snapshots used:   55)
+========================================

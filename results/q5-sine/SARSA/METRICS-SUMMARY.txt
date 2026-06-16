@@ -1,8 +1,8 @@
 ==========================================
   MÉTRICAS COMPLETAS - SARSA
 ==========================================
-Fecha: Wed May 20 20:26:04 -04 2026
-Job ID: f4c38141d10f640f1280c89a58055dca
+Fecha: Tue Jun  9 16:31:13 -04 2026
+Job ID: 9ba077d4bd96bcca8b3eb4047d0c630b
 Job Name: Nexmark-Q5
 
 CONFIGURACIÓN:
@@ -11,39 +11,39 @@ CONFIGURACIÓN:
 - Modo:                    FIXED_STRATEGY=SARSA
 - Eventos/seg (base):      60000
 - Distribución llegada:    SINE
-- Duración configurada:    300s
+- Duración configurada:    600s
 - Paralelismo global:      8
 - Ventana:                 10s
 - CPU load por evento:     2500 iter
 - Max event age (SLA):     15000ms 
 - TaskManagers:            5
-- Nodos utilizados:        3
-- Imagen scheduler:        adaptive-scheduler:sarsa-1779322729
+- Nodos utilizados:        1
+- Imagen scheduler:        adaptive-scheduler:sarsa-1781036330
 
 ------------------------------------------
 1. ESTADO DEL JOB
 ------------------------------------------
    Estado:        FINISHED
-   Duración:      303658 ms (303.65 s)
-   Inicio:        1779322849389
-   Fin:           1779323153047
+   Duración:      605492 ms (605.49 s)
+   Inicio:        1781036454699
+   Fin:           1781037060191
 
 ------------------------------------------
 2. THROUGHPUT
 ------------------------------------------
    TRABAJO ÚTIL PROCESADO (métrica principal):
      Stage de medición: hot-items-count (heavy vertex)
-     Eventos procesados: 7611473
-     Throughput:         25065 ev/s
+     Eventos procesados: 11937868
+     Throughput:         19715 ev/s
 
    THROUGHPUT POR ETAPA (records out / duration):
-     Source emitted:     27291 ev/s   (8287380 records)
+     Source emitted:     21536 ev/s   (13039920 records)
      Filter out:         N/A ev/s   (0 records)
      CPU Load out:       chained ev/s   (0 records)
      Latency Tracker:    chained ev/s   (0 records)
      Transform out:      chained ev/s   (0 records)
      Window out:         N/A ev/s   (0 records, aggregated)
-     Sink in:            0 ev/s   (83 records)
+     Sink in:            0 ev/s   (139 records)
 
    Nota: "chained" indica que Flink fusionó el operador con otro vertex,
    por lo que sus records están reflejados en el siguiente stage.
@@ -58,7 +58,7 @@ CONFIGURACIÓN:
 
    Throughput generado: N/A ev/s
    Throughput emitido:  N/A ev/s (entra al grafo)
-   Throughput procesado: 25065 ev/s (sale del CPU-load) ← MÉTRICA PRINCIPAL
+   Throughput procesado: 19715 ev/s (sale del CPU-load) ← MÉTRICA PRINCIPAL
 
 ------------------------------------------
 3b. STALENESS STATS (desde logs del CPULoad)
@@ -96,51 +96,49 @@ CONFIGURACIÓN:
 5. MÉTRICAS POR OPERADOR
    Source: nexmark-source (par=8):
      Records in:        0
-     Records out:       8287380
-     Backpressure time: 2701ms
+     Records out:       13039920
+     Backpressure time: 16078ms
      Idle time:         0ms
    Timestamps/Watermarks (par=8):
-     Records in:        8287380
-     Records out:       8287380
-     Backpressure time: 280ms
-     Idle time:         2427605ms
+     Records in:        13039920
+     Records out:       13039920
+     Backpressure time: 1642ms
+     Idle time:         4853817ms
    filter-bids (par=8):
-     Records in:        8287380
-     Records out:       7611473
-     Backpressure time: 184ms
-     Idle time:         2586119ms
+     Records in:        13039920
+     Records out:       11937868
+     Backpressure time: 239ms
+     Idle time:         5239881ms
    project-bid (par=8):
-     Records in:        7611473
-     Records out:       7611473
-     Backpressure time: 186ms
-     Idle time:         2572548ms
+     Records in:        11937868
+     Records out:       11937868
+     Backpressure time: 417ms
+     Idle time:         5235562ms
    to-tuple (par=8):
-     Records in:        7611473
-     Records out:       7611473
-     Backpressure time: 472ms
-     Idle time:         2576374ms
+     Records in:        11937868
+     Records out:       11937868
+     Backpressure time: 4130ms
+     Idle time:         5250200ms
    hot-items-count (par=2):
-     Records in:        7611473
-     Records out:       71703
-     Backpressure time: 79ms
-     Idle time:         631748ms
+     Records in:        11937868
+     Records out:       111636
+     Backpressure time: 11ms
+     Idle time:         1232083ms
    top-hot-auction (par=1):
-     Records in:        71703
-     Records out:       83
+     Records in:        111636
+     Records out:       139
      Backpressure time: 0ms
-     Idle time:         338688ms
+     Idle time:         659721ms
    Sink: q5-sink (par=8):
-     Records in:        83
+     Records in:        139
      Records out:       0
      Backpressure time: 0ms
-     Idle time:         2594313ms
+     Idle time:         5266591ms
 
 ------------------------------------------
 6. DISTRIBUCIÓN DE PODS
 ------------------------------------------
-    minikube: 1 TaskManagers
-    minikube-m02: 3 TaskManagers
-    minikube-m03: 1 TaskManagers
+    minikube-m02: 5 TaskManagers
 
 ------------------------------------------
 7. SCHEDULING
@@ -155,9 +153,9 @@ CONFIGURACIÓN:
 8. RECURSOS DEL CLUSTER (final)
 ------------------------------------------
 NAME           CPU(cores)   CPU(%)   MEMORY(bytes)   MEMORY(%)   
-minikube       268m         2%       1321Mi          16%         
-minikube-m02   359m         2%       1924Mi          24%         
-minikube-m03   66m          0%       705Mi           8%          
+minikube       192m         1%       888Mi           11%         
+minikube-m02   400m         3%       1969Mi          24%         
+minikube-m03   55m          0%       452Mi           5%          
 
 ==========================================
 Archivos generados en results/q5-sine/SARSA/:
@@ -177,13 +175,13 @@ Archivos generados en results/q5-sine/SARSA/:
 ========================================
   Nexmark canonical metrics
 ========================================
-  Cores avg:         1.35 cores
-  Cores p95:         2.53 cores
-  Cores peak:        2.53 cores
-  Time:              303.6 s
-  Cores × Time:      410.5 core·s
-  Events processed:  7,611,473
-  Cost / Mevent:     53.93 core·s / Mevents
-  Throughput / core: 18,544 ev/s
-  (snapshots used:   24)
+  Cores avg:         1.08 cores
+  Cores p95:         2.66 cores
+  Cores peak:        2.66 cores
+  Time:              605.5 s
+  Cores × Time:      653.7 core·s
+  Events processed:  11,937,868
+  Cost / Mevent:     54.76 core·s / Mevents
+  Throughput / core: 18,262 ev/s
+  (snapshots used:   58)
 ========================================

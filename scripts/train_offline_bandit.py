@@ -51,6 +51,12 @@ FEATURE_NAMES = [
     "avg_mem",
     "elapsed_norm",   # seconds since first snapshot / 600
     "saturation",     # min(1.25, max_cpu / 80)
+    # --- features added for V5 (positions 9-12, V<5 trainers can request
+    # --feature-dim 9 to truncate and stay backwards-compatible) ---
+    "mem_velocity",   # (avg_mem - prev_avg_mem) / dt_sec  / 10  → memory pressure rate
+    "mem_imbalance",  # (max_mem - min_mem) / 100              → memory skew across nodes
+    "busy_inst",      # heavy-vertex busy_inst / 100           → real job load (vs host CPU)
+    "busy_velocity",  # (busy_inst - prev_busy_inst) / dt_sec / 10 → workload phase shift
 ]
 FEATURE_DIM = len(FEATURE_NAMES)
 ALPHA_RUNTIME = 1.0
@@ -63,6 +69,11 @@ VELOCITY_SCALE = 10.0
 RX_TS_NODE = re.compile(
     r"^\[(\d{2}):(\d{2}):(\d{2})\]\s+(\S+)\s+\d+m\s+(\d+)%\s+\S+\s+(\d+)%"
 )
+# autoscaler.log emits one line per ~10s with the busy% of the heavy vertex:
+#   "[hh:mm:ss] busy_inst=12.3% actualPar=2 upperBound=2 range=[2,2] elapsed=42s"
+RX_BUSY_INST = re.compile(
+    r"^\[(\d{2}):(\d{2}):(\d{2})\]\s+busy_inst=([\d.]+)%"
+)
 RX_THROUGHPUT = re.compile(r"^\s*Throughput:\s+(\d+)\s+ev/s", re.MULTILINE)
 RX_TPUT_PER_CORE = re.compile(r"^\s*Throughput / core:\s+([\d,]+)\s+ev/s", re.MULTILINE)
 
@@ -73,19 +84,35 @@ REWARD_MODE = "throughput"
 
 
 def parse_snapshots(autoscaler_log: Path):
-    """Return a list of dicts: [{ts:int, cpu:{node:pct}, mem:{node:pct}}, ...]."""
+    """Return a list of dicts:
+       [{ts:int, cpu:{node:pct}, mem:{node:pct}, busy:float|None}, ...]
+    busy_inst is propagated forward to subsequent node-metric snapshots so
+    every CPU/mem snapshot also has a 'busy' field (None if no busy_inst was
+    ever reported, e.g. older logs)."""
     if not autoscaler_log.exists():
         return []
     snapshots = {}
+    # Walk lines in order to thread busy_inst forward.
+    last_busy = None
     for line in autoscaler_log.read_text(errors="replace").splitlines():
+        m_busy = RX_BUSY_INST.match(line)
+        if m_busy:
+            last_busy = float(m_busy.group(4))
+            continue
         m = RX_TS_NODE.match(line)
         if not m:
             continue
         h, mn, s, node, cpu_pct, mem_pct = m.groups()
         ts = int(h) * 3600 + int(mn) * 60 + int(s)
-        snap = snapshots.setdefault(ts, {"ts": ts, "cpu": {}, "mem": {}})
+        snap = snapshots.setdefault(
+            ts, {"ts": ts, "cpu": {}, "mem": {}, "busy": last_busy}
+        )
         snap["cpu"][node] = float(cpu_pct)
         snap["mem"][node] = float(mem_pct)
+        # Keep the most recent busy_inst even if the snapshot was created
+        # before the busy_inst line on the same timestamp.
+        if last_busy is not None:
+            snap["busy"] = last_busy
     snaps = sorted(snapshots.values(), key=lambda s: s["ts"])
     # Keep only snapshots with at least one node populated.
     return [s for s in snaps if s["cpu"]]
@@ -111,14 +138,27 @@ def context_vector(snap, prev_snap, first_ts):
     min_cpu = min(cpus)
     imbalance = max(0.0, max_cpu - min_cpu)
     avg_mem = sum(mems) / len(mems) if mems else 0.0
+    max_mem = max(mems) if mems else 0.0
+    min_mem = min(mems) if mems else 0.0
+    mem_imbalance = max(0.0, max_mem - min_mem)
+    busy = snap.get("busy")           # may be None if log predates busy_inst
+    busy_val = busy if busy is not None else 0.0
 
     if prev_snap is not None:
         prev_cpus = list(prev_snap["cpu"].values())
         prev_avg = sum(prev_cpus) / len(prev_cpus) if prev_cpus else avg_cpu
+        prev_mems = list(prev_snap["mem"].values())
+        prev_avg_mem = sum(prev_mems) / len(prev_mems) if prev_mems else avg_mem
         dt_sec = max(1, snap["ts"] - prev_snap["ts"])
         velocity_per_sec = (avg_cpu - prev_avg) / dt_sec
+        mem_velocity_per_sec = (avg_mem - prev_avg_mem) / dt_sec
+        prev_busy = prev_snap.get("busy")
+        prev_busy_val = prev_busy if prev_busy is not None else 0.0
+        busy_velocity_per_sec = (busy_val - prev_busy_val) / dt_sec
     else:
         velocity_per_sec = 0.0
+        mem_velocity_per_sec = 0.0
+        busy_velocity_per_sec = 0.0
 
     elapsed_sec = max(0.0, snap["ts"] - first_ts)
     saturation = min(1.25, max_cpu / SAT_THRESHOLD)
@@ -133,6 +173,11 @@ def context_vector(snap, prev_snap, first_ts):
         avg_mem / 100.0,
         elapsed_sec / ELAPSED_NORM_SEC,
         saturation,
+        # --- V5 features (positions 9-12) ---
+        mem_velocity_per_sec / VELOCITY_SCALE,
+        mem_imbalance / 100.0,
+        busy_val / 100.0,
+        busy_velocity_per_sec / VELOCITY_SCALE,
     ])
 
 
@@ -180,14 +225,15 @@ def collect_dataset():
     return out, max_tp
 
 
-def fit_arm(X: np.ndarray, r: np.ndarray):
-    """Closed-form ridge regression. Returns (theta, A_inv)."""
+def fit_arm(X: np.ndarray, r: np.ndarray, dim: int = FEATURE_DIM):
+    """Closed-form ridge regression. Returns (theta, A_inv) sized `dim x dim`.
+    X is expected to be sliced to `dim` columns before calling."""
     if X.shape[0] == 0:
-        A = RIDGE_LAMBDA * np.eye(FEATURE_DIM)
+        A = RIDGE_LAMBDA * np.eye(dim)
         A_inv = np.linalg.inv(A)
-        theta = np.zeros(FEATURE_DIM)
+        theta = np.zeros(dim)
         return theta, A_inv
-    A = X.T @ X + RIDGE_LAMBDA * np.eye(FEATURE_DIM)
+    A = X.T @ X + RIDGE_LAMBDA * np.eye(dim)
     b = X.T @ r
     A_inv = np.linalg.inv(A)
     theta = A_inv @ b
@@ -195,22 +241,37 @@ def fit_arm(X: np.ndarray, r: np.ndarray):
 
 
 def main():
-    global ARMS, OUT, REWARD_MODE
+    global ARMS, DISTS, OUT, REWARD_MODE
     parser = argparse.ArgumentParser(description="Train LinUCB weights for OFFLINE_BANDIT.")
     parser.add_argument("--arms", default=",".join(DEFAULT_ARMS),
                         help=f"Comma-separated arms. Default: {','.join(DEFAULT_ARMS)}")
+    parser.add_argument("--dists", default=",".join(DISTS),
+                        help="Comma-separated training scenarios. Each entry corresponds "
+                             "to a results/<entry>/ directory. Default trains on the "
+                             "synthetic autoscaler-* benchmark; pass q2-const,q2-sine,q2-step "
+                             "(or similar) to train on a Nexmark scenario.")
     parser.add_argument("--reward", default="throughput",
                         choices=["throughput", "throughput_per_core"],
                         help="Reward signal. throughput_per_core uses the Nexmark "
                              "canonical metric and targets efficiency over absolute volume.")
     parser.add_argument("--out", default=str(DEFAULT_OUT),
                         help=f"Output weights JSON path. Default: {DEFAULT_OUT.relative_to(ROOT)}")
+    parser.add_argument("--feature-dim", type=int, default=FEATURE_DIM,
+                        help=f"How many features to use (1..{FEATURE_DIM}). "
+                             f"Pass 9 to train V1/V2/V3/V4-compatible weights; "
+                             f"pass {FEATURE_DIM} for V5+ with busy_inst.")
     args = parser.parse_args()
     ARMS = [a.strip() for a in args.arms.split(",") if a.strip()]
+    DISTS = [d.strip() for d in args.dists.split(",") if d.strip()]
     REWARD_MODE = args.reward
     OUT = Path(args.out)
+    if not (1 <= args.feature_dim <= FEATURE_DIM):
+        sys.exit(f"--feature-dim must be in [1, {FEATURE_DIM}], got {args.feature_dim}")
+    use_dim = args.feature_dim
     print(f"Arms:   {ARMS}")
+    print(f"Dists:  {DISTS}")
     print(f"Reward: {REWARD_MODE}")
+    print(f"FeatDim: {use_dim} / {FEATURE_DIM}  ({FEATURE_NAMES[:use_dim]})")
     print(f"Output: {OUT}")
     print(f"Reading runs from {RESULTS}")
     dataset, max_tp = collect_dataset()
@@ -218,8 +279,9 @@ def main():
     arm_payload = {}
     print("\nFitting per-arm ridge regression:")
     for arm in ARMS:
-        X, r = dataset[arm]
-        theta, A_inv = fit_arm(X, r)
+        X_full, r = dataset[arm]
+        X = X_full[:, :use_dim] if X_full.shape[0] > 0 else X_full
+        theta, A_inv = fit_arm(X, r, dim=use_dim)
         arm_payload[arm] = {
             "samples":    int(X.shape[0]),
             "mean_reward": float(r.mean()) if r.size else 0.0,
@@ -230,10 +292,10 @@ def main():
               f"theta={[round(t,3) for t in theta]}")
 
     payload = {
-        "feature_dim": FEATURE_DIM,
+        "feature_dim": use_dim,
         "alpha": ALPHA_RUNTIME,
         "decision_interval_ms": DECISION_INTERVAL_MS,
-        "feature_names": FEATURE_NAMES,
+        "feature_names": FEATURE_NAMES[:use_dim],
         "ridge_lambda": RIDGE_LAMBDA,
         "trained_at": datetime.now().isoformat(timespec="seconds"),
         "reward_mode": REWARD_MODE,

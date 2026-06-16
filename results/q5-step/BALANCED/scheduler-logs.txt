@@ -21,6 +21,14 @@
 [OFFLINE_BANDIT_V2] Features (d=9): [bias, avg_cpu, max_cpu, min_cpu, cpu_imbalance, cpu_velocity, avg_mem, elapsed_norm, saturation]
 [OFFLINE_BANDIT_V2] alpha=1.0 decisionIntervalMs=30000
 [OFFLINE_BANDIT_V2] Initial arm: BANDIT
+[BANDIT] Initialized Multi-Armed Bandit Strategy with UCB1
+[BANDIT] Exploration parameter: 1.4142135623730951
+[BANDIT] Optimal CPU range: 30.0% - 70.0%
+[OFFLINE_BANDIT_V3] Initialized LinUCB meta-scheduler
+[OFFLINE_BANDIT_V3] Arms: [BANDIT, LEAST_LOADED, BALANCED]
+[OFFLINE_BANDIT_V3] Features (d=9): [bias, avg_cpu, max_cpu, min_cpu, cpu_imbalance, cpu_velocity, avg_mem, elapsed_norm, saturation]
+[OFFLINE_BANDIT_V3] alpha=1.0 decisionIntervalMs=30000
+[OFFLINE_BANDIT_V3] Initial arm: BANDIT
 ========================================
   Adaptive Scheduler for Flink v1.2
   (with Real Metrics + BANDIT + SARSA)
@@ -40,42 +48,42 @@ Starting scheduler loop...
   Metrics Server: ✓ AVAILABLE (using REAL metrics)
 
   Current Node CPU Usage:
-    minikube-m03: 1.4%
-    minikube-m02: 2.1%
-    minikube: 2.5%
+    minikube-m03: 1.2%
+    minikube-m02: 2.0%
+    minikube: 3.9%
 
-  Cluster Average: 2.0%
+  Cluster Average: 2.4%
 ========================================
 
 
-[2026-05-20 23:18:25] Found 5 pending TaskManager(s)
+[2026-06-09 18:03:57] Found 5 pending TaskManager(s)
 
-[SCHEDULING] Pod: flink-taskmanager-cccff75ff-779nq
+[SCHEDULING] Pod: flink-taskmanager-cccff75ff-5t2mt
   Strategy: BALANCED
   Result: ✓ SCHEDULED to minikube
-  Node CPU: 2.5% (real)
+  Node CPU: 3.9% (real)
   Total scheduled: 1
 
-[SCHEDULING] Pod: flink-taskmanager-cccff75ff-c9tcw
+[SCHEDULING] Pod: flink-taskmanager-cccff75ff-66f7t
   Strategy: BALANCED
   Result: ✓ SCHEDULED to minikube-m02
-  Node CPU: 2.1% (real)
+  Node CPU: 2.0% (real)
   Total scheduled: 2
 
-[SCHEDULING] Pod: flink-taskmanager-cccff75ff-ncl2d
+[SCHEDULING] Pod: flink-taskmanager-cccff75ff-6kd9h
   Strategy: BALANCED
   Result: ✓ SCHEDULED to minikube-m03
-  Node CPU: 1.4% (real)
+  Node CPU: 1.2% (real)
   Total scheduled: 3
 
-[SCHEDULING] Pod: flink-taskmanager-cccff75ff-nrkdc
+[SCHEDULING] Pod: flink-taskmanager-cccff75ff-6tqld
   Strategy: BALANCED
   Result: ✓ SCHEDULED to minikube
-  Node CPU: 2.5% (real)
+  Node CPU: 3.9% (real)
   Total scheduled: 4
 
-[SCHEDULING] Pod: flink-taskmanager-cccff75ff-vq8zg
+[SCHEDULING] Pod: flink-taskmanager-cccff75ff-9mm8t
   Strategy: BALANCED
   Result: ✓ SCHEDULED to minikube-m02
-  Node CPU: 2.1% (real)
+  Node CPU: 2.0% (real)
   Total scheduled: 5

@@ -1,0 +1,172 @@
+==========================================
+  MÉTRICAS COMPLETAS - OFFLINE_BANDIT_V4
+==========================================
+Fecha: Wed Jun 10 15:43:27 -04 2026
+Job ID: 3e5d7e510be66d0fd18525eb7256f78d
+Job Name: Nexmark-Q2
+
+CONFIGURACIÓN:
+- Workload:                q2-sine
+- Estrategia:              OFFLINE_BANDIT_V4
+- Modo:                    FIXED_STRATEGY=OFFLINE_BANDIT_V4
+- Eventos/seg (base):      60000
+- Distribución llegada:    SINE
+- Duración configurada:    600s
+- Paralelismo global:      8
+- Ventana:                 10s
+- CPU load por evento:     2500 iter
+- Max event age (SLA):     15000ms 
+- TaskManagers:            5
+- Nodos utilizados:        1
+- Imagen scheduler:        adaptive-scheduler:offline_bandit_v4-1781119869
+
+------------------------------------------
+1. ESTADO DEL JOB
+------------------------------------------
+   Estado:        FINISHED
+   Duración:      603059 ms (603.05 s)
+   Inicio:        1781119993289
+   Fin:           1781120596348
+
+------------------------------------------
+2. THROUGHPUT
+------------------------------------------
+   TRABAJO ÚTIL PROCESADO (métrica principal):
+     Stage de medición: q2-selection (heavy vertex)
+     Eventos procesados: 12234429
+     Throughput:         20287 ev/s
+
+   THROUGHPUT POR ETAPA (records out / duration):
+     Source emitted:     22112 ev/s   (13335055 records)
+     Filter out:         N/A ev/s   (0 records)
+     CPU Load out:       chained ev/s   (0 records)
+     Latency Tracker:    chained ev/s   (0 records)
+     Transform out:      chained ev/s   (0 records)
+     Window out:         N/A ev/s   (0 records, aggregated)
+     Sink in:            174 ev/s   (105438 records)
+
+   Nota: "chained" indica que Flink fusionó el operador con otro vertex,
+   por lo que sus records están reflejados en el siguiente stage.
+
+------------------------------------------
+3. SOURCE STATS (desde logs del TaskManager)
+------------------------------------------
+   Total generado:    0
+   Total emitido:     0
+   Total descartado:  0 (cola llena)
+   Drop %:            N/A%
+
+   Throughput generado: N/A ev/s
+   Throughput emitido:  N/A ev/s (entra al grafo)
+   Throughput procesado: 20287 ev/s (sale del CPU-load) ← MÉTRICA PRINCIPAL
+
+------------------------------------------
+3b. STALENESS STATS (desde logs del CPULoad)
+------------------------------------------
+   Eventos procesados (CPU-load): 0
+   Eventos descartados (stale):   0
+   Stale %:                       N/A%
+   Max event age configurado:     15000ms
+
+   Nota: "stale" son eventos que entraron al grafo pero cuya edad
+   (System.currentTimeMillis() - event.timestamp) excedía maxEventAge
+   al llegar al CPU-load stage. Fueron descartados sin gastar CPU.
+   Esto modela un SLA de latencia: si la estrategia de scheduling
+   causa congestión → más stale drops → menos throughput útil.
+
+------------------------------------------
+4. LATENCIA END-TO-END
+------------------------------------------
+   PROCESSING (event-time -> fin de CPU-load):
+     p50: N/A ms
+     p95: N/A ms
+     p99: N/A ms
+     avg: N/A ms
+
+   TOTAL (event-time -> sink, incluye delay del window):
+     p50: N/A ms
+     p95: N/A ms
+     p99: N/A ms
+     avg: N/A ms
+
+   Nota: la latencia TOTAL incluye necesariamente hasta 10s
+   adicionales por el delay del Tumbling Window.
+
+------------------------------------------
+5. MÉTRICAS POR OPERADOR
+   Source: nexmark-source (par=8):
+     Records in:        0
+     Records out:       13335055
+     Backpressure time: 27286ms
+     Idle time:         0ms
+   Timestamps/Watermarks (par=8):
+     Records in:        13335055
+     Records out:       13335055
+     Backpressure time: 15661ms
+     Idle time:         4949338ms
+   filter-bids-q2 (par=8):
+     Records in:        13335055
+     Records out:       12234429
+     Backpressure time: 14387ms
+     Idle time:         5366277ms
+   q2-selection (par=2):
+     Records in:        12234429
+     Records out:       105438
+     Backpressure time: 0ms
+     Idle time:         1338559ms
+   Sink: q2-sink (par=8):
+     Records in:        105438
+     Records out:       0
+     Backpressure time: 0ms
+     Idle time:         5296549ms
+
+------------------------------------------
+6. DISTRIBUCIÓN DE PODS
+------------------------------------------
+    minikube-m03: 5 TaskManagers
+
+------------------------------------------
+7. SCHEDULING
+------------------------------------------
+   Decisiones de scheduling: 5
+   Cambios de estrategia:    0
+
+   Switches detectados:
+
+
+------------------------------------------
+8. RECURSOS DEL CLUSTER (final)
+------------------------------------------
+NAME           CPU(cores)   CPU(%)   MEMORY(bytes)   MEMORY(%)   
+minikube       214m         1%       989Mi           12%         
+minikube-m02   102m         0%       922Mi           11%         
+minikube-m03   443m         3%       1911Mi          24%         
+
+==========================================
+Archivos generados en results/q2-sine/OFFLINE_BANDIT_V4/:
+  - job-details.json         (raw JSON del job)
+  - taskmanager-placement.txt (pods por nodo)
+  - taskmanager-full.log     (logs completos del TM)
+  - source-stats.txt         (gen/emit/drop por subtask)
+  - cpuload-stats.txt        (processed/staleDropped por subtask)
+  - latency-processing.txt   (latencia post CPU-load)
+  - latency-total.txt        (latencia event-time -> sink)
+  - scheduler-logs.txt       (decisiones del scheduler)
+  - node-metrics.txt         (CPU/memoria por nodo)
+  - METRICS-SUMMARY.txt      (este archivo)
+  - metrics.csv              (fila lista para análisis comparativo)
+==========================================
+
+========================================
+  Nexmark canonical metrics
+========================================
+  Cores avg:         0.99 cores
+  Cores p95:         1.21 cores
+  Cores peak:        2.89 cores
+  Time:              603.0 s
+  Cores × Time:      597.5 core·s
+  Events processed:  12,234,429
+  Cost / Mevent:     48.84 core·s / Mevents
+  Throughput / core: 20,476 ev/s
+  (snapshots used:   52)
+========================================

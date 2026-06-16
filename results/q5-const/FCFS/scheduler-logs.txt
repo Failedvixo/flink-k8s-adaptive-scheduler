@@ -21,6 +21,14 @@
 [OFFLINE_BANDIT_V2] Features (d=9): [bias, avg_cpu, max_cpu, min_cpu, cpu_imbalance, cpu_velocity, avg_mem, elapsed_norm, saturation]
 [OFFLINE_BANDIT_V2] alpha=1.0 decisionIntervalMs=30000
 [OFFLINE_BANDIT_V2] Initial arm: BANDIT
+[BANDIT] Initialized Multi-Armed Bandit Strategy with UCB1
+[BANDIT] Exploration parameter: 1.4142135623730951
+[BANDIT] Optimal CPU range: 30.0% - 70.0%
+[OFFLINE_BANDIT_V3] Initialized LinUCB meta-scheduler
+[OFFLINE_BANDIT_V3] Arms: [BANDIT, LEAST_LOADED, BALANCED]
+[OFFLINE_BANDIT_V3] Features (d=9): [bias, avg_cpu, max_cpu, min_cpu, cpu_imbalance, cpu_velocity, avg_mem, elapsed_norm, saturation]
+[OFFLINE_BANDIT_V3] alpha=1.0 decisionIntervalMs=30000
+[OFFLINE_BANDIT_V3] Initial arm: BANDIT
 ========================================
   Adaptive Scheduler for Flink v1.2
   (with Real Metrics + BANDIT + SARSA)
@@ -40,42 +48,42 @@ Starting scheduler loop...
   Metrics Server: ✓ AVAILABLE (using REAL metrics)
 
   Current Node CPU Usage:
-    minikube-m03: 1.9%
-    minikube-m02: 2.0%
-    minikube: 5.7%
+    minikube-m03: 0.7%
+    minikube-m02: 1.4%
+    minikube: 3.9%
 
-  Cluster Average: 3.2%
+  Cluster Average: 2.0%
 ========================================
 
 
-[2026-05-20 22:37:50] Found 5 pending TaskManager(s)
+[2026-06-09 16:59:10] Found 5 pending TaskManager(s)
 
-[SCHEDULING] Pod: flink-taskmanager-cccff75ff-5c255
+[SCHEDULING] Pod: flink-taskmanager-cccff75ff-6t9fs
   Strategy: FCFS
   Result: ✓ SCHEDULED to minikube
-  Node CPU: 5.7% (real)
+  Node CPU: 3.9% (real)
   Total scheduled: 1
 
-[SCHEDULING] Pod: flink-taskmanager-cccff75ff-5md2j
+[SCHEDULING] Pod: flink-taskmanager-cccff75ff-fb284
   Strategy: FCFS
   Result: ✓ SCHEDULED to minikube
-  Node CPU: 5.7% (real)
+  Node CPU: 3.9% (real)
   Total scheduled: 2
 
-[SCHEDULING] Pod: flink-taskmanager-cccff75ff-blzz5
+[SCHEDULING] Pod: flink-taskmanager-cccff75ff-gtjkc
   Strategy: FCFS
   Result: ✓ SCHEDULED to minikube
-  Node CPU: 5.7% (real)
+  Node CPU: 3.9% (real)
   Total scheduled: 3
 
-[SCHEDULING] Pod: flink-taskmanager-cccff75ff-jfdvh
+[SCHEDULING] Pod: flink-taskmanager-cccff75ff-nrjgr
   Strategy: FCFS
   Result: ✓ SCHEDULED to minikube
-  Node CPU: 5.7% (real)
+  Node CPU: 3.9% (real)
   Total scheduled: 4
 
-[SCHEDULING] Pod: flink-taskmanager-cccff75ff-whjjr
+[SCHEDULING] Pod: flink-taskmanager-cccff75ff-z9h82
   Strategy: FCFS
   Result: ✓ SCHEDULED to minikube
-  Node CPU: 5.7% (real)
+  Node CPU: 3.9% (real)
   Total scheduled: 5

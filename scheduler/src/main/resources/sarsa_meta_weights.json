@@ -1,0 +1,273 @@
+{
+  "type": "sarsa_meta",
+  "trained_at": "2026-06-15T21:12:43",
+  "arms": [
+    "FCFS",
+    "BALANCED",
+    "LEAST_LOADED",
+    "BANDIT"
+  ],
+  "state_features": [
+    "saturation",
+    "cpu_imbalance",
+    "mem_imbalance"
+  ],
+  "bins": 3,
+  "bin_edges": {
+    "saturation": [
+      0.05,
+      0.075
+    ],
+    "cpu_imbalance": [
+      0.03,
+      0.05
+    ],
+    "mem_imbalance": [
+      0.13,
+      0.14
+    ]
+  },
+  "gamma": 0.9,
+  "alpha": 0.1,
+  "epochs": 400,
+  "reward_mode": "throughput_per_core",
+  "reward_shaping": "per_step",
+  "decision_interval_ms": 30000,
+  "max_reward_used_for_normalisation": 72503.0,
+  "default_arm": "BALANCED",
+  "q": {
+    "2,2,2": {
+      "FCFS": 5.022349928878168,
+      "BALANCED": 8.634642219457772,
+      "LEAST_LOADED": 4.467438943297133,
+      "BANDIT": 0.0
+    },
+    "1,2,2": {
+      "FCFS": 4.24455412277185,
+      "BALANCED": 8.290147924712793,
+      "LEAST_LOADED": 3.8770033854749038,
+      "BANDIT": 0.0
+    },
+    "1,2,1": {
+      "FCFS": 0.0,
+      "BALANCED": 8.542022688086087,
+      "LEAST_LOADED": 0.0,
+      "BANDIT": 0.0
+    },
+    "1,1,2": {
+      "FCFS": 2.808727366186061,
+      "BALANCED": 6.284297594158812,
+      "LEAST_LOADED": 3.40767194305747,
+      "BANDIT": 0.0
+    },
+    "1,1,1": {
+      "FCFS": 0.0,
+      "BALANCED": 2.7415245103414945,
+      "LEAST_LOADED": 0.0,
+      "BANDIT": 8.325325756414145
+    },
+    "2,1,0": {
+      "FCFS": 0.0,
+      "BALANCED": 3.885251082224485,
+      "LEAST_LOADED": 8.260989659402023,
+      "BANDIT": 4.00134002557081
+    },
+    "0,0,0": {
+      "FCFS": 0.0,
+      "BALANCED": 3.5179898354850443,
+      "LEAST_LOADED": 1.770518790792647,
+      "BANDIT": 2.2023113511674652
+    },
+    "0,0,1": {
+      "FCFS": 0.0,
+      "BALANCED": 3.3809196909655137,
+      "LEAST_LOADED": 1.788837212577139,
+      "BANDIT": 2.0337476205115235
+    },
+    "1,0,0": {
+      "FCFS": 0.0,
+      "BALANCED": 4.125809035266743,
+      "LEAST_LOADED": 0.0,
+      "BANDIT": 0.0
+    },
+    "1,0,1": {
+      "FCFS": 0.0,
+      "BALANCED": 3.8149249052753196,
+      "LEAST_LOADED": 0.0,
+      "BANDIT": 4.838865649778248
+    },
+    "0,1,2": {
+      "FCFS": 2.586936946462834,
+      "BALANCED": 0.0,
+      "LEAST_LOADED": 2.2183137941119098,
+      "BANDIT": 0.0
+    },
+    "2,2,0": {
+      "FCFS": 0.0,
+      "BALANCED": 3.5567148734135965,
+      "LEAST_LOADED": 4.4954230741878245,
+      "BANDIT": 2.086162679450636
+    },
+    "1,1,0": {
+      "FCFS": 0.0,
+      "BALANCED": 3.587488643075615,
+      "LEAST_LOADED": 0.0,
+      "BANDIT": 3.625656763670454
+    },
+    "0,1,0": {
+      "FCFS": 5.272849877428229,
+      "BALANCED": 1.109760718645975,
+      "LEAST_LOADED": 0.0,
+      "BANDIT": 0.0
+    },
+    "0,0,2": {
+      "FCFS": 0.0,
+      "BALANCED": 0.0,
+      "LEAST_LOADED": 1.7471563213929773,
+      "BANDIT": 0.0
+    },
+    "2,2,1": {
+      "FCFS": 0.0,
+      "BALANCED": 0.0,
+      "LEAST_LOADED": 8.10160118402296,
+      "BANDIT": 8.644381811625298
+    },
+    "2,1,2": {
+      "FCFS": 0.0,
+      "BALANCED": 0.0,
+      "LEAST_LOADED": 0.0,
+      "BANDIT": 8.788802982317652
+    },
+    "2,0,0": {
+      "FCFS": 5.550459007625557,
+      "BALANCED": 0.0,
+      "LEAST_LOADED": 0.0,
+      "BANDIT": 0.0
+    }
+  },
+  "diagnostics": {
+    "arm_mean_reward": {
+      "FCFS": 0.52179909796836,
+      "BALANCED": 0.5749463240601538,
+      "LEAST_LOADED": 0.5531265372927098,
+      "BANDIT": 0.521730135304746
+    },
+    "policy_arm_distribution": {
+      "FCFS": 3,
+      "BALANCED": 7,
+      "LEAST_LOADED": 3,
+      "BANDIT": 5
+    },
+    "state_visits_last_epoch": {
+      "2,2,2": {
+        "FCFS": 108,
+        "BALANCED": 9,
+        "LEAST_LOADED": 57,
+        "BANDIT": 0
+      },
+      "1,2,2": {
+        "FCFS": 6,
+        "BALANCED": 23,
+        "LEAST_LOADED": 6,
+        "BANDIT": 0
+      },
+      "1,2,1": {
+        "FCFS": 0,
+        "BALANCED": 5,
+        "LEAST_LOADED": 0,
+        "BANDIT": 0
+      },
+      "1,1,2": {
+        "FCFS": 26,
+        "BALANCED": 12,
+        "LEAST_LOADED": 15,
+        "BANDIT": 0
+      },
+      "1,1,1": {
+        "FCFS": 0,
+        "BALANCED": 4,
+        "LEAST_LOADED": 0,
+        "BANDIT": 34
+      },
+      "2,1,0": {
+        "FCFS": 0,
+        "BALANCED": 5,
+        "LEAST_LOADED": 1,
+        "BANDIT": 6
+      },
+      "0,0,0": {
+        "FCFS": 0,
+        "BALANCED": 52,
+        "LEAST_LOADED": 1,
+        "BANDIT": 55
+      },
+      "0,0,1": {
+        "FCFS": 0,
+        "BALANCED": 19,
+        "LEAST_LOADED": 1,
+        "BANDIT": 12
+      },
+      "1,0,0": {
+        "FCFS": 0,
+        "BALANCED": 6,
+        "LEAST_LOADED": 0,
+        "BANDIT": 0
+      },
+      "1,0,1": {
+        "FCFS": 0,
+        "BALANCED": 5,
+        "LEAST_LOADED": 0,
+        "BANDIT": 10
+      },
+      "0,1,2": {
+        "FCFS": 18,
+        "BALANCED": 0,
+        "LEAST_LOADED": 28,
+        "BANDIT": 0
+      },
+      "2,2,0": {
+        "FCFS": 0,
+        "BALANCED": 4,
+        "LEAST_LOADED": 2,
+        "BANDIT": 4
+      },
+      "1,1,0": {
+        "FCFS": 0,
+        "BALANCED": 11,
+        "LEAST_LOADED": 0,
+        "BANDIT": 27
+      },
+      "0,1,0": {
+        "FCFS": 1,
+        "BALANCED": 4,
+        "LEAST_LOADED": 0,
+        "BANDIT": 0
+      },
+      "0,0,2": {
+        "FCFS": 0,
+        "BALANCED": 0,
+        "LEAST_LOADED": 12,
+        "BANDIT": 0
+      },
+      "2,2,1": {
+        "FCFS": 0,
+        "BALANCED": 0,
+        "LEAST_LOADED": 35,
+        "BANDIT": 5
+      },
+      "2,1,2": {
+        "FCFS": 0,
+        "BALANCED": 0,
+        "LEAST_LOADED": 0,
+        "BANDIT": 3
+      },
+      "2,0,0": {
+        "FCFS": 1,
+        "BALANCED": 0,
+        "LEAST_LOADED": 0,
+        "BANDIT": 0
+      }
+    },
+    "num_states": 18
+  }
+}

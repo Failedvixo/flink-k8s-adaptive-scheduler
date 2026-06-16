@@ -1,0 +1,154 @@
+[main] INFO com.thesis.scheduler.metrics.ClusterMetrics - [ClusterMetrics] ✓ Metrics Server is available - using REAL metrics
+[BANDIT] Initialized Multi-Armed Bandit Strategy with UCB1
+[BANDIT] Exploration parameter: 1.4142135623730951
+[BANDIT] Optimal CPU range: 30.0% - 70.0%
+[SARSA] Initialized SARSA Strategy (on-policy TD control)
+[SARSA] alpha=0.2 gamma=0.8 epsilon_min=0.05
+[SARSA] Optimal CPU range: 30.0% - 70.0%
+[SARSA] Initialized SARSA Strategy (on-policy TD control)
+[SARSA] alpha=0.2 gamma=0.8 epsilon_min=0.05
+[SARSA] Optimal CPU range: 30.0% - 70.0%
+[OFFLINE_BANDIT] Initialized LinUCB meta-scheduler
+[OFFLINE_BANDIT] Arms: [FCFS, BALANCED, SARSA]
+[OFFLINE_BANDIT] Features (d=9): [bias, avg_cpu, max_cpu, min_cpu, cpu_imbalance, cpu_velocity, avg_mem, elapsed_norm, saturation]
+[OFFLINE_BANDIT] alpha=1.0 decisionIntervalMs=30000
+[OFFLINE_BANDIT] Initial arm: FCFS
+[BANDIT] Initialized Multi-Armed Bandit Strategy with UCB1
+[BANDIT] Exploration parameter: 1.4142135623730951
+[BANDIT] Optimal CPU range: 30.0% - 70.0%
+[OFFLINE_BANDIT_V2] Initialized LinUCB meta-scheduler
+[OFFLINE_BANDIT_V2] Arms: [BANDIT, LEAST_LOADED, BALANCED]
+[OFFLINE_BANDIT_V2] Features (d=9): [bias, avg_cpu, max_cpu, min_cpu, cpu_imbalance, cpu_velocity, avg_mem, elapsed_norm, saturation]
+[OFFLINE_BANDIT_V2] alpha=1.0 decisionIntervalMs=30000
+[OFFLINE_BANDIT_V2] Initial arm: BANDIT
+[BANDIT] Initialized Multi-Armed Bandit Strategy with UCB1
+[BANDIT] Exploration parameter: 1.4142135623730951
+[BANDIT] Optimal CPU range: 30.0% - 70.0%
+[OFFLINE_BANDIT_V3] Initialized LinUCB meta-scheduler
+[OFFLINE_BANDIT_V3] Arms: [BANDIT, LEAST_LOADED, BALANCED]
+[OFFLINE_BANDIT_V3] Features (d=9): [bias, avg_cpu, max_cpu, min_cpu, cpu_imbalance, cpu_velocity, avg_mem, elapsed_norm, saturation]
+[OFFLINE_BANDIT_V3] alpha=1.0 decisionIntervalMs=30000
+[OFFLINE_BANDIT_V3] Initial arm: BANDIT
+[BANDIT] Initialized Multi-Armed Bandit Strategy with UCB1
+[BANDIT] Exploration parameter: 1.4142135623730951
+[BANDIT] Optimal CPU range: 30.0% - 70.0%
+[OFFLINE_BANDIT_V4] Initialized LinUCB meta-scheduler
+[OFFLINE_BANDIT_V4] Arms: [FCFS, BALANCED, LEAST_LOADED, BANDIT]
+[OFFLINE_BANDIT_V4] Features (d=9): [bias, avg_cpu, max_cpu, min_cpu, cpu_imbalance, cpu_velocity, avg_mem, elapsed_norm, saturation]
+[OFFLINE_BANDIT_V4] alpha=1.0 decisionIntervalMs=30000
+[OFFLINE_BANDIT_V4] Initial arm: FCFS
+========================================
+  Adaptive Scheduler for Flink v1.2
+  (with Real Metrics + BANDIT + SARSA)
+========================================
+Configuration:
+  CPU Low Threshold: 40.0%
+  CPU High Threshold: 80.0%
+  Strategy Cooldown: 30s
+  Mode: FIXED STRATEGY (OFFLINE_BANDIT_V4)
+========================================
+
+Starting scheduler loop...
+
+========================================
+  CLUSTER METRICS STATUS
+========================================
+  Metrics Server: ✓ AVAILABLE (using REAL metrics)
+
+  Current Node CPU Usage:
+    minikube-m03: 3.1%
+    minikube-m02: 1.4%
+    minikube: 1.7%
+
+  Cluster Average: 2.1%
+========================================
+
+[OFFLINE_BANDIT_V4] LinUCB scores: FCFS=0.610(exp=0.404|var=0.206) BALANCED=0.687(exp=0.531|var=0.157) LEAST_LOADED=0.716(exp=0.527|var=0.189) BANDIT=0.635(exp=0.478|var=0.157) 
+[OFFLINE_BANDIT_V4] arm switch FCFS -> LEAST_LOADED
+[META_DECISION] [OFFLINE_BANDIT_V4] ts=1781120668266 elapsed=0.0s prev=FCFS chosen=LEAST_LOADED switched=true features=[bias=1.0000,avg_cpu=0.0207,max_cpu=0.0306,min_cpu=0.0143,cpu_imbalance=0.0163,cpu_velocity=0.0000,avg_mem=0.1570,elapsed_norm=0.0000,saturation=0.0382] scores=[FCFS=0.6098,BALANCED=0.6872,LEAST_LOADED=0.7163,BANDIT=0.6349]
+
+[2026-06-10 19:44:45] Found 5 pending TaskManager(s)
+
+[SCHEDULING] Pod: flink-taskmanager-cccff75ff-cmpdl
+  Strategy: OFFLINE_BANDIT_V4
+  Result: ✓ SCHEDULED to minikube-m03
+  Node CPU: 2.0% (real)
+  Total scheduled: 1
+
+[SCHEDULING] Pod: flink-taskmanager-cccff75ff-h6msf
+  Strategy: OFFLINE_BANDIT_V4
+  Result: ✓ SCHEDULED to minikube-m03
+  Node CPU: 2.0% (real)
+  Total scheduled: 2
+
+[SCHEDULING] Pod: flink-taskmanager-cccff75ff-n2tl4
+  Strategy: OFFLINE_BANDIT_V4
+  Result: ✓ SCHEDULED to minikube-m03
+  Node CPU: 2.0% (real)
+  Total scheduled: 3
+
+[SCHEDULING] Pod: flink-taskmanager-cccff75ff-rgmgp
+  Strategy: OFFLINE_BANDIT_V4
+  Result: ✓ SCHEDULED to minikube-m03
+  Node CPU: 2.0% (real)
+  Total scheduled: 4
+
+[SCHEDULING] Pod: flink-taskmanager-cccff75ff-s8v6m
+  Strategy: OFFLINE_BANDIT_V4
+  Result: ✓ SCHEDULED to minikube-m03
+  Node CPU: 2.0% (real)
+  Total scheduled: 5
+
+========================================
+  OFFLINE_BANDIT_V4 STATISTICS
+========================================
+Total meta-decisions: 1
+Current arm: LEAST_LOADED
+Arm selection counts:
+  BALANCED     0 (0.0%)
+  BANDIT       0 (0.0%)
+  FCFS         0 (0.0%)
+  LEAST_LOADED 1 (100.0%)
+========================================
+
+[OFFLINE_BANDIT_V4] LinUCB scores: FCFS=0.603(exp=0.409|var=0.195) BALANCED=0.676(exp=0.530|var=0.146) LEAST_LOADED=0.702(exp=0.524|var=0.178) BANDIT=0.627(exp=0.481|var=0.146) 
+[META_DECISION] [OFFLINE_BANDIT_V4] ts=1781120699928 elapsed=31.7s prev=LEAST_LOADED chosen=LEAST_LOADED switched=false features=[bias=1.0000,avg_cpu=0.0235,max_cpu=0.0295,min_cpu=0.0200,cpu_imbalance=0.0095,cpu_velocity=0.0009,avg_mem=0.1484,elapsed_norm=0.0528,saturation=0.0369] scores=[FCFS=0.6032,BALANCED=0.6761,LEAST_LOADED=0.7022,BANDIT=0.6274]
+[OFFLINE_BANDIT_V4] LinUCB scores: FCFS=0.714(exp=0.565|var=0.149) BALANCED=0.990(exp=0.729|var=0.261) LEAST_LOADED=0.760(exp=0.590|var=0.170) BANDIT=0.958(exp=0.692|var=0.266) 
+[OFFLINE_BANDIT_V4] arm switch LEAST_LOADED -> BALANCED
+[META_DECISION] [OFFLINE_BANDIT_V4] ts=1781120730733 elapsed=62.5s prev=LEAST_LOADED chosen=BALANCED switched=true features=[bias=1.0000,avg_cpu=0.0787,max_cpu=0.1799,min_cpu=0.0277,cpu_imbalance=0.1521,cpu_velocity=0.0179,avg_mem=0.1670,elapsed_norm=0.1041,saturation=0.2248] scores=[FCFS=0.7140,BALANCED=0.9899,LEAST_LOADED=0.7603,BANDIT=0.9584]
+[OFFLINE_BANDIT_V4] LinUCB scores: FCFS=0.717(exp=0.574|var=0.143) BALANCED=0.990(exp=0.732|var=0.258) LEAST_LOADED=0.756(exp=0.590|var=0.166) BANDIT=0.958(exp=0.695|var=0.263) 
+[META_DECISION] [OFFLINE_BANDIT_V4] ts=1781120761409 elapsed=93.1s prev=BALANCED chosen=BALANCED switched=false features=[bias=1.0000,avg_cpu=0.0787,max_cpu=0.1799,min_cpu=0.0277,cpu_imbalance=0.1521,cpu_velocity=0.0000,avg_mem=0.1670,elapsed_norm=0.1552,saturation=0.2248] scores=[FCFS=0.7173,BALANCED=0.9896,LEAST_LOADED=0.7562,BANDIT=0.9578]
+[OFFLINE_BANDIT_V4] LinUCB scores: FCFS=0.596(exp=0.471|var=0.125) BALANCED=0.709(exp=0.595|var=0.114) LEAST_LOADED=0.665(exp=0.551|var=0.114) BANDIT=0.657(exp=0.541|var=0.116) 
+[META_DECISION] [OFFLINE_BANDIT_V4] ts=1781120793302 elapsed=125.0s prev=BALANCED chosen=BALANCED switched=false features=[bias=1.0000,avg_cpu=0.0310,max_cpu=0.0676,min_cpu=0.0074,cpu_imbalance=0.0602,cpu_velocity=-0.0149,avg_mem=0.1672,elapsed_norm=0.2084,saturation=0.0845] scores=[FCFS=0.5959,BALANCED=0.7089,LEAST_LOADED=0.6648,BANDIT=0.6572]
+[OFFLINE_BANDIT_V4] LinUCB scores: FCFS=0.590(exp=0.476|var=0.115) BALANCED=0.704(exp=0.598|var=0.106) LEAST_LOADED=0.656(exp=0.553|var=0.103) BANDIT=0.652(exp=0.544|var=0.108) 
+[META_DECISION] [OFFLINE_BANDIT_V4] ts=1781120823999 elapsed=155.7s prev=BALANCED chosen=BALANCED switched=false features=[bias=1.0000,avg_cpu=0.0310,max_cpu=0.0676,min_cpu=0.0074,cpu_imbalance=0.0602,cpu_velocity=0.0000,avg_mem=0.1672,elapsed_norm=0.2596,saturation=0.0845] scores=[FCFS=0.5903,BALANCED=0.7037,LEAST_LOADED=0.6563,BANDIT=0.6523]
+[OFFLINE_BANDIT_V4] LinUCB scores: FCFS=0.591(exp=0.492|var=0.099) BALANCED=0.723(exp=0.614|var=0.109) LEAST_LOADED=0.648(exp=0.557|var=0.092) BANDIT=0.673(exp=0.561|var=0.112) 
+[META_DECISION] [OFFLINE_BANDIT_V4] ts=1781120856030 elapsed=187.8s prev=BALANCED chosen=BALANCED switched=false features=[bias=1.0000,avg_cpu=0.0343,max_cpu=0.0776,min_cpu=0.0083,cpu_imbalance=0.0694,cpu_velocity=0.0010,avg_mem=0.1636,elapsed_norm=0.3129,saturation=0.0971] scores=[FCFS=0.5914,BALANCED=0.7231,LEAST_LOADED=0.6485,BANDIT=0.6731]
+[OFFLINE_BANDIT_V4] LinUCB scores: FCFS=0.591(exp=0.499|var=0.092) BALANCED=0.723(exp=0.617|var=0.106) LEAST_LOADED=0.644(exp=0.558|var=0.086) BANDIT=0.673(exp=0.564|var=0.109) 
+[META_DECISION] [OFFLINE_BANDIT_V4] ts=1781120887405 elapsed=219.1s prev=BALANCED chosen=BALANCED switched=false features=[bias=1.0000,avg_cpu=0.0343,max_cpu=0.0776,min_cpu=0.0083,cpu_imbalance=0.0694,cpu_velocity=0.0000,avg_mem=0.1636,elapsed_norm=0.3652,saturation=0.0971] scores=[FCFS=0.5910,BALANCED=0.7231,LEAST_LOADED=0.6440,BANDIT=0.6732]
+[OFFLINE_BANDIT_V4] LinUCB scores: FCFS=0.580(exp=0.483|var=0.098) BALANCED=0.674(exp=0.589|var=0.085) LEAST_LOADED=0.637(exp=0.551|var=0.086) BANDIT=0.622(exp=0.536|var=0.086) 
+[META_DECISION] [OFFLINE_BANDIT_V4] ts=1781120918093 elapsed=249.8s prev=BALANCED chosen=BALANCED switched=false features=[bias=1.0000,avg_cpu=0.0266,max_cpu=0.0545,min_cpu=0.0082,cpu_imbalance=0.0463,cpu_velocity=-0.0025,avg_mem=0.1639,elapsed_norm=0.4164,saturation=0.0681] scores=[FCFS=0.5804,BALANCED=0.6740,LEAST_LOADED=0.6373,BANDIT=0.6222]
+[OFFLINE_BANDIT_V4] LinUCB scores: FCFS=0.583(exp=0.489|var=0.094) BALANCED=0.677(exp=0.592|var=0.085) LEAST_LOADED=0.636(exp=0.553|var=0.083) BANDIT=0.625(exp=0.539|var=0.086) 
+[META_DECISION] [OFFLINE_BANDIT_V4] ts=1781120948718 elapsed=280.5s prev=BALANCED chosen=BALANCED switched=false features=[bias=1.0000,avg_cpu=0.0266,max_cpu=0.0545,min_cpu=0.0082,cpu_imbalance=0.0463,cpu_velocity=0.0000,avg_mem=0.1639,elapsed_norm=0.4674,saturation=0.0681] scores=[FCFS=0.5827,BALANCED=0.6769,LEAST_LOADED=0.6362,BANDIT=0.6253]
+[OFFLINE_BANDIT_V4] LinUCB scores: FCFS=0.611(exp=0.525|var=0.086) BALANCED=0.753(exp=0.635|var=0.118) LEAST_LOADED=0.653(exp=0.565|var=0.088) BANDIT=0.703(exp=0.583|var=0.120) 
+[META_DECISION] [OFFLINE_BANDIT_V4] ts=1781120979407 elapsed=311.1s prev=BALANCED chosen=BALANCED switched=false features=[bias=1.0000,avg_cpu=0.0367,max_cpu=0.0842,min_cpu=0.0078,cpu_imbalance=0.0764,cpu_velocity=0.0033,avg_mem=0.1641,elapsed_norm=0.5186,saturation=0.1052] scores=[FCFS=0.6111,BALANCED=0.7525,LEAST_LOADED=0.6532,BANDIT=0.7025]
+[OFFLINE_BANDIT_V4] LinUCB scores: FCFS=0.622(exp=0.532|var=0.090) BALANCED=0.760(exp=0.638|var=0.122) LEAST_LOADED=0.660(exp=0.567|var=0.093) BANDIT=0.710(exp=0.586|var=0.124) 
+[META_DECISION] [OFFLINE_BANDIT_V4] ts=1781121010071 elapsed=341.8s prev=BALANCED chosen=BALANCED switched=false features=[bias=1.0000,avg_cpu=0.0367,max_cpu=0.0842,min_cpu=0.0078,cpu_imbalance=0.0764,cpu_velocity=0.0000,avg_mem=0.1641,elapsed_norm=0.5697,saturation=0.1052] scores=[FCFS=0.6225,BALANCED=0.7602,LEAST_LOADED=0.6601,BANDIT=0.7100]
+[OFFLINE_BANDIT_V4] LinUCB scores: FCFS=0.636(exp=0.539|var=0.097) BALANCED=0.769(exp=0.640|var=0.128) LEAST_LOADED=0.670(exp=0.569|var=0.101) BANDIT=0.719(exp=0.589|var=0.130) 
+[META_DECISION] [OFFLINE_BANDIT_V4] ts=1781121040698 elapsed=372.4s prev=BALANCED chosen=BALANCED switched=false features=[bias=1.0000,avg_cpu=0.0369,max_cpu=0.0842,min_cpu=0.0084,cpu_imbalance=0.0758,cpu_velocity=0.0001,avg_mem=0.1650,elapsed_norm=0.6207,saturation=0.1052] scores=[FCFS=0.6360,BALANCED=0.7687,LEAST_LOADED=0.6699,BANDIT=0.7188]
+[OFFLINE_BANDIT_V4] LinUCB scores: FCFS=0.648(exp=0.543|var=0.105) BALANCED=0.773(exp=0.640|var=0.133) LEAST_LOADED=0.679(exp=0.569|var=0.109) BANDIT=0.722(exp=0.589|var=0.134) 
+[META_DECISION] [OFFLINE_BANDIT_V4] ts=1781121071335 elapsed=403.1s prev=BALANCED chosen=BALANCED switched=false features=[bias=1.0000,avg_cpu=0.0359,max_cpu=0.0816,min_cpu=0.0083,cpu_imbalance=0.0734,cpu_velocity=-0.0003,avg_mem=0.1659,elapsed_norm=0.6718,saturation=0.1020] scores=[FCFS=0.6482,BALANCED=0.7727,LEAST_LOADED=0.6788,BANDIT=0.7225]
+[OFFLINE_BANDIT_V4] LinUCB scores: FCFS=0.665(exp=0.550|var=0.115) BALANCED=0.784(exp=0.643|var=0.141) LEAST_LOADED=0.691(exp=0.571|var=0.120) BANDIT=0.734(exp=0.592|var=0.142) 
+[META_DECISION] [OFFLINE_BANDIT_V4] ts=1781121102021 elapsed=433.8s prev=BALANCED chosen=BALANCED switched=false features=[bias=1.0000,avg_cpu=0.0359,max_cpu=0.0816,min_cpu=0.0083,cpu_imbalance=0.0734,cpu_velocity=0.0000,avg_mem=0.1659,elapsed_norm=0.7229,saturation=0.1020] scores=[FCFS=0.6649,BALANCED=0.7843,LEAST_LOADED=0.6909,BANDIT=0.7341]
+[OFFLINE_BANDIT_V4] LinUCB scores: FCFS=0.663(exp=0.541|var=0.122) BALANCED=0.762(exp=0.626|var=0.136) LEAST_LOADED=0.690(exp=0.566|var=0.124) BANDIT=0.711(exp=0.574|var=0.137) 
+[META_DECISION] [OFFLINE_BANDIT_V4] ts=1781121132612 elapsed=464.3s prev=BALANCED chosen=BALANCED switched=false features=[bias=1.0000,avg_cpu=0.0307,max_cpu=0.0665,min_cpu=0.0081,cpu_imbalance=0.0583,cpu_velocity=-0.0017,avg_mem=0.1649,elapsed_norm=0.7739,saturation=0.0831] scores=[FCFS=0.6631,BALANCED=0.7617,LEAST_LOADED=0.6900,BANDIT=0.7108]
+[OFFLINE_BANDIT_V4] LinUCB scores: FCFS=0.681(exp=0.547|var=0.134) BALANCED=0.775(exp=0.629|var=0.147) LEAST_LOADED=0.704(exp=0.568|var=0.136) BANDIT=0.725(exp=0.577|var=0.147) 
+[META_DECISION] [OFFLINE_BANDIT_V4] ts=1781121163250 elapsed=495.0s prev=BALANCED chosen=BALANCED switched=false features=[bias=1.0000,avg_cpu=0.0307,max_cpu=0.0665,min_cpu=0.0081,cpu_imbalance=0.0583,cpu_velocity=0.0000,avg_mem=0.1649,elapsed_norm=0.8250,saturation=0.0831] scores=[FCFS=0.6809,BALANCED=0.7755,LEAST_LOADED=0.7037,BANDIT=0.7247]
+[OFFLINE_BANDIT_V4] LinUCB scores: FCFS=0.660(exp=0.516|var=0.144) BALANCED=0.723(exp=0.582|var=0.141) LEAST_LOADED=0.696(exp=0.556|var=0.140) BANDIT=0.671(exp=0.529|var=0.142) 
+[META_DECISION] [OFFLINE_BANDIT_V4] ts=1781121193899 elapsed=525.6s prev=BALANCED chosen=BALANCED switched=false features=[bias=1.0000,avg_cpu=0.0177,max_cpu=0.0287,min_cpu=0.0074,cpu_imbalance=0.0213,cpu_velocity=-0.0042,avg_mem=0.1665,elapsed_norm=0.8761,saturation=0.0359] scores=[FCFS=0.6602,BALANCED=0.7228,LEAST_LOADED=0.6962,BANDIT=0.6709]
+[OFFLINE_BANDIT_V4] LinUCB scores: FCFS=0.677(exp=0.522|var=0.155) BALANCED=0.738(exp=0.585|var=0.153) LEAST_LOADED=0.710(exp=0.558|var=0.152) BANDIT=0.686(exp=0.532|var=0.154) 
+[META_DECISION] [OFFLINE_BANDIT_V4] ts=1781121224508 elapsed=556.2s prev=BALANCED chosen=BALANCED switched=false features=[bias=1.0000,avg_cpu=0.0177,max_cpu=0.0287,min_cpu=0.0074,cpu_imbalance=0.0213,cpu_velocity=0.0000,avg_mem=0.1665,elapsed_norm=0.9271,saturation=0.0359] scores=[FCFS=0.6770,BALANCED=0.7377,LEAST_LOADED=0.7097,BANDIT=0.6861]
+[OFFLINE_BANDIT_V4] LinUCB scores: FCFS=0.693(exp=0.527|var=0.166) BALANCED=0.750(exp=0.585|var=0.165) LEAST_LOADED=0.722(exp=0.558|var=0.164) BANDIT=0.699(exp=0.532|var=0.167) 
+[META_DECISION] [OFFLINE_BANDIT_V4] ts=1781121255174 elapsed=586.9s prev=BALANCED chosen=BALANCED switched=false features=[bias=1.0000,avg_cpu=0.0169,max_cpu=0.0267,min_cpu=0.0077,cpu_imbalance=0.0190,cpu_velocity=-0.0002,avg_mem=0.1657,elapsed_norm=0.9782,saturation=0.0333] scores=[FCFS=0.6931,BALANCED=0.7502,LEAST_LOADED=0.7222,BANDIT=0.6989]
+[OFFLINE_BANDIT_V4] LinUCB scores: FCFS=0.712(exp=0.533|var=0.179) BALANCED=0.766(exp=0.588|var=0.178) LEAST_LOADED=0.736(exp=0.559|var=0.177) BANDIT=0.715(exp=0.535|var=0.180) 
+[META_DECISION] [OFFLINE_BANDIT_V4] ts=1781121285844 elapsed=617.6s prev=BALANCED chosen=BALANCED switched=false features=[bias=1.0000,avg_cpu=0.0169,max_cpu=0.0267,min_cpu=0.0077,cpu_imbalance=0.0190,cpu_velocity=0.0000,avg_mem=0.1657,elapsed_norm=1.0293,saturation=0.0333] scores=[FCFS=0.7119,BALANCED=0.7659,LEAST_LOADED=0.7365,BANDIT=0.7148]

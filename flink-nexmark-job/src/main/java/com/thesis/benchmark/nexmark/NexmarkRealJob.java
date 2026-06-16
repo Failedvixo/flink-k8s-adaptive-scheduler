@@ -11,6 +11,8 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.windowing.ProcessWindowFunction;
 import org.apache.flink.api.common.functions.JoinFunction;
 import org.apache.flink.api.java.tuple.Tuple3;
+import org.apache.flink.streaming.api.windowing.assigners.EventTimeSessionWindows;
+import org.apache.flink.streaming.api.windowing.assigners.ProcessingTimeSessionWindows;
 import org.apache.flink.streaming.api.windowing.assigners.SlidingEventTimeWindows;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
 import org.apache.flink.streaming.api.windowing.time.Time;
@@ -84,11 +86,22 @@ public class NexmarkRealJob {
                                 .withTimestampAssigner((e, ts) -> e.eventTime));
 
         switch (query) {
-            case "q5": runQ5(events, heavyPar); break;
-            case "q8": runQ8(events, heavyPar); break;
+            case "q0":  runQ0(events, heavyPar);  break;
+            case "q1":  runQ1(events, heavyPar);  break;
+            case "q2":  runQ2(events, heavyPar);  break;
+            case "q3":  runQ3(events, heavyPar);  break;
+            case "q4":  runQ4(events, heavyPar);  break;
+            case "q5":  runQ5(events, heavyPar);  break;
+            case "q6":  runQ6(events, heavyPar);  break;
+            case "q7":  runQ7(events, heavyPar);  break;
+            case "q8":  runQ8(events, heavyPar);  break;
+            case "q9":  runQ9(events, heavyPar);  break;
+            case "q10": runQ10(events, heavyPar); break;
+            case "q11": runQ11(events, heavyPar); break;
+            case "q12": runQ12(events, heavyPar); break;
             default:
                 throw new IllegalArgumentException("Unsupported query: " + query
-                        + " (supported: q5, q8)");
+                        + " (supported: q0..q12)");
         }
 
         env.execute("Nexmark-" + query.toUpperCase());
@@ -252,6 +265,311 @@ public class NexmarkRealJob {
                         getRuntimeContext().getIndexOfThisSubtask() + 1,
                         received, v.f0, v.f1, v.f2);
             }
+        }
+    }
+
+    // ================================================================
+    //   Q0 — Identity pass-through (baseline cost of streaming pipeline)
+    // ================================================================
+    private static void runQ0(DataStream<NexmarkEvent> events, int heavyPar) {
+        events.map((MapFunction<NexmarkEvent, NexmarkEvent>) e -> e)
+                .returns(NexmarkEvent.class)
+                .setParallelism(heavyPar)
+                .name("q0-passthrough").uid("q0-passthrough")
+                .addSink(new GenericCountSink<>("Q0"))
+                .name("q0-sink").uid("q0-sink");
+    }
+
+    // ================================================================
+    //   Q1 — Currency conversion: bid.price USD → EUR (rate 0.908)
+    // ================================================================
+    private static void runQ1(DataStream<NexmarkEvent> events, int heavyPar) {
+        events.filter((FilterFunction<NexmarkEvent>) e -> e.type == NexmarkEvent.Type.BID)
+                .name("filter-bids-q1").uid("filter-bids-q1")
+                .map((MapFunction<NexmarkEvent, Bid>) e -> {
+                    Bid out = new Bid();
+                    out.auction  = e.bid.auction;
+                    out.bidder   = e.bid.bidder;
+                    out.price    = (long) (e.bid.price * 0.908);  // USD → EUR
+                    out.channel  = e.bid.channel;
+                    out.dateTime = e.bid.dateTime;
+                    return out;
+                })
+                .returns(Bid.class)
+                .setParallelism(heavyPar)
+                .name("q1-currency").uid("q1-currency")
+                .addSink(new GenericCountSink<>("Q1"))
+                .name("q1-sink").uid("q1-sink");
+    }
+
+    // ================================================================
+    //   Q2 — Selection on auction id (~0.8% of bids pass through)
+    // ================================================================
+    private static void runQ2(DataStream<NexmarkEvent> events, int heavyPar) {
+        events.filter((FilterFunction<NexmarkEvent>) e -> e.type == NexmarkEvent.Type.BID)
+                .name("filter-bids-q2").uid("filter-bids-q2")
+                .filter((FilterFunction<NexmarkEvent>) e -> e.bid.auction % 123 == 0)
+                .setParallelism(heavyPar)
+                .name("q2-selection").uid("q2-selection")
+                .addSink(new GenericCountSink<>("Q2"))
+                .name("q2-sink").uid("q2-sink");
+    }
+
+    // ================================================================
+    //   Q3 — Local item suggestion: Person ⨝ Auction, state ∈ {OR,ID,CA}
+    //   60s tumbling event-time inner join.
+    // ================================================================
+    private static void runQ3(DataStream<NexmarkEvent> events, int heavyPar) {
+        DataStream<Person> persons = events
+                .filter((FilterFunction<NexmarkEvent>) e -> e.type == NexmarkEvent.Type.PERSON)
+                .name("filter-persons-q3").uid("filter-persons-q3")
+                .filter((FilterFunction<NexmarkEvent>) e -> {
+                    String st = e.person.state;
+                    return "OR".equals(st) || "ID".equals(st) || "CA".equals(st);
+                })
+                .name("filter-state-q3").uid("filter-state-q3")
+                .map((MapFunction<NexmarkEvent, Person>) e -> e.person)
+                .returns(Person.class)
+                .name("project-person-q3").uid("project-person-q3");
+
+        DataStream<Auction> auctions = events
+                .filter((FilterFunction<NexmarkEvent>) e -> e.type == NexmarkEvent.Type.AUCTION)
+                .name("filter-auctions-q3").uid("filter-auctions-q3")
+                .map((MapFunction<NexmarkEvent, Auction>) e -> e.auction)
+                .returns(Auction.class)
+                .name("project-auction-q3").uid("project-auction-q3");
+
+        SingleOutputStreamOperator<Tuple3<String, String, Long>> joined =
+                (SingleOutputStreamOperator<Tuple3<String, String, Long>>) persons
+                        .join(auctions)
+                        .where((org.apache.flink.api.java.functions.KeySelector<Person, Long>) p -> p.id)
+                        .equalTo((org.apache.flink.api.java.functions.KeySelector<Auction, Long>) a -> a.seller)
+                        .window(TumblingEventTimeWindows.of(Time.seconds(60)))
+                        .apply(
+                                (JoinFunction<Person, Auction, Tuple3<String, String, Long>>)
+                                        (p, a) -> Tuple3.of(p.name, p.city, a.id),
+                                org.apache.flink.api.common.typeinfo.TypeInformation
+                                        .of(new org.apache.flink.api.common.typeinfo.TypeHint<Tuple3<String, String, Long>>(){}));
+
+        joined.setParallelism(heavyPar)
+                .name("q3-state-join").uid("q3-state-join")
+                .addSink(new GenericCountSink<>("Q3"))
+                .name("q3-sink").uid("q3-sink");
+    }
+
+    // ================================================================
+    //   Q4 — Average price per category (proxy: auction id % 16)
+    //   Per-key 60s tumbling event-time avg.
+    // ================================================================
+    private static void runQ4(DataStream<NexmarkEvent> events, int heavyPar) {
+        DataStream<Tuple2<Long, Long>> catPrice = events
+                .filter((FilterFunction<NexmarkEvent>) e -> e.type == NexmarkEvent.Type.BID)
+                .name("filter-bids-q4").uid("filter-bids-q4")
+                .map((MapFunction<NexmarkEvent, Tuple2<Long, Long>>) e ->
+                        Tuple2.of(e.bid.auction % 16, e.bid.price))
+                .returns(org.apache.flink.api.common.typeinfo.TypeInformation
+                        .of(new org.apache.flink.api.common.typeinfo.TypeHint<Tuple2<Long, Long>>(){}))
+                .name("to-cat-price-q4").uid("to-cat-price-q4");
+
+        catPrice
+                .keyBy(t -> t.f0)
+                .window(TumblingEventTimeWindows.of(Time.seconds(60)))
+                .aggregate(new AvgPriceAgg(), new EmitAvgPerKey())
+                .setParallelism(heavyPar)
+                .name("q4-cat-avg").uid("q4-cat-avg")
+                .addSink(new GenericCountSink<>("Q4"))
+                .name("q4-sink").uid("q4-sink");
+    }
+
+    // ================================================================
+    //   Q6 — Average selling price by seller proxy (bidder % 256).
+    //   Per-key 60s tumbling event-time avg.
+    // ================================================================
+    private static void runQ6(DataStream<NexmarkEvent> events, int heavyPar) {
+        DataStream<Tuple2<Long, Long>> sellerPrice = events
+                .filter((FilterFunction<NexmarkEvent>) e -> e.type == NexmarkEvent.Type.BID)
+                .name("filter-bids-q6").uid("filter-bids-q6")
+                .map((MapFunction<NexmarkEvent, Tuple2<Long, Long>>) e ->
+                        Tuple2.of(e.bid.bidder % 256, e.bid.price))
+                .returns(org.apache.flink.api.common.typeinfo.TypeInformation
+                        .of(new org.apache.flink.api.common.typeinfo.TypeHint<Tuple2<Long, Long>>(){}))
+                .name("to-seller-price-q6").uid("to-seller-price-q6");
+
+        sellerPrice
+                .keyBy(t -> t.f0)
+                .window(TumblingEventTimeWindows.of(Time.seconds(60)))
+                .aggregate(new AvgPriceAgg(), new EmitAvgPerKey())
+                .setParallelism(heavyPar)
+                .name("q6-seller-avg").uid("q6-seller-avg")
+                .addSink(new GenericCountSink<>("Q6"))
+                .name("q6-sink").uid("q6-sink");
+    }
+
+    // ================================================================
+    //   Q7 — Highest bid in a 10s tumbling event-time window (global).
+    // ================================================================
+    private static void runQ7(DataStream<NexmarkEvent> events, int heavyPar) {
+        // windowAll(...) forces parallelism=1 on the window operator, so the
+        // heavy vertex sits in the filter+map stage that feeds it. The autoscaler
+        // pattern 'q7-max-bid' matches the parallelisable upstream stage.
+        DataStream<Bid> bids = events
+                .filter((FilterFunction<NexmarkEvent>) e -> e.type == NexmarkEvent.Type.BID)
+                .name("filter-bids-q7").uid("filter-bids-q7")
+                .map((MapFunction<NexmarkEvent, Bid>) e -> e.bid)
+                .returns(Bid.class)
+                .setParallelism(heavyPar)
+                .name("q7-max-bid").uid("q7-max-bid");
+
+        bids.windowAll(TumblingEventTimeWindows.of(Time.seconds(10)))
+                .max("price")
+                .name("q7-global-max").uid("q7-global-max")
+                .addSink(new GenericCountSink<>("Q7"))
+                .name("q7-sink").uid("q7-sink");
+    }
+
+    // ================================================================
+    //   Q9 — Winning bid per auction over 60s tumbling event-time window.
+    // ================================================================
+    private static void runQ9(DataStream<NexmarkEvent> events, int heavyPar) {
+        DataStream<Tuple2<Long, Long>> auctionPrice = events
+                .filter((FilterFunction<NexmarkEvent>) e -> e.type == NexmarkEvent.Type.BID)
+                .name("filter-bids-q9").uid("filter-bids-q9")
+                .map((MapFunction<NexmarkEvent, Tuple2<Long, Long>>) e ->
+                        Tuple2.of(e.bid.auction, e.bid.price))
+                .returns(org.apache.flink.api.common.typeinfo.TypeInformation
+                        .of(new org.apache.flink.api.common.typeinfo.TypeHint<Tuple2<Long, Long>>(){}))
+                .name("to-auction-price-q9").uid("to-auction-price-q9");
+
+        auctionPrice
+                .keyBy(t -> t.f0)
+                .window(TumblingEventTimeWindows.of(Time.seconds(60)))
+                .reduce((a, b) -> a.f1 >= b.f1 ? a : b)
+                .setParallelism(heavyPar)
+                .name("q9-winning-bid").uid("q9-winning-bid")
+                .addSink(new GenericCountSink<>("Q9"))
+                .name("q9-sink").uid("q9-sink");
+    }
+
+    // ================================================================
+    //   Q10 — Log to sink: high-throughput sink-bound workload.
+    // ================================================================
+    private static void runQ10(DataStream<NexmarkEvent> events, int heavyPar) {
+        events.map((MapFunction<NexmarkEvent, NexmarkEvent>) e -> e)
+                .returns(NexmarkEvent.class)
+                .setParallelism(heavyPar)
+                .name("q10-sink").uid("q10-sink")
+                .addSink(new GenericCountSink<>("Q10"))
+                .name("q10-final-sink").uid("q10-final-sink");
+    }
+
+    // ================================================================
+    //   Q11 — Per-bidder event-time session windows (gap 10s).
+    //   Counts bids per user session.
+    // ================================================================
+    private static void runQ11(DataStream<NexmarkEvent> events, int heavyPar) {
+        DataStream<Tuple2<Long, Long>> bidderOne = events
+                .filter((FilterFunction<NexmarkEvent>) e -> e.type == NexmarkEvent.Type.BID)
+                .name("filter-bids-q11").uid("filter-bids-q11")
+                .map((MapFunction<NexmarkEvent, Tuple2<Long, Long>>) e ->
+                        Tuple2.of(e.bid.bidder, 1L))
+                .returns(org.apache.flink.api.common.typeinfo.TypeInformation
+                        .of(new org.apache.flink.api.common.typeinfo.TypeHint<Tuple2<Long, Long>>(){}))
+                .name("to-bidder-one-q11").uid("to-bidder-one-q11");
+
+        bidderOne
+                .keyBy(t -> t.f0)
+                .window(EventTimeSessionWindows.withGap(Time.seconds(10)))
+                .aggregate(new CountAgg(), new EmitWindowEnd())
+                .setParallelism(heavyPar)
+                .name("q11-sessions").uid("q11-sessions")
+                .addSink(new GenericCountSink<>("Q11"))
+                .name("q11-sink").uid("q11-sink");
+    }
+
+    // ================================================================
+    //   Q12 — Same as Q11 but processing-time session windows.
+    //   Captures wall-clock burstiness instead of event-time.
+    // ================================================================
+    private static void runQ12(DataStream<NexmarkEvent> events, int heavyPar) {
+        DataStream<Tuple2<Long, Long>> bidderOne = events
+                .filter((FilterFunction<NexmarkEvent>) e -> e.type == NexmarkEvent.Type.BID)
+                .name("filter-bids-q12").uid("filter-bids-q12")
+                .map((MapFunction<NexmarkEvent, Tuple2<Long, Long>>) e ->
+                        Tuple2.of(e.bid.bidder, 1L))
+                .returns(org.apache.flink.api.common.typeinfo.TypeInformation
+                        .of(new org.apache.flink.api.common.typeinfo.TypeHint<Tuple2<Long, Long>>(){}))
+                .name("to-bidder-one-q12").uid("to-bidder-one-q12");
+
+        bidderOne
+                .keyBy(t -> t.f0)
+                .window(ProcessingTimeSessionWindows.withGap(Time.seconds(10)))
+                .aggregate(new CountAgg(), new EmitWindowEnd())
+                .setParallelism(heavyPar)
+                .name("q12-proc-sessions").uid("q12-proc-sessions")
+                .addSink(new GenericCountSink<>("Q12"))
+                .name("q12-sink").uid("q12-sink");
+    }
+
+    // ================================================================
+    //   Shared helpers used by the Q0–Q12 implementations above
+    // ================================================================
+
+    /** Generic count-and-print sink labelled by query. */
+    public static class GenericCountSink<T>
+            extends org.apache.flink.streaming.api.functions.sink.RichSinkFunction<T> {
+        private final String label;
+        private long received = 0;
+        private long lastLog = 0;
+
+        public GenericCountSink(String label) {
+            this.label = label;
+        }
+
+        @Override
+        public void invoke(T v, Context ctx) {
+            received++;
+            long now = System.currentTimeMillis();
+            if (now - lastLog > 5000) {
+                lastLog = now;
+                String repr = String.valueOf(v);
+                if (repr.length() > 80) repr = repr.substring(0, 77) + "...";
+                System.out.printf("[%s-Sink-%d] received=%,d last=%s%n",
+                        label,
+                        getRuntimeContext().getIndexOfThisSubtask() + 1,
+                        received, repr);
+            }
+        }
+    }
+
+    /** Accumulator for windowed average: (sum, count). */
+    public static class AvgPriceAcc implements java.io.Serializable {
+        public long sum = 0;
+        public long count = 0;
+    }
+
+    /** AggregateFunction for average price over (key, price) pairs. */
+    public static class AvgPriceAgg
+            implements AggregateFunction<Tuple2<Long, Long>, AvgPriceAcc, Double> {
+        @Override public AvgPriceAcc createAccumulator() { return new AvgPriceAcc(); }
+        @Override public AvgPriceAcc add(Tuple2<Long, Long> v, AvgPriceAcc acc) {
+            acc.sum += v.f1; acc.count++; return acc;
+        }
+        @Override public Double getResult(AvgPriceAcc acc) {
+            return acc.count == 0 ? 0.0 : (double) acc.sum / acc.count;
+        }
+        @Override public AvgPriceAcc merge(AvgPriceAcc a, AvgPriceAcc b) {
+            AvgPriceAcc m = new AvgPriceAcc();
+            m.sum = a.sum + b.sum; m.count = a.count + b.count; return m;
+        }
+    }
+
+    /** Emit (key, avg) after the keyed AvgPriceAgg aggregate. */
+    public static class EmitAvgPerKey
+            extends ProcessWindowFunction<Double, Tuple2<Long, Double>, Long, TimeWindow> {
+        @Override
+        public void process(Long key, Context ctx, Iterable<Double> avgs,
+                            Collector<Tuple2<Long, Double>> out) {
+            for (Double a : avgs) out.collect(Tuple2.of(key, a));
         }
     }
 }

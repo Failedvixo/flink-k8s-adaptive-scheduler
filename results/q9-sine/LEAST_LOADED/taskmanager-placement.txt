@@ -1,0 +1,6 @@
+NAME                                READY   STATUS    RESTARTS   AGE   IP            NODE           NOMINATED NODE   READINESS GATES
+flink-taskmanager-cccff75ff-25pmj   1/1     Running   0          10m   10.244.1.22   minikube-m02   <none>           <none>
+flink-taskmanager-cccff75ff-8gnzb   1/1     Running   0          10m   10.244.1.23   minikube-m02   <none>           <none>
+flink-taskmanager-cccff75ff-l7l7h   1/1     Running   0          10m   10.244.1.24   minikube-m02   <none>           <none>
+flink-taskmanager-cccff75ff-n5ff2   1/1     Running   0          10m   10.244.1.25   minikube-m02   <none>           <none>
+flink-taskmanager-cccff75ff-vkh8z   1/1     Running   0          10m   10.244.1.26   minikube-m02   <none>           <none>

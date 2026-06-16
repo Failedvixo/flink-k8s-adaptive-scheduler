@@ -1,0 +1,4 @@
+NAME           CPU(cores)   CPU(%)   MEMORY(bytes)   MEMORY(%)   
+minikube       382m         3%       1727Mi          21%         
+minikube-m02   177m         1%       1744Mi          22%         
+minikube-m03   118m         0%       862Mi           10%         

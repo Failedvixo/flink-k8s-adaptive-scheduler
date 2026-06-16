@@ -1,0 +1,173 @@
+==========================================
+  MÉTRICAS COMPLETAS - SARSA
+==========================================
+Fecha: Tue Jun  9 05:22:47 -04 2026
+Job ID: 1630180ce909e9301fc1e150f335c220
+Job Name: Nexmark-Q2
+
+CONFIGURACIÓN:
+- Workload:                q2-sine
+- Estrategia:              SARSA
+- Modo:                    FIXED_STRATEGY=SARSA
+- Eventos/seg (base):      60000
+- Distribución llegada:    SINE
+- Duración configurada:    600s
+- Paralelismo global:      8
+- Ventana:                 10s
+- CPU load por evento:     2500 iter
+- Max event age (SLA):     15000ms 
+- TaskManagers:            5
+- Nodos utilizados:        2
+- Imagen scheduler:        adaptive-scheduler:sarsa-1780996244
+
+------------------------------------------
+1. ESTADO DEL JOB
+------------------------------------------
+   Estado:        FINISHED
+   Duración:      606987 ms (606.98 s)
+   Inicio:        1780996348385
+   Fin:           1780996955372
+
+------------------------------------------
+2. THROUGHPUT
+------------------------------------------
+   TRABAJO ÚTIL PROCESADO (métrica principal):
+     Stage de medición: q2-selection (heavy vertex)
+     Eventos procesados: 19114899
+     Throughput:         31491 ev/s
+
+   THROUGHPUT POR ETAPA (records out / duration):
+     Source emitted:     34378 ev/s   (20867291 records)
+     Filter out:         N/A ev/s   (0 records)
+     CPU Load out:       chained ev/s   (0 records)
+     Latency Tracker:    chained ev/s   (0 records)
+     Transform out:      chained ev/s   (0 records)
+     Window out:         N/A ev/s   (0 records, aggregated)
+     Sink in:            272 ev/s   (165419 records)
+
+   Nota: "chained" indica que Flink fusionó el operador con otro vertex,
+   por lo que sus records están reflejados en el siguiente stage.
+
+------------------------------------------
+3. SOURCE STATS (desde logs del TaskManager)
+------------------------------------------
+   Total generado:    0
+   Total emitido:     0
+   Total descartado:  0 (cola llena)
+   Drop %:            N/A%
+
+   Throughput generado: N/A ev/s
+   Throughput emitido:  N/A ev/s (entra al grafo)
+   Throughput procesado: 31491 ev/s (sale del CPU-load) ← MÉTRICA PRINCIPAL
+
+------------------------------------------
+3b. STALENESS STATS (desde logs del CPULoad)
+------------------------------------------
+   Eventos procesados (CPU-load): 0
+   Eventos descartados (stale):   0
+   Stale %:                       N/A%
+   Max event age configurado:     15000ms
+
+   Nota: "stale" son eventos que entraron al grafo pero cuya edad
+   (System.currentTimeMillis() - event.timestamp) excedía maxEventAge
+   al llegar al CPU-load stage. Fueron descartados sin gastar CPU.
+   Esto modela un SLA de latencia: si la estrategia de scheduling
+   causa congestión → más stale drops → menos throughput útil.
+
+------------------------------------------
+4. LATENCIA END-TO-END
+------------------------------------------
+   PROCESSING (event-time -> fin de CPU-load):
+     p50: N/A ms
+     p95: N/A ms
+     p99: N/A ms
+     avg: N/A ms
+
+   TOTAL (event-time -> sink, incluye delay del window):
+     p50: N/A ms
+     p95: N/A ms
+     p99: N/A ms
+     avg: N/A ms
+
+   Nota: la latencia TOTAL incluye necesariamente hasta 10s
+   adicionales por el delay del Tumbling Window.
+
+------------------------------------------
+5. MÉTRICAS POR OPERADOR
+   Source: nexmark-source (par=8):
+     Records in:        0
+     Records out:       20867291
+     Backpressure time: 5797ms
+     Idle time:         0ms
+   Timestamps/Watermarks (par=8):
+     Records in:        20867291
+     Records out:       20867291
+     Backpressure time: 43ms
+     Idle time:         4863850ms
+   filter-bids-q2 (par=8):
+     Records in:        20867291
+     Records out:       19114899
+     Backpressure time: 5065ms
+     Idle time:         5197560ms
+   q2-selection (par=2):
+     Records in:        19114899
+     Records out:       165419
+     Backpressure time: 0ms
+     Idle time:         1253076ms
+   Sink: q2-sink (par=8):
+     Records in:        165419
+     Records out:       0
+     Backpressure time: 0ms
+     Idle time:         5145105ms
+
+------------------------------------------
+6. DISTRIBUCIÓN DE PODS
+------------------------------------------
+    minikube: 4 TaskManagers
+    minikube-m03: 1 TaskManagers
+
+------------------------------------------
+7. SCHEDULING
+------------------------------------------
+   Decisiones de scheduling: 5
+   Cambios de estrategia:    0
+
+   Switches detectados:
+
+
+------------------------------------------
+8. RECURSOS DEL CLUSTER (final)
+------------------------------------------
+NAME           CPU(cores)   CPU(%)   MEMORY(bytes)   MEMORY(%)   
+minikube       464m         3%       1854Mi          23%         
+minikube-m02   93m          0%       1011Mi          12%         
+minikube-m03   58m          0%       665Mi           8%          
+
+==========================================
+Archivos generados en results/q2-sine/SARSA/:
+  - job-details.json         (raw JSON del job)
+  - taskmanager-placement.txt (pods por nodo)
+  - taskmanager-full.log     (logs completos del TM)
+  - source-stats.txt         (gen/emit/drop por subtask)
+  - cpuload-stats.txt        (processed/staleDropped por subtask)
+  - latency-processing.txt   (latencia post CPU-load)
+  - latency-total.txt        (latencia event-time -> sink)
+  - scheduler-logs.txt       (decisiones del scheduler)
+  - node-metrics.txt         (CPU/memoria por nodo)
+  - METRICS-SUMMARY.txt      (este archivo)
+  - metrics.csv              (fila lista para análisis comparativo)
+==========================================
+
+========================================
+  Nexmark canonical metrics
+========================================
+  Cores avg:         0.96 cores
+  Cores p95:         1.71 cores
+  Cores peak:        1.86 cores
+  Time:              607.0 s
+  Cores × Time:      580.1 core·s
+  Events processed:  19,114,899
+  Cost / Mevent:     30.35 core·s / Mevents
+  Throughput / core: 32,950 ev/s
+  (snapshots used:   53)
+========================================

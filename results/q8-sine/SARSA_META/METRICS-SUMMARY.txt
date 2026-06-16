@@ -1,0 +1,199 @@
+==========================================
+  MÉTRICAS COMPLETAS - SARSA_META
+==========================================
+Fecha: Mon Jun 15 22:58:08 -04 2026
+Job ID: 5defc1d4436081cca1ad75de300dc524
+Job Name: Nexmark-Q8
+
+CONFIGURACIÓN:
+- Workload:                q8-sine
+- Estrategia:              SARSA_META
+- Modo:                    FIXED_STRATEGY=SARSA_META
+- Eventos/seg (base):      60000
+- Distribución llegada:    SINE
+- Duración configurada:    600s
+- Paralelismo global:      8
+- Ventana:                 10s
+- CPU load por evento:     2500 iter
+- Max event age (SLA):     15000ms 
+- TaskManagers:            5
+- Nodos utilizados:        3
+- Imagen scheduler:        adaptive-scheduler:sarsa_meta-1781577960
+
+------------------------------------------
+1. ESTADO DEL JOB
+------------------------------------------
+   Estado:        FINISHED
+   Duración:      605131 ms (605.13 s)
+   Inicio:        1781578073172
+   Fin:           1781578678303
+
+------------------------------------------
+2. THROUGHPUT
+------------------------------------------
+   TRABAJO ÚTIL PROCESADO (métrica principal):
+     Stage de medición: new-users-join (heavy vertex)
+     Eventos procesados: 1244872
+     Throughput:         2057 ev/s
+
+   THROUGHPUT POR ETAPA (records out / duration):
+     Source emitted:     25313 ev/s   (15317759 records)
+     Filter out:         N/A ev/s   (0 records)
+     CPU Load out:       chained ev/s   (0 records)
+     Latency Tracker:    chained ev/s   (0 records)
+     Transform out:      chained ev/s   (0 records)
+     Window out:         N/A ev/s   (0 records, aggregated)
+     Sink in:            0 ev/s   (17 records)
+
+   Nota: "chained" indica que Flink fusionó el operador con otro vertex,
+   por lo que sus records están reflejados en el siguiente stage.
+
+------------------------------------------
+3. SOURCE STATS (desde logs del TaskManager)
+------------------------------------------
+   Total generado:    0
+   Total emitido:     0
+   Total descartado:  0 (cola llena)
+   Drop %:            N/A%
+
+   Throughput generado: N/A ev/s
+   Throughput emitido:  N/A ev/s (entra al grafo)
+   Throughput procesado: 2057 ev/s (sale del CPU-load) ← MÉTRICA PRINCIPAL
+
+------------------------------------------
+3b. STALENESS STATS (desde logs del CPULoad)
+------------------------------------------
+   Eventos procesados (CPU-load): 0
+   Eventos descartados (stale):   0
+   Stale %:                       N/A%
+   Max event age configurado:     15000ms
+
+   Nota: "stale" son eventos que entraron al grafo pero cuya edad
+   (System.currentTimeMillis() - event.timestamp) excedía maxEventAge
+   al llegar al CPU-load stage. Fueron descartados sin gastar CPU.
+   Esto modela un SLA de latencia: si la estrategia de scheduling
+   causa congestión → más stale drops → menos throughput útil.
+
+------------------------------------------
+4. LATENCIA END-TO-END
+------------------------------------------
+   PROCESSING (event-time -> fin de CPU-load):
+     p50: N/A ms
+     p95: N/A ms
+     p99: N/A ms
+     avg: N/A ms
+
+   TOTAL (event-time -> sink, incluye delay del window):
+     p50: N/A ms
+     p95: N/A ms
+     p99: N/A ms
+     avg: N/A ms
+
+   Nota: la latencia TOTAL incluye necesariamente hasta 10s
+   adicionales por el delay del Tumbling Window.
+
+------------------------------------------
+5. MÉTRICAS POR OPERADOR
+   Source: nexmark-source (par=8):
+     Records in:        0
+     Records out:       15317759
+     Backpressure time: 22483ms
+     Idle time:         0ms
+   Timestamps/Watermarks (par=8):
+     Records in:        15317759
+     Records out:       15317759
+     Backpressure time: 389ms
+     Idle time:         4833343ms
+   filter-persons (par=8):
+     Records in:        15317759
+     Records out:       310848
+     Backpressure time: 0ms
+     Idle time:         5287586ms
+   project-person (par=8):
+     Records in:        310848
+     Records out:       310848
+     Backpressure time: 0ms
+     Idle time:         5333159ms
+   Map (par=8):
+     Records in:        310848
+     Records out:       310848
+     Backpressure time: 0ms
+     Idle time:         5335373ms
+   filter-auctions (par=8):
+     Records in:        15317759
+     Records out:       934024
+     Backpressure time: 0ms
+     Idle time:         5287583ms
+   project-auction (par=8):
+     Records in:        934024
+     Records out:       934024
+     Backpressure time: 0ms
+     Idle time:         5339822ms
+   Map (par=8):
+     Records in:        934024
+     Records out:       934024
+     Backpressure time: 0ms
+     Idle time:         5333796ms
+   new-users-join (par=2):
+     Records in:        1244872
+     Records out:       17
+     Backpressure time: 0ms
+     Idle time:         1306140ms
+   Sink: q8-sink (par=8):
+     Records in:        17
+     Records out:       0
+     Backpressure time: 0ms
+     Idle time:         5332132ms
+
+------------------------------------------
+6. DISTRIBUCIÓN DE PODS
+------------------------------------------
+    minikube: 2 TaskManagers
+    minikube-m02: 2 TaskManagers
+    minikube-m03: 1 TaskManagers
+
+------------------------------------------
+7. SCHEDULING
+------------------------------------------
+   Decisiones de scheduling: 5
+   Cambios de estrategia:    0
+
+   Switches detectados:
+
+
+------------------------------------------
+8. RECURSOS DEL CLUSTER (final)
+------------------------------------------
+NAME           CPU(cores)   CPU(%)   MEMORY(bytes)   MEMORY(%)   
+minikube       574m         4%       1797Mi          22%         
+minikube-m02   160m         1%       1767Mi          22%         
+minikube-m03   130m         1%       949Mi           12%         
+
+==========================================
+Archivos generados en results/q8-sine/SARSA_META/:
+  - job-details.json         (raw JSON del job)
+  - taskmanager-placement.txt (pods por nodo)
+  - taskmanager-full.log     (logs completos del TM)
+  - source-stats.txt         (gen/emit/drop por subtask)
+  - cpuload-stats.txt        (processed/staleDropped por subtask)
+  - latency-processing.txt   (latencia post CPU-load)
+  - latency-total.txt        (latencia event-time -> sink)
+  - scheduler-logs.txt       (decisiones del scheduler)
+  - node-metrics.txt         (CPU/memoria por nodo)
+  - METRICS-SUMMARY.txt      (este archivo)
+  - metrics.csv              (fila lista para análisis comparativo)
+==========================================
+
+========================================
+  Nexmark canonical metrics
+========================================
+  Cores avg:         1.10 cores
+  Cores p95:         2.29 cores
+  Cores peak:        2.29 cores
+  Time:              605.1 s
+  Cores × Time:      663.5 core·s
+  Events processed:  1,244,872
+  Cost / Mevent:     533.02 core·s / Mevents
+  Throughput / core: 1,876 ev/s
+  (snapshots used:   52)
+========================================

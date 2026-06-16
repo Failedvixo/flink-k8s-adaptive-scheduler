@@ -45,7 +45,7 @@ for STRATEGY in $STRATEGIES; do
   echo "###  STRATEGY=$STRATEGY  (adaptive=$ADAPTIVE_FLAG)"
   echo "######################################################"
 
-  run_strategy_experiment "$STRATEGY" "$ADAPTIVE_FLAG" "q5-const" 100000 300 8 10 2500 CONSTANT 2 15000 "true"
-  run_strategy_experiment "$STRATEGY" "$ADAPTIVE_FLAG" "q5-sine"   60000 300 8 10 2500 SINE     2 15000 "true"
-  run_strategy_experiment "$STRATEGY" "$ADAPTIVE_FLAG" "q5-step"   60000 300 8 10 2500 STEP     2 15000 "true"
+  run_strategy_experiment "$STRATEGY" "$ADAPTIVE_FLAG" "q5-const" 100000 600 8 10 2500 CONSTANT 2 15000 "true"
+  run_strategy_experiment "$STRATEGY" "$ADAPTIVE_FLAG" "q5-sine"   60000 600 8 10 2500 SINE     2 15000 "true"
+  run_strategy_experiment "$STRATEGY" "$ADAPTIVE_FLAG" "q5-step"   60000 600 8 10 2500 STEP     2 15000 "true"
 done

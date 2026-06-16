@@ -1,0 +1,6 @@
+Waiting for response...
+No running jobs.
+No scheduled jobs.
+---------------------- Terminated Jobs -----------------------
+09.06.2026 03:38:21 : 634c5c3e7850aee57c643d9c9b627237 : Nexmark-Q1 (FINISHED)
+--------------------------------------------------------------

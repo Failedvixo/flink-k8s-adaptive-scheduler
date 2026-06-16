@@ -109,10 +109,54 @@ public class AdaptiveScheduler {
                             strategies.get(SchedulingStrategyType.OFFLINE_BANDIT_V3);
                         System.out.println(ob.getStatisticsSummary());
                     }
+                    if (currentStrategy == SchedulingStrategyType.OFFLINE_BANDIT_V4) {
+                        OfflineBanditStrategy ob = (OfflineBanditStrategy)
+                            strategies.get(SchedulingStrategyType.OFFLINE_BANDIT_V4);
+                        System.out.println(ob.getStatisticsSummary());
+                    }
+                    if (currentStrategy == SchedulingStrategyType.OFFLINE_BANDIT_V5) {
+                        OfflineBanditStrategy ob = (OfflineBanditStrategy)
+                            strategies.get(SchedulingStrategyType.OFFLINE_BANDIT_V5);
+                        System.out.println(ob.getStatisticsSummary());
+                    }
+                    if (currentStrategy == SchedulingStrategyType.SARSA_META) {
+                        SarsaMetaStrategy sm = (SarsaMetaStrategy)
+                            strategies.get(SchedulingStrategyType.SARSA_META);
+                        System.out.println(sm.getStatisticsSummary());
+                    }
                 }
 
                 if (!useFixedStrategy) {
                     checkAndSwitchStrategy();
+                }
+
+                // Periodic meta-scheduler re-evaluation: lets the active
+                // OFFLINE_BANDIT_* reconsider its arm choice even when no
+                // pods are pending (Nexmark steady-state). The strategy's
+                // own cooldown gates updates to the configured interval.
+                if (currentStrategy == SchedulingStrategyType.OFFLINE_BANDIT
+                        || currentStrategy == SchedulingStrategyType.OFFLINE_BANDIT_V2
+                        || currentStrategy == SchedulingStrategyType.OFFLINE_BANDIT_V3
+                        || currentStrategy == SchedulingStrategyType.OFFLINE_BANDIT_V4
+                        || currentStrategy == SchedulingStrategyType.OFFLINE_BANDIT_V5) {
+                    try {
+                        List<V1Node> nodes = getAvailableNodes();
+                        OfflineBanditStrategy ob = (OfflineBanditStrategy)
+                                strategies.get(currentStrategy);
+                        ob.periodicEvaluate(nodes, clusterMetrics);
+                    } catch (Exception e) {
+                        // don't kill the main loop on a metric-fetch hiccup
+                    }
+                }
+                if (currentStrategy == SchedulingStrategyType.SARSA_META) {
+                    try {
+                        List<V1Node> nodes = getAvailableNodes();
+                        SarsaMetaStrategy sm = (SarsaMetaStrategy)
+                                strategies.get(currentStrategy);
+                        sm.periodicEvaluate(nodes, clusterMetrics);
+                    } catch (Exception e) {
+                        // don't kill the main loop on a metric-fetch hiccup
+                    }
                 }
 
                 Thread.sleep(2000);
@@ -288,6 +332,12 @@ public class AdaptiveScheduler {
                 new OfflineBanditStrategy("/offline_bandit_v2_weights.json", "OFFLINE_BANDIT_V2"));
         map.put(SchedulingStrategyType.OFFLINE_BANDIT_V3,
                 new OfflineBanditStrategy("/offline_bandit_v3_weights.json", "OFFLINE_BANDIT_V3"));
+        map.put(SchedulingStrategyType.OFFLINE_BANDIT_V4,
+                new OfflineBanditStrategy("/offline_bandit_v4_weights.json", "OFFLINE_BANDIT_V4"));
+        map.put(SchedulingStrategyType.OFFLINE_BANDIT_V5,
+                new OfflineBanditStrategy("/offline_bandit_v5_weights.json", "OFFLINE_BANDIT_V5"));
+        map.put(SchedulingStrategyType.SARSA_META,
+                new SarsaMetaStrategy("/sarsa_meta_weights.json", "SARSA_META"));
         return map;
     }
 

@@ -21,6 +21,14 @@
 [OFFLINE_BANDIT_V2] Features (d=9): [bias, avg_cpu, max_cpu, min_cpu, cpu_imbalance, cpu_velocity, avg_mem, elapsed_norm, saturation]
 [OFFLINE_BANDIT_V2] alpha=1.0 decisionIntervalMs=30000
 [OFFLINE_BANDIT_V2] Initial arm: BANDIT
+[BANDIT] Initialized Multi-Armed Bandit Strategy with UCB1
+[BANDIT] Exploration parameter: 1.4142135623730951
+[BANDIT] Optimal CPU range: 30.0% - 70.0%
+[OFFLINE_BANDIT_V3] Initialized LinUCB meta-scheduler
+[OFFLINE_BANDIT_V3] Arms: [BANDIT, LEAST_LOADED, BALANCED]
+[OFFLINE_BANDIT_V3] Features (d=9): [bias, avg_cpu, max_cpu, min_cpu, cpu_imbalance, cpu_velocity, avg_mem, elapsed_norm, saturation]
+[OFFLINE_BANDIT_V3] alpha=1.0 decisionIntervalMs=30000
+[OFFLINE_BANDIT_V3] Initial arm: BANDIT
 ========================================
   Adaptive Scheduler for Flink v1.2
   (with Real Metrics + BANDIT + SARSA)
@@ -40,54 +48,54 @@ Starting scheduler loop...
   Metrics Server: ✓ AVAILABLE (using REAL metrics)
 
   Current Node CPU Usage:
-    minikube-m03: 1.1%
-    minikube-m02: 3.6%
-    minikube: 2.1%
+    minikube-m03: 0.6%
+    minikube-m02: 1.2%
+    minikube: 1.5%
 
-  Cluster Average: 2.3%
+  Cluster Average: 1.1%
 ========================================
 
 
-[2026-05-20 23:49:23] Found 5 pending TaskManager(s)
+[2026-06-09 19:29:03] Found 5 pending TaskManager(s)
 
-[SCHEDULING] Pod: flink-taskmanager-cccff75ff-422zz
+[SCHEDULING] Pod: flink-taskmanager-cccff75ff-7xfdv
   Strategy: BANDIT
 [BANDIT] Exploration phase: selecting under-explored node minikube
-[BANDIT] [SELECTION] Node: minikube | Reason: EXPLORATION | CPU: 2.1% | Reward: 0.5211 | Total: 1 | Arm: 1
+[BANDIT] [SELECTION] Node: minikube | Reason: EXPLORATION | CPU: 2.9% | Reward: 0.5288 | Total: 1 | Arm: 1
   Result: ✓ SCHEDULED to minikube
-  Node CPU: 2.1% (real)
+  Node CPU: 2.9% (real)
   Total scheduled: 1
 
-[SCHEDULING] Pod: flink-taskmanager-cccff75ff-gqkkw
+[SCHEDULING] Pod: flink-taskmanager-cccff75ff-9gf6j
   Strategy: BANDIT
 [BANDIT] Exploration phase: selecting under-explored node minikube
-[BANDIT] [SELECTION] Node: minikube | Reason: EXPLORATION | CPU: 2.1% | Reward: 0.5211 | Total: 2 | Arm: 2
+[BANDIT] [SELECTION] Node: minikube | Reason: EXPLORATION | CPU: 2.9% | Reward: 0.5288 | Total: 2 | Arm: 2
   Result: ✓ SCHEDULED to minikube
-  Node CPU: 2.1% (real)
+  Node CPU: 2.9% (real)
   Total scheduled: 2
 
-[SCHEDULING] Pod: flink-taskmanager-cccff75ff-h5mdv
+[SCHEDULING] Pod: flink-taskmanager-cccff75ff-ndghq
   Strategy: BANDIT
 [BANDIT] Exploration phase: selecting under-explored node minikube-m02
-[BANDIT] [SELECTION] Node: minikube-m02 | Reason: EXPLORATION | CPU: 3.6% | Reward: 0.5359 | Total: 3 | Arm: 1
+[BANDIT] [SELECTION] Node: minikube-m02 | Reason: EXPLORATION | CPU: 2.9% | Reward: 0.5289 | Total: 3 | Arm: 1
   Result: ✓ SCHEDULED to minikube-m02
-  Node CPU: 3.6% (real)
+  Node CPU: 2.9% (real)
   Total scheduled: 3
 
-[SCHEDULING] Pod: flink-taskmanager-cccff75ff-qbj6w
+[SCHEDULING] Pod: flink-taskmanager-cccff75ff-ngcmw
   Strategy: BANDIT
 [BANDIT] Exploration phase: selecting under-explored node minikube-m02
-[BANDIT] [SELECTION] Node: minikube-m02 | Reason: EXPLORATION | CPU: 3.6% | Reward: 0.5359 | Total: 4 | Arm: 2
+[BANDIT] [SELECTION] Node: minikube-m02 | Reason: EXPLORATION | CPU: 2.9% | Reward: 0.5289 | Total: 4 | Arm: 2
   Result: ✓ SCHEDULED to minikube-m02
-  Node CPU: 3.6% (real)
+  Node CPU: 2.9% (real)
   Total scheduled: 4
 
-[SCHEDULING] Pod: flink-taskmanager-cccff75ff-vd2g5
+[SCHEDULING] Pod: flink-taskmanager-cccff75ff-qj75b
   Strategy: BANDIT
 [BANDIT] Exploration phase: selecting under-explored node minikube-m03
-[BANDIT] [SELECTION] Node: minikube-m03 | Reason: EXPLORATION | CPU: 1.1% | Reward: 0.5107 | Total: 5 | Arm: 1
+[BANDIT] [SELECTION] Node: minikube-m03 | Reason: EXPLORATION | CPU: 1.4% | Reward: 0.5135 | Total: 5 | Arm: 1
   Result: ✓ SCHEDULED to minikube-m03
-  Node CPU: 1.1% (real)
+  Node CPU: 1.4% (real)
   Total scheduled: 5
 
 ========================================
@@ -98,15 +106,15 @@ Total selections: 5
 Per-node statistics:
   minikube-m03:
     Selections: 1 (20.0%)
-    Avg Reward: 0.5107
-    Total Reward: 0.5107
+    Avg Reward: 0.5135
+    Total Reward: 0.5135
   minikube-m02:
     Selections: 2 (40.0%)
-    Avg Reward: 0.5359
-    Total Reward: 1.0719
+    Avg Reward: 0.5289
+    Total Reward: 1.0578
   minikube:
     Selections: 2 (40.0%)
-    Avg Reward: 0.5211
-    Total Reward: 1.0422
+    Avg Reward: 0.5288
+    Total Reward: 1.0576
 ========================================
 

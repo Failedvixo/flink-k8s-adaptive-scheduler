@@ -489,6 +489,11 @@ def main():
     parser = argparse.ArgumentParser(description="Train OFFLINE_BANDIT_V3 (ProPS+).")
     parser.add_argument("--arms", default=",".join(DEFAULT_ARMS),
                         help=f"Comma-separated arms. Default: {','.join(DEFAULT_ARMS)}")
+    parser.add_argument("--dists", default=",".join(DISTS),
+                        help="Comma-separated training scenarios. Each entry corresponds "
+                             "to a results/<entry>/ directory. Default trains on the "
+                             "synthetic autoscaler-* benchmark; pass q2-const,q2-sine,q2-step "
+                             "(or similar) to train on a Nexmark scenario.")
     parser.add_argument("--out", default=str(DEFAULT_OUT))
     parser.add_argument("--backend", default="ollama",
                         choices=["ollama", "gemini", "anthropic", "mock"])
@@ -526,24 +531,26 @@ def main():
     args = parser.parse_args()
 
     arms = [a.strip() for a in args.arms.split(",") if a.strip()]
+    dists = [d.strip() for d in args.dists.split(",") if d.strip()]
     n_params = len(arms) * FEATURE_DIM
     out_path = Path(args.out)
     log_path = Path(args.log) if args.log else out_path.with_suffix(".trainlog.txt")
     rng = np.random.default_rng(args.seed)
 
     print(f"Arms:    {arms}")
+    print(f"Dists:   {dists}")
     print(f"Backend: {args.backend} (model={args.model})")
     print(f"Warmup:  {args.warmup} | Main: {args.iters} | History-keep: {args.history_keep}")
     print(f"Output:  {out_path}")
     print(f"Log:     {log_path}")
 
     print("\nLoading dataset...")
-    rewards, snapshots, arm_X = load_dataset(arms, DISTS)
+    rewards, snapshots, arm_X = load_dataset(arms, dists)
     if not rewards:
         sys.exit("No usable runs.")
     max_reward = max(rewards.values())
     print(f"Reward grid (Tput/core, max={max_reward:.0f}):")
-    for d in DISTS:
+    for d in dists:
         row_parts = []
         for a in arms:
             r = rewards.get((d, a))
@@ -585,8 +592,9 @@ def main():
     log_f.write(f"# warmup={args.warmup} iters={args.iters} "
                 f"history_keep={args.history_keep} seed={args.seed} "
                 f"temperature={args.temperature}\n")
+    log_f.write(f"# dists={dists}\n")
     log_f.write(f"# reward grid (normalisation max={max_reward}):\n")
-    for d in DISTS:
+    for d in dists:
         for a in arms:
             r = rewards.get((d, a))
             log_f.write(f"#   {d}/{a}: {r}\n")
