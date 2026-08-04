@@ -1,0 +1,231 @@
+[main] INFO com.thesis.scheduler.metrics.ClusterMetrics - [ClusterMetrics] ✓ Metrics Server is available - using REAL metrics
+[BANDIT] Initialized Multi-Armed Bandit Strategy with UCB1
+[BANDIT] Exploration parameter: 1.4142135623730951
+[BANDIT] Optimal CPU range: 30.0% - 70.0%
+[SARSA] Initialized SARSA Strategy (on-policy TD control)
+[SARSA] alpha=0.2 gamma=0.8 epsilon_min=0.05
+[SARSA] Optimal CPU range: 30.0% - 70.0%
+[SARSA] Initialized SARSA Strategy (on-policy TD control)
+[SARSA] alpha=0.2 gamma=0.8 epsilon_min=0.05
+[SARSA] Optimal CPU range: 30.0% - 70.0%
+[OFFLINE_BANDIT] Initialized LinUCB meta-scheduler
+[OFFLINE_BANDIT] Arms: [FCFS, BALANCED, SARSA]
+[OFFLINE_BANDIT] Features (d=9): [bias, avg_cpu, max_cpu, min_cpu, cpu_imbalance, cpu_velocity, avg_mem, elapsed_norm, saturation]
+[OFFLINE_BANDIT] alpha=1.0 decisionIntervalMs=30000
+[OFFLINE_BANDIT] Initial arm: FCFS
+[BANDIT] Initialized Multi-Armed Bandit Strategy with UCB1
+[BANDIT] Exploration parameter: 1.4142135623730951
+[BANDIT] Optimal CPU range: 30.0% - 70.0%
+[OFFLINE_BANDIT_V2] Initialized LinUCB meta-scheduler
+[OFFLINE_BANDIT_V2] Arms: [BANDIT, LEAST_LOADED, BALANCED]
+[OFFLINE_BANDIT_V2] Features (d=9): [bias, avg_cpu, max_cpu, min_cpu, cpu_imbalance, cpu_velocity, avg_mem, elapsed_norm, saturation]
+[OFFLINE_BANDIT_V2] alpha=1.0 decisionIntervalMs=30000
+[OFFLINE_BANDIT_V2] Initial arm: BANDIT
+[BANDIT] Initialized Multi-Armed Bandit Strategy with UCB1
+[BANDIT] Exploration parameter: 1.4142135623730951
+[BANDIT] Optimal CPU range: 30.0% - 70.0%
+[OFFLINE_BANDIT_V3] Initialized LinUCB meta-scheduler
+[OFFLINE_BANDIT_V3] Arms: [BANDIT, LEAST_LOADED, BALANCED]
+[OFFLINE_BANDIT_V3] Features (d=9): [bias, avg_cpu, max_cpu, min_cpu, cpu_imbalance, cpu_velocity, avg_mem, elapsed_norm, saturation]
+[OFFLINE_BANDIT_V3] alpha=1.0 decisionIntervalMs=30000
+[OFFLINE_BANDIT_V3] Initial arm: BANDIT
+[BANDIT] Initialized Multi-Armed Bandit Strategy with UCB1
+[BANDIT] Exploration parameter: 1.4142135623730951
+[BANDIT] Optimal CPU range: 30.0% - 70.0%
+[OFFLINE_BANDIT_V4] Initialized LinUCB meta-scheduler
+[OFFLINE_BANDIT_V4] Arms: [FCFS, BALANCED, LEAST_LOADED, BANDIT]
+[OFFLINE_BANDIT_V4] Features (d=9): [bias, avg_cpu, max_cpu, min_cpu, cpu_imbalance, cpu_velocity, avg_mem, elapsed_norm, saturation]
+[OFFLINE_BANDIT_V4] alpha=1.0 decisionIntervalMs=30000
+[OFFLINE_BANDIT_V4] Initial arm: FCFS
+[BANDIT] Initialized Multi-Armed Bandit Strategy with UCB1
+[BANDIT] Exploration parameter: 1.4142135623730951
+[BANDIT] Optimal CPU range: 30.0% - 70.0%
+[OFFLINE_BANDIT_V5] Initialized LinUCB meta-scheduler
+[OFFLINE_BANDIT_V5] Arms: [FCFS, BALANCED, LEAST_LOADED, BANDIT]
+[OFFLINE_BANDIT_V5] Features (d=13): [bias, avg_cpu, max_cpu, min_cpu, cpu_imbalance, cpu_velocity, avg_mem, elapsed_norm, saturation, mem_velocity, mem_imbalance, busy_inst, busy_velocity]
+[OFFLINE_BANDIT_V5] alpha=1.0 decisionIntervalMs=30000
+[OFFLINE_BANDIT_V5] Initial arm: FCFS
+[BANDIT] Initialized Multi-Armed Bandit Strategy with UCB1
+[BANDIT] Exploration parameter: 1.4142135623730951
+[BANDIT] Optimal CPU range: 30.0% - 70.0%
+[SARSA_META] Initialized tabular SARSA meta-scheduler
+[SARSA_META] Arms: [FCFS, BALANCED, LEAST_LOADED, BANDIT]
+[SARSA_META] State features: [saturation, cpu_imbalance, mem_imbalance] (idx [8, 4, 10])
+[SARSA_META] States in Q-table: 18  default(unseen) arm: BALANCED  needsBusyInst: false
+[SARSA_META] decisionIntervalMs=30000
+[SARSA_META] Initial arm: BALANCED
+========================================
+  Adaptive Scheduler for Flink v1.2
+  (with Real Metrics + BANDIT + SARSA)
+========================================
+Configuration:
+  CPU Low Threshold: 40.0%
+  CPU High Threshold: 80.0%
+  Strategy Cooldown: 30s
+  Mode: FIXED STRATEGY (OFFLINE_BANDIT_V5)
+========================================
+
+Starting scheduler loop...
+
+========================================
+  CLUSTER METRICS STATUS
+========================================
+  Metrics Server: ✓ AVAILABLE (using REAL metrics)
+
+  Current Node CPU Usage:
+    minikube-m03: 1.9%
+    minikube-m02: 1.3%
+    minikube: 2.6%
+
+  Cluster Average: 1.9%
+========================================
+
+[OFFLINE_BANDIT_V5] LinUCB scores: FCFS=0.646(exp=0.398|var=0.248) BALANCED=0.656(exp=0.484|var=0.173) LEAST_LOADED=0.811(exp=0.598|var=0.213) BANDIT=0.600(exp=0.427|var=0.173) 
+[OFFLINE_BANDIT_V5] arm switch FCFS -> LEAST_LOADED
+[META_DECISION] [OFFLINE_BANDIT_V5] ts=1781661234128 elapsed=0.0s prev=FCFS chosen=LEAST_LOADED switched=true features=[bias=1.0000,avg_cpu=0.0194,max_cpu=0.0259,min_cpu=0.0135,cpu_imbalance=0.0124,cpu_velocity=0.0000,avg_mem=0.1702,elapsed_norm=0.0000,saturation=0.0323,mem_velocity=0.0000,mem_imbalance=0.0550,busy_inst=0.0000,busy_velocity=0.0000] scores=[FCFS=0.6455,BALANCED=0.6564,LEAST_LOADED=0.8111,BANDIT=0.5999]
+
+[2026-06-17 01:54:08] Found 5 pending TaskManager(s)
+
+[SCHEDULING] Pod: flink-taskmanager-cccff75ff-7dkwf
+  Strategy: OFFLINE_BANDIT_V5
+  Result: ✓ SCHEDULED to minikube-m02
+  Node CPU: 1.3% (real)
+  Total scheduled: 1
+
+[SCHEDULING] Pod: flink-taskmanager-cccff75ff-84tch
+  Strategy: OFFLINE_BANDIT_V5
+  Result: ✓ SCHEDULED to minikube-m02
+  Node CPU: 1.3% (real)
+  Total scheduled: 2
+
+[SCHEDULING] Pod: flink-taskmanager-cccff75ff-bl44p
+  Strategy: OFFLINE_BANDIT_V5
+  Result: ✓ SCHEDULED to minikube-m02
+  Node CPU: 1.3% (real)
+  Total scheduled: 3
+
+[SCHEDULING] Pod: flink-taskmanager-cccff75ff-gm6sg
+  Strategy: OFFLINE_BANDIT_V5
+  Result: ✓ SCHEDULED to minikube-m02
+  Node CPU: 1.3% (real)
+  Total scheduled: 4
+
+[SCHEDULING] Pod: flink-taskmanager-cccff75ff-nv2t4
+  Strategy: OFFLINE_BANDIT_V5
+  Result: ✓ SCHEDULED to minikube-m02
+  Node CPU: 1.3% (real)
+  Total scheduled: 5
+
+========================================
+  OFFLINE_BANDIT_V5 STATISTICS
+========================================
+Total meta-decisions: 1
+Current arm: LEAST_LOADED
+Arm selection counts:
+  BALANCED     0 (0.0%)
+  BANDIT       0 (0.0%)
+  FCFS         0 (0.0%)
+  LEAST_LOADED 1 (100.0%)
+========================================
+
+[OFFLINE_BANDIT_V5] LinUCB scores: FCFS=0.641(exp=0.405|var=0.237) BALANCED=0.648(exp=0.487|var=0.162) LEAST_LOADED=0.802(exp=0.601|var=0.201) BANDIT=0.592(exp=0.430|var=0.162) 
+[META_DECISION] [OFFLINE_BANDIT_V5] ts=1781661265447 elapsed=31.3s prev=LEAST_LOADED chosen=LEAST_LOADED switched=false features=[bias=1.0000,avg_cpu=0.0194,max_cpu=0.0259,min_cpu=0.0135,cpu_imbalance=0.0124,cpu_velocity=0.0000,avg_mem=0.1702,elapsed_norm=0.0522,saturation=0.0323,mem_velocity=0.0000,mem_imbalance=0.0550,busy_inst=0.0000,busy_velocity=0.0000] scores=[FCFS=0.6414,BALANCED=0.6482,LEAST_LOADED=0.8022,BANDIT=0.5921]
+[OFFLINE_BANDIT_V5] busy_inst: discovered job db6bfbfa
+[OFFLINE_BANDIT_V5] busy_inst: vertex matched cf781b7e (pattern='new-users-join')
+[OFFLINE_BANDIT_V5] busy_inst fetch failed (job=db6bfbfa vertex=cf781b7e url=http://flink-jobmanager.flink.svc.cluster.local:8081): busyTimeMsPerSecond not in metrics response (size=0)
+[OFFLINE_BANDIT_V5] LinUCB scores: FCFS=0.629(exp=0.482|var=0.147) BALANCED=0.784(exp=0.615|var=0.169) LEAST_LOADED=0.698(exp=0.562|var=0.136) BANDIT=0.732(exp=0.558|var=0.174) 
+[OFFLINE_BANDIT_V5] arm switch LEAST_LOADED -> BALANCED
+[META_DECISION] [OFFLINE_BANDIT_V5] ts=1781661297132 elapsed=63.0s prev=LEAST_LOADED chosen=BALANCED switched=true features=[bias=1.0000,avg_cpu=0.0557,max_cpu=0.1105,min_cpu=0.0239,cpu_imbalance=0.0865,cpu_velocity=0.0115,avg_mem=0.1548,elapsed_norm=0.1050,saturation=0.1381,mem_velocity=-0.0048,mem_imbalance=0.1300,busy_inst=0.0000,busy_velocity=0.0000] scores=[FCFS=0.6293,BALANCED=0.7840,LEAST_LOADED=0.6979,BANDIT=0.7318]
+[OFFLINE_BANDIT_V5] busy_inst: discovered job db6bfbfa
+[OFFLINE_BANDIT_V5] busy_inst: vertex matched cf781b7e (pattern='new-users-join')
+[OFFLINE_BANDIT_V5] busy_inst fetch failed (job=db6bfbfa vertex=cf781b7e url=http://flink-jobmanager.flink.svc.cluster.local:8081): busyTimeMsPerSecond not in metrics response (size=0)
+[OFFLINE_BANDIT_V5] LinUCB scores: FCFS=0.643(exp=0.509|var=0.133) BALANCED=0.839(exp=0.649|var=0.191) LEAST_LOADED=0.702(exp=0.571|var=0.131) BANDIT=0.783(exp=0.587|var=0.196) 
+[META_DECISION] [OFFLINE_BANDIT_V5] ts=1781661329129 elapsed=95.0s prev=BALANCED chosen=BALANCED switched=false features=[bias=1.0000,avg_cpu=0.0557,max_cpu=0.1311,min_cpu=0.0159,cpu_imbalance=0.1152,cpu_velocity=-0.0000,avg_mem=0.1622,elapsed_norm=0.1583,saturation=0.1638,mem_velocity=0.0023,mem_imbalance=0.1372,busy_inst=0.0000,busy_velocity=0.0000] scores=[FCFS=0.6427,BALANCED=0.8395,LEAST_LOADED=0.7019,BANDIT=0.7830]
+[OFFLINE_BANDIT_V5] busy_inst: discovered job db6bfbfa
+[OFFLINE_BANDIT_V5] busy_inst: vertex matched cf781b7e (pattern='new-users-join')
+[OFFLINE_BANDIT_V5] busy_inst fetch failed (job=db6bfbfa vertex=cf781b7e url=http://flink-jobmanager.flink.svc.cluster.local:8081): busyTimeMsPerSecond not in metrics response (size=0)
+[OFFLINE_BANDIT_V5] LinUCB scores: FCFS=0.642(exp=0.517|var=0.126) BALANCED=0.839(exp=0.652|var=0.187) LEAST_LOADED=0.698(exp=0.574|var=0.124) BANDIT=0.782(exp=0.590|var=0.192) 
+[META_DECISION] [OFFLINE_BANDIT_V5] ts=1781661361123 elapsed=127.0s prev=BALANCED chosen=BALANCED switched=false features=[bias=1.0000,avg_cpu=0.0557,max_cpu=0.1311,min_cpu=0.0159,cpu_imbalance=0.1152,cpu_velocity=0.0000,avg_mem=0.1622,elapsed_norm=0.2117,saturation=0.1638,mem_velocity=0.0000,mem_imbalance=0.1372,busy_inst=0.0000,busy_velocity=0.0000] scores=[FCFS=0.6424,BALANCED=0.8387,LEAST_LOADED=0.6982,BANDIT=0.7823]
+[OFFLINE_BANDIT_V5] busy_inst: discovered job db6bfbfa
+[OFFLINE_BANDIT_V5] busy_inst: vertex matched cf781b7e (pattern='new-users-join')
+[OFFLINE_BANDIT_V5] busy_inst fetch failed (job=db6bfbfa vertex=cf781b7e url=http://flink-jobmanager.flink.svc.cluster.local:8081): busyTimeMsPerSecond not in metrics response (size=0)
+[OFFLINE_BANDIT_V5] LinUCB scores: FCFS=0.593(exp=0.466|var=0.126) BALANCED=0.694(exp=0.582|var=0.112) LEAST_LOADED=0.658(exp=0.552|var=0.106) BANDIT=0.631(exp=0.516|var=0.115) 
+[META_DECISION] [OFFLINE_BANDIT_V5] ts=1781661391252 elapsed=157.1s prev=BALANCED chosen=BALANCED switched=false features=[bias=1.0000,avg_cpu=0.0319,max_cpu=0.0698,min_cpu=0.0090,cpu_imbalance=0.0608,cpu_velocity=-0.0079,avg_mem=0.1613,elapsed_norm=0.2619,saturation=0.0873,mem_velocity=-0.0003,mem_imbalance=0.1346,busy_inst=0.0000,busy_velocity=0.0000] scores=[FCFS=0.5928,BALANCED=0.6935,LEAST_LOADED=0.6578,BANDIT=0.6312]
+[OFFLINE_BANDIT_V5] busy_inst: discovered job db6bfbfa
+[OFFLINE_BANDIT_V5] busy_inst: vertex matched cf781b7e (pattern='new-users-join')
+[OFFLINE_BANDIT_V5] busy_inst fetch failed (job=db6bfbfa vertex=cf781b7e url=http://flink-jobmanager.flink.svc.cluster.local:8081): busyTimeMsPerSecond not in metrics response (size=0)
+[OFFLINE_BANDIT_V5] LinUCB scores: FCFS=0.591(exp=0.473|var=0.118) BALANCED=0.691(exp=0.585|var=0.106) LEAST_LOADED=0.653(exp=0.556|var=0.097) BANDIT=0.629(exp=0.519|var=0.110) 
+[META_DECISION] [OFFLINE_BANDIT_V5] ts=1781661423185 elapsed=189.1s prev=BALANCED chosen=BALANCED switched=false features=[bias=1.0000,avg_cpu=0.0319,max_cpu=0.0698,min_cpu=0.0090,cpu_imbalance=0.0608,cpu_velocity=0.0000,avg_mem=0.1613,elapsed_norm=0.3151,saturation=0.0873,mem_velocity=0.0000,mem_imbalance=0.1346,busy_inst=0.0000,busy_velocity=0.0000] scores=[FCFS=0.5912,BALANCED=0.6910,LEAST_LOADED=0.6527,BANDIT=0.6290]
+[OFFLINE_BANDIT_V5] busy_inst: discovered job db6bfbfa
+[OFFLINE_BANDIT_V5] busy_inst: vertex matched cf781b7e (pattern='new-users-join')
+[OFFLINE_BANDIT_V5] busy_inst fetch failed (job=db6bfbfa vertex=cf781b7e url=http://flink-jobmanager.flink.svc.cluster.local:8081): busyTimeMsPerSecond not in metrics response (size=0)
+[OFFLINE_BANDIT_V5] LinUCB scores: FCFS=0.588(exp=0.470|var=0.118) BALANCED=0.670(exp=0.575|var=0.095) LEAST_LOADED=0.650(exp=0.557|var=0.094) BANDIT=0.608(exp=0.510|var=0.098) 
+[META_DECISION] [OFFLINE_BANDIT_V5] ts=1781661453421 elapsed=219.3s prev=BALANCED chosen=BALANCED switched=false features=[bias=1.0000,avg_cpu=0.0281,max_cpu=0.0599,min_cpu=0.0086,cpu_imbalance=0.0513,cpu_velocity=-0.0013,avg_mem=0.1593,elapsed_norm=0.3655,saturation=0.0749,mem_velocity=-0.0007,mem_imbalance=0.1312,busy_inst=0.0000,busy_velocity=0.0000] scores=[FCFS=0.5884,BALANCED=0.6698,LEAST_LOADED=0.6503,BANDIT=0.6077]
+[OFFLINE_BANDIT_V5] busy_inst: discovered job db6bfbfa
+[OFFLINE_BANDIT_V5] busy_inst: vertex matched cf781b7e (pattern='new-users-join')
+[OFFLINE_BANDIT_V5] busy_inst fetch failed (job=db6bfbfa vertex=cf781b7e url=http://flink-jobmanager.flink.svc.cluster.local:8081): busyTimeMsPerSecond not in metrics response (size=0)
+[OFFLINE_BANDIT_V5] LinUCB scores: FCFS=0.590(exp=0.477|var=0.113) BALANCED=0.671(exp=0.578|var=0.093) LEAST_LOADED=0.649(exp=0.560|var=0.089) BANDIT=0.609(exp=0.513|var=0.096) 
+[META_DECISION] [OFFLINE_BANDIT_V5] ts=1781661484243 elapsed=250.1s prev=BALANCED chosen=BALANCED switched=false features=[bias=1.0000,avg_cpu=0.0281,max_cpu=0.0599,min_cpu=0.0086,cpu_imbalance=0.0513,cpu_velocity=0.0000,avg_mem=0.1593,elapsed_norm=0.4169,saturation=0.0749,mem_velocity=0.0000,mem_imbalance=0.1312,busy_inst=0.0000,busy_velocity=0.0000] scores=[FCFS=0.5904,BALANCED=0.6708,LEAST_LOADED=0.6489,BANDIT=0.6090]
+[OFFLINE_BANDIT_V5] busy_inst: discovered job db6bfbfa
+[OFFLINE_BANDIT_V5] busy_inst: vertex matched cf781b7e (pattern='new-users-join')
+[OFFLINE_BANDIT_V5] busy_inst fetch failed (job=db6bfbfa vertex=cf781b7e url=http://flink-jobmanager.flink.svc.cluster.local:8081): busyTimeMsPerSecond not in metrics response (size=0)
+[OFFLINE_BANDIT_V5] LinUCB scores: FCFS=0.607(exp=0.504|var=0.103) BALANCED=0.726(exp=0.610|var=0.116) LEAST_LOADED=0.655(exp=0.568|var=0.088) BANDIT=0.665(exp=0.545|var=0.119) 
+[META_DECISION] [OFFLINE_BANDIT_V5] ts=1781661514403 elapsed=280.3s prev=BALANCED chosen=BALANCED switched=false features=[bias=1.0000,avg_cpu=0.0355,max_cpu=0.0820,min_cpu=0.0084,cpu_imbalance=0.0736,cpu_velocity=0.0025,avg_mem=0.1618,elapsed_norm=0.4671,saturation=0.1026,mem_velocity=0.0008,mem_imbalance=0.1378,busy_inst=0.0000,busy_velocity=0.0000] scores=[FCFS=0.6069,BALANCED=0.7262,LEAST_LOADED=0.6552,BANDIT=0.6646]
+[OFFLINE_BANDIT_V5] busy_inst: discovered job db6bfbfa
+[OFFLINE_BANDIT_V5] busy_inst: vertex matched cf781b7e (pattern='new-users-join')
+[OFFLINE_BANDIT_V5] busy_inst fetch failed (job=db6bfbfa vertex=cf781b7e url=http://flink-jobmanager.flink.svc.cluster.local:8081): busyTimeMsPerSecond not in metrics response (size=0)
+[OFFLINE_BANDIT_V5] LinUCB scores: FCFS=0.616(exp=0.511|var=0.104) BALANCED=0.732(exp=0.613|var=0.119) LEAST_LOADED=0.661(exp=0.571|var=0.090) BANDIT=0.671(exp=0.549|var=0.122) 
+[META_DECISION] [OFFLINE_BANDIT_V5] ts=1781661546326 elapsed=312.2s prev=BALANCED chosen=BALANCED switched=false features=[bias=1.0000,avg_cpu=0.0355,max_cpu=0.0820,min_cpu=0.0084,cpu_imbalance=0.0736,cpu_velocity=0.0000,avg_mem=0.1618,elapsed_norm=0.5203,saturation=0.1026,mem_velocity=0.0000,mem_imbalance=0.1378,busy_inst=0.0000,busy_velocity=0.0000] scores=[FCFS=0.6157,BALANCED=0.7323,LEAST_LOADED=0.6610,BANDIT=0.6706]
+[OFFLINE_BANDIT_V5] busy_inst: discovered job db6bfbfa
+[OFFLINE_BANDIT_V5] busy_inst: vertex matched cf781b7e (pattern='new-users-join')
+[OFFLINE_BANDIT_V5] busy_inst fetch failed (job=db6bfbfa vertex=cf781b7e url=http://flink-jobmanager.flink.svc.cluster.local:8081): busyTimeMsPerSecond not in metrics response (size=0)
+[OFFLINE_BANDIT_V5] LinUCB scores: FCFS=0.636(exp=0.526|var=0.110) BALANCED=0.760(exp=0.626|var=0.134) LEAST_LOADED=0.678(exp=0.578|var=0.101) BANDIT=0.698(exp=0.562|var=0.137) 
+[META_DECISION] [OFFLINE_BANDIT_V5] ts=1781661578302 elapsed=344.2s prev=BALANCED chosen=BALANCED switched=false features=[bias=1.0000,avg_cpu=0.0382,max_cpu=0.0899,min_cpu=0.0087,cpu_imbalance=0.0813,cpu_velocity=0.0008,avg_mem=0.1614,elapsed_norm=0.5736,saturation=0.1124,mem_velocity=-0.0001,mem_imbalance=0.1372,busy_inst=0.0000,busy_velocity=0.0000] scores=[FCFS=0.6361,BALANCED=0.7596,LEAST_LOADED=0.6782,BANDIT=0.6984]
+[OFFLINE_BANDIT_V5] busy_inst: discovered job db6bfbfa
+[OFFLINE_BANDIT_V5] busy_inst: vertex matched cf781b7e (pattern='new-users-join')
+[OFFLINE_BANDIT_V5] busy_inst fetch failed (job=db6bfbfa vertex=cf781b7e url=http://flink-jobmanager.flink.svc.cluster.local:8081): busyTimeMsPerSecond not in metrics response (size=0)
+[OFFLINE_BANDIT_V5] LinUCB scores: FCFS=0.648(exp=0.530|var=0.117) BALANCED=0.759(exp=0.623|var=0.136) LEAST_LOADED=0.689(exp=0.582|var=0.107) BANDIT=0.698(exp=0.560|var=0.138) 
+[META_DECISION] [OFFLINE_BANDIT_V5] ts=1781661610267 elapsed=376.1s prev=BALANCED chosen=BALANCED switched=false features=[bias=1.0000,avg_cpu=0.0371,max_cpu=0.0865,min_cpu=0.0086,cpu_imbalance=0.0779,cpu_velocity=-0.0003,avg_mem=0.1609,elapsed_norm=0.6269,saturation=0.1081,mem_velocity=-0.0002,mem_imbalance=0.1341,busy_inst=0.0000,busy_velocity=0.0000] scores=[FCFS=0.6476,BALANCED=0.7592,LEAST_LOADED=0.6893,BANDIT=0.6981]
+[OFFLINE_BANDIT_V5] busy_inst: discovered job db6bfbfa
+[OFFLINE_BANDIT_V5] busy_inst: vertex matched cf781b7e (pattern='new-users-join')
+[OFFLINE_BANDIT_V5] busy_inst fetch failed (job=db6bfbfa vertex=cf781b7e url=http://flink-jobmanager.flink.svc.cluster.local:8081): busyTimeMsPerSecond not in metrics response (size=0)
+[OFFLINE_BANDIT_V5] LinUCB scores: FCFS=0.663(exp=0.537|var=0.126) BALANCED=0.770(exp=0.626|var=0.143) LEAST_LOADED=0.702(exp=0.585|var=0.117) BANDIT=0.709(exp=0.564|var=0.145) 
+[META_DECISION] [OFFLINE_BANDIT_V5] ts=1781661642060 elapsed=407.9s prev=BALANCED chosen=BALANCED switched=false features=[bias=1.0000,avg_cpu=0.0371,max_cpu=0.0865,min_cpu=0.0086,cpu_imbalance=0.0779,cpu_velocity=0.0000,avg_mem=0.1609,elapsed_norm=0.6799,saturation=0.1081,mem_velocity=0.0000,mem_imbalance=0.1341,busy_inst=0.0000,busy_velocity=0.0000] scores=[FCFS=0.6630,BALANCED=0.7698,LEAST_LOADED=0.7023,BANDIT=0.7088]
+[OFFLINE_BANDIT_V5] busy_inst: discovered job db6bfbfa
+[OFFLINE_BANDIT_V5] busy_inst: vertex matched cf781b7e (pattern='new-users-join')
+[OFFLINE_BANDIT_V5] busy_inst fetch failed (job=db6bfbfa vertex=cf781b7e url=http://flink-jobmanager.flink.svc.cluster.local:8081): busyTimeMsPerSecond not in metrics response (size=0)
+[OFFLINE_BANDIT_V5] LinUCB scores: FCFS=0.679(exp=0.544|var=0.135) BALANCED=0.780(exp=0.629|var=0.151) LEAST_LOADED=0.716(exp=0.588|var=0.128) BANDIT=0.719(exp=0.567|var=0.153) 
+[META_DECISION] [OFFLINE_BANDIT_V5] ts=1781661672185 elapsed=438.1s prev=BALANCED chosen=BALANCED switched=false features=[bias=1.0000,avg_cpu=0.0374,max_cpu=0.0863,min_cpu=0.0094,cpu_imbalance=0.0770,cpu_velocity=0.0001,avg_mem=0.1599,elapsed_norm=0.7301,saturation=0.1079,mem_velocity=-0.0003,mem_imbalance=0.1333,busy_inst=0.0000,busy_velocity=0.0000] scores=[FCFS=0.6789,BALANCED=0.7799,LEAST_LOADED=0.7160,BANDIT=0.7195]
+[OFFLINE_BANDIT_V5] busy_inst: discovered job db6bfbfa
+[OFFLINE_BANDIT_V5] busy_inst: vertex matched cf781b7e (pattern='new-users-join')
+[OFFLINE_BANDIT_V5] busy_inst fetch failed (job=db6bfbfa vertex=cf781b7e url=http://flink-jobmanager.flink.svc.cluster.local:8081): busyTimeMsPerSecond not in metrics response (size=0)
+[OFFLINE_BANDIT_V5] LinUCB scores: FCFS=0.697(exp=0.551|var=0.146) BALANCED=0.793(exp=0.632|var=0.161) LEAST_LOADED=0.731(exp=0.592|var=0.140) BANDIT=0.732(exp=0.570|var=0.162) 
+[META_DECISION] [OFFLINE_BANDIT_V5] ts=1781661703719 elapsed=469.6s prev=BALANCED chosen=BALANCED switched=false features=[bias=1.0000,avg_cpu=0.0374,max_cpu=0.0863,min_cpu=0.0094,cpu_imbalance=0.0770,cpu_velocity=0.0000,avg_mem=0.1599,elapsed_norm=0.7827,saturation=0.1079,mem_velocity=0.0000,mem_imbalance=0.1333,busy_inst=0.0000,busy_velocity=0.0000] scores=[FCFS=0.6968,BALANCED=0.7925,LEAST_LOADED=0.7312,BANDIT=0.7322]
+[OFFLINE_BANDIT_V5] busy_inst: discovered job db6bfbfa
+[OFFLINE_BANDIT_V5] busy_inst: vertex matched cf781b7e (pattern='new-users-join')
+[OFFLINE_BANDIT_V5] busy_inst fetch failed (job=db6bfbfa vertex=cf781b7e url=http://flink-jobmanager.flink.svc.cluster.local:8081): busyTimeMsPerSecond not in metrics response (size=0)
+[OFFLINE_BANDIT_V5] LinUCB scores: FCFS=0.678(exp=0.529|var=0.149) BALANCED=0.741(exp=0.597|var=0.143) LEAST_LOADED=0.720(exp=0.583|var=0.137) BANDIT=0.680(exp=0.535|var=0.145) 
+[META_DECISION] [OFFLINE_BANDIT_V5] ts=1781661733740 elapsed=499.6s prev=BALANCED chosen=BALANCED switched=false features=[bias=1.0000,avg_cpu=0.0267,max_cpu=0.0559,min_cpu=0.0081,cpu_imbalance=0.0478,cpu_velocity=-0.0036,avg_mem=0.1599,elapsed_norm=0.8327,saturation=0.0699,mem_velocity=-0.0000,mem_imbalance=0.1318,busy_inst=0.0000,busy_velocity=0.0000] scores=[FCFS=0.6784,BALANCED=0.7407,LEAST_LOADED=0.7198,BANDIT=0.6797]
+[OFFLINE_BANDIT_V5] busy_inst: discovered job db6bfbfa
+[OFFLINE_BANDIT_V5] busy_inst: vertex matched cf781b7e (pattern='new-users-join')
+[OFFLINE_BANDIT_V5] busy_inst fetch failed (job=db6bfbfa vertex=cf781b7e url=http://flink-jobmanager.flink.svc.cluster.local:8081): busyTimeMsPerSecond not in metrics response (size=0)
+[OFFLINE_BANDIT_V5] LinUCB scores: FCFS=0.696(exp=0.536|var=0.161) BALANCED=0.756(exp=0.600|var=0.155) LEAST_LOADED=0.736(exp=0.586|var=0.150) BANDIT=0.695(exp=0.538|var=0.157) 
+[META_DECISION] [OFFLINE_BANDIT_V5] ts=1781661765559 elapsed=531.4s prev=BALANCED chosen=BALANCED switched=false features=[bias=1.0000,avg_cpu=0.0267,max_cpu=0.0559,min_cpu=0.0081,cpu_imbalance=0.0478,cpu_velocity=0.0000,avg_mem=0.1599,elapsed_norm=0.8857,saturation=0.0699,mem_velocity=0.0000,mem_imbalance=0.1318,busy_inst=0.0000,busy_velocity=0.0000] scores=[FCFS=0.6965,BALANCED=0.7557,LEAST_LOADED=0.7360,BANDIT=0.6951]
+[OFFLINE_BANDIT_V5] busy_inst: discovered job db6bfbfa
+[OFFLINE_BANDIT_V5] busy_inst: vertex matched cf781b7e (pattern='new-users-join')
+[OFFLINE_BANDIT_V5] busy_inst fetch failed (job=db6bfbfa vertex=cf781b7e url=http://flink-jobmanager.flink.svc.cluster.local:8081): busyTimeMsPerSecond not in metrics response (size=0)
+[OFFLINE_BANDIT_V5] LinUCB scores: FCFS=0.687(exp=0.517|var=0.170) BALANCED=0.731(exp=0.573|var=0.158) LEAST_LOADED=0.731(exp=0.574|var=0.158) BANDIT=0.671(exp=0.511|var=0.160) 
+[OFFLINE_BANDIT_V5] arm switch BALANCED -> LEAST_LOADED
+[META_DECISION] [OFFLINE_BANDIT_V5] ts=1781661797424 elapsed=563.3s prev=BALANCED chosen=LEAST_LOADED switched=true features=[bias=1.0000,avg_cpu=0.0179,max_cpu=0.0299,min_cpu=0.0086,cpu_imbalance=0.0213,cpu_velocity=-0.0027,avg_mem=0.1612,elapsed_norm=0.9388,saturation=0.0373,mem_velocity=0.0004,mem_imbalance=0.1365,busy_inst=0.0000,busy_velocity=0.0000] scores=[FCFS=0.6870,BALANCED=0.7310,LEAST_LOADED=0.7311,BANDIT=0.6708]
+[OFFLINE_BANDIT_V5] busy_inst: discovered job db6bfbfa
+[OFFLINE_BANDIT_V5] busy_inst: vertex matched cf781b7e (pattern='new-users-join')
+[OFFLINE_BANDIT_V5] busy_inst fetch failed (job=db6bfbfa vertex=cf781b7e url=http://flink-jobmanager.flink.svc.cluster.local:8081): busyTimeMsPerSecond not in metrics response (size=0)
+[OFFLINE_BANDIT_V5] LinUCB scores: FCFS=0.705(exp=0.524|var=0.182) BALANCED=0.746(exp=0.575|var=0.171) LEAST_LOADED=0.748(exp=0.577|var=0.171) BANDIT=0.686(exp=0.513|var=0.173) 
+[META_DECISION] [OFFLINE_BANDIT_V5] ts=1781661829338 elapsed=595.2s prev=LEAST_LOADED chosen=LEAST_LOADED switched=false features=[bias=1.0000,avg_cpu=0.0177,max_cpu=0.0292,min_cpu=0.0081,cpu_imbalance=0.0211,cpu_velocity=-0.0001,avg_mem=0.1604,elapsed_norm=0.9920,saturation=0.0365,mem_velocity=-0.0002,mem_imbalance=0.1353,busy_inst=0.0000,busy_velocity=0.0000] scores=[FCFS=0.7055,BALANCED=0.7459,LEAST_LOADED=0.7478,BANDIT=0.6859]
+[OFFLINE_BANDIT_V5] busy_inst: discovered job db6bfbfa
+[OFFLINE_BANDIT_V5] busy_inst: vertex matched cf781b7e (pattern='new-users-join')
+[OFFLINE_BANDIT_V5] busy_inst fetch failed (job=db6bfbfa vertex=cf781b7e url=http://flink-jobmanager.flink.svc.cluster.local:8081): busyTimeMsPerSecond not in metrics response (size=0)
+[OFFLINE_BANDIT_V5] LinUCB scores: FCFS=0.725(exp=0.531|var=0.194) BALANCED=0.762(exp=0.578|var=0.184) LEAST_LOADED=0.765(exp=0.580|var=0.184) BANDIT=0.703(exp=0.516|var=0.186) 
+[META_DECISION] [OFFLINE_BANDIT_V5] ts=1781661861296 elapsed=627.2s prev=LEAST_LOADED chosen=LEAST_LOADED switched=false features=[bias=1.0000,avg_cpu=0.0177,max_cpu=0.0292,min_cpu=0.0081,cpu_imbalance=0.0211,cpu_velocity=0.0000,avg_mem=0.1604,elapsed_norm=1.0453,saturation=0.0365,mem_velocity=0.0000,mem_imbalance=0.1353,busy_inst=0.0000,busy_velocity=0.0000] scores=[FCFS=0.7250,BALANCED=0.7622,LEAST_LOADED=0.7646,BANDIT=0.7026]
+[OFFLINE_BANDIT_V5] LinUCB scores: FCFS=0.747(exp=0.539|var=0.208) BALANCED=0.779(exp=0.581|var=0.198) LEAST_LOADED=0.785(exp=0.586|var=0.198) BANDIT=0.720(exp=0.520|var=0.199) 
+[META_DECISION] [OFFLINE_BANDIT_V5] ts=1781661893153 elapsed=659.0s prev=LEAST_LOADED chosen=LEAST_LOADED switched=false features=[bias=1.0000,avg_cpu=0.0176,max_cpu=0.0298,min_cpu=0.0082,cpu_imbalance=0.0215,cpu_velocity=-0.0000,avg_mem=0.1614,elapsed_norm=1.0984,saturation=0.0372,mem_velocity=0.0003,mem_imbalance=0.1333,busy_inst=0.0000,busy_velocity=0.0000] scores=[FCFS=0.7466,BALANCED=0.7786,LEAST_LOADED=0.7847,BANDIT=0.7196]
