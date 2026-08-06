@@ -1,0 +1,114 @@
+# ============================================
+# MinIO — shared checkpoint storage for Flink
+# ============================================
+#
+# Why this exists: with `state.checkpoints.dir: file:///tmp/checkpoints` every
+# TaskManager writes checkpoints to its OWN local disk. That is invisible until a
+# rescale moves a subtask to a different TaskManager, which then cannot read the
+# checkpoint it is supposed to restore from:
+#
+#   java.io.FileNotFoundException: /tmp/checkpoints/<job>/chk-1/... (No such file)
+#   -> BackendBuildingException: Failed when trying to restore heap backend
+#   -> the job restart-loops
+#
+# That failure mode is not neutral between the placement arms under study. Stock
+# Flink uses StateLocalitySlotAssigner at a rescale, which anchors each slice to
+# the slot already holding its state, so it mostly avoids the problem by
+# construction; every rebalancing arm (ROUND_ROBIN, LEAST_LOADED, ACO, GA) moves
+# state deliberately and therefore breaks. Measuring arms against each other on
+# local checkpoint storage would rank them by an infrastructure artefact.
+#
+# MinIO is used rather than an NFS server because it needs nothing from the host
+# kernel (nfsd is not dependable inside minikube on WSL), and rather than pinning
+# every TaskManager to one node with a hostPath, which would flatten the very
+# multi-node topology the rest of the thesis measures.
+#
+# The bucket is created by an initContainer making a directory in the data dir:
+# MinIO exposes each top-level directory as a bucket, so no `mc` client is needed.
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: flink
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: minio
+  namespace: flink
+  labels:
+    app: minio
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: minio
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: minio
+    spec:
+      # Pinned to the control-plane node so the data survives on one known disk,
+      # and so `minikube ssh` can inspect it the same way as the thesis jar.
+      nodeName: minikube
+      initContainers:
+        - name: create-bucket
+          image: busybox:1.36
+          command: ["sh", "-c", "mkdir -p /data/flink-checkpoints /data/flink-savepoints"]
+          volumeMounts:
+            - name: data
+              mountPath: /data
+      containers:
+        - name: minio
+          image: minio/minio:RELEASE.2024-01-16T16-07-38Z
+          args: ["server", "/data", "--console-address", ":9001"]
+          env:
+            - name: MINIO_ROOT_USER
+              value: "flinkcheckpoints"
+            - name: MINIO_ROOT_PASSWORD
+              value: "flinkcheckpoints"
+          ports:
+            - containerPort: 9000
+              name: api
+            - containerPort: 9001
+              name: console
+          volumeMounts:
+            - name: data
+              mountPath: /data
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              memory: 1Gi
+          readinessProbe:
+            httpGet:
+              path: /minio/health/ready
+              port: 9000
+            initialDelaySeconds: 5
+            periodSeconds: 5
+      volumes:
+        # hostPath, not a PVC: the pod is pinned to one node anyway, and this
+        # keeps the checkpoints inspectable and wipeable from `minikube ssh`.
+        - name: data
+          hostPath:
+            path: /var/thesis/minio
+            type: DirectoryOrCreate
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: minio
+  namespace: flink
+spec:
+  selector:
+    app: minio
+  ports:
+    - name: api
+      port: 9000
+      targetPort: 9000
+    - name: console
+      port: 9001
+      targetPort: 9001

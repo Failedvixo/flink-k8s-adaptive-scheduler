@@ -28,9 +28,12 @@ public class NexmarkGenerator extends RichParallelSourceFunction<NexmarkEvent> {
     private static final int B_W = 46;
     private static final int TOTAL_W = P_W + A_W + B_W;
 
+    /** Where the RAMP distribution starts, as a fraction of the base rate. */
+    private static final double RAMP_START_FRAC = 0.25;
+
     private final long baseRate;          // events/sec across all 3 streams
     private final int durationSec;
-    private final String distribution;    // CONSTANT | SINE | STEP
+    private final String distribution;    // CONSTANT | SINE | STEP | RAMP
     private final double sineAmplitude;
     private final double stepHighFrac;    // multiplier on baseRate during the high phase
     private final double zipfAlpha;       // 0 = uniform; 1.0 = strong skew
@@ -234,6 +237,14 @@ public class NexmarkGenerator extends RichParallelSourceFunction<NexmarkEvent> {
                 if (frac < 2.0 / 3.0) return (long) (base * stepHighFrac);
                 return Math.max(1, (long) (base * 0.4));
             }
+            case "RAMP": {
+                // Linear climb from RAMP_START_FRAC*base to stepHighFrac*base over the run.
+                // Unlike STEP, the rate never returns: the autoscaler faces a demand that only
+                // grows, so every scaling decision it makes is one it has to live with.
+                double frac = Math.min(1.0, elapsedSec / Math.max(1.0, durationSec));
+                double multiplier = RAMP_START_FRAC + (stepHighFrac - RAMP_START_FRAC) * frac;
+                return Math.max(1, (long) (base * multiplier));
+            }
             case "CONSTANT":
             default:
                 return base;
@@ -243,7 +254,8 @@ public class NexmarkGenerator extends RichParallelSourceFunction<NexmarkEvent> {
     private double effectivePeakFraction() {
         switch (distribution) {
             case "SINE": return 1.0 + sineAmplitude;
-            case "STEP": return stepHighFrac;
+            case "STEP":
+            case "RAMP": return stepHighFrac;   // RAMP ends exactly at the STEP high rate
             default:     return 1.0;
         }
     }

@@ -39,6 +39,12 @@ COOLDOWN="${COOLDOWN_SEC:-30}"
 #   HEAVY_VERTEX_PATTERN="new-users-join"   (Q8)
 HEAVY_VERTEX_PATTERN="${HEAVY_VERTEX_PATTERN:-CPU Load Simulator}"
 
+# Si 1, TODOS los vertices con paralelismo > 1 escalan junto al pesado (ver la
+# explicacion larga en update_resource_requirements). Necesario para que el
+# SlotAssigner del fork llegue a tener una decision real; 0 = comportamiento
+# historico, un solo vertice elastico.
+SCALE_ALL_VERTICES="${SCALE_ALL_VERTICES:-0}"
+
 # Si INITIAL_CPU_PAR=0 (viene de CPU_LOAD_PAR=0 = "usar global"), usar MIN_PAR
 if [ "${INITIAL_CPU_PAR}" -le 0 ] 2>/dev/null || [ "${INITIAL_CPU_PAR}" -lt "${MIN_PAR}" ] 2>/dev/null; then
   INITIAL_CPU_PAR=$MIN_PAR
@@ -178,7 +184,24 @@ update_resource_requirements() {
   log "=========================================="
 
   # Flink requiere incluir TODOS los vertices en el payload.
-  # Para los demás vertices se fija lowerBound=upperBound=parallelism_actual.
+  #
+  # SCALE_ALL_VERTICES=0 (por defecto, comportamiento historico): solo el vertice
+  # pesado recibe un rango; los demas quedan fijos en su paralelismo actual.
+  #
+  # SCALE_ALL_VERTICES=1: todos los vertices con paralelismo > 1 reciben el mismo
+  # rango. Esto NO es un refinamiento cosmetico. Con slot sharing, el ancho del
+  # grupo — y por lo tanto la cantidad de slots que el job pide — lo fija el
+  # vertice MAS ANCHO, no el pesado. Si el source queda clavado en su paralelismo
+  # inicial, el pool siempre tiene exactamente los slots necesarios
+  # (freeSlots == slices) y el SlotAssigner nunca tiene una decision real que
+  # tomar: todos los brazos producen la misma colocacion y la corrida no ensena
+  # nada. Dejando escalar tambien al mas ancho, un scale-down angosta el grupo
+  # mientras el pool conserva los slots, que es exactamente la condicion
+  # freeSlots > slices en la que el brazo importa.
+  #
+  # Los vertices declarados en paralelismo 1 se mantienen en 1 a proposito: en
+  # varias queries (p.ej. el top-N global de Q5) ese 1 es parte de la semantica,
+  # y paralelizarlos daria un resultado distinto, no solo mas rapido.
   local job_json
   job_json=$(kubectl exec -n flink deployment/flink-jobmanager -- \
     curl -s "http://localhost:8081/jobs/$jid" 2>/dev/null)
@@ -187,11 +210,13 @@ update_resource_requirements() {
   payload=$(echo "$job_json" | python3 -c "
 import json, sys
 data = json.load(sys.stdin)
+scale_all = '${SCALE_ALL_VERTICES:-0}' in ('1', 'true', 'yes')
 reqs = {}
 for v in data.get('vertices', []):
     vid = v['id']
     par = max(v.get('parallelism', 1), 1)
-    if vid == '${vertex_id}':
+    scalable = vid == '${vertex_id}' or (scale_all and par > 1)
+    if scalable:
         reqs[vid] = {'parallelism': {'lowerBound': ${MIN_PAR}, 'upperBound': ${new_upper}}}
     else:
         reqs[vid] = {'parallelism': {'lowerBound': par, 'upperBound': par}}

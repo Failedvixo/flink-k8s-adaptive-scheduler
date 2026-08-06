@@ -32,7 +32,7 @@ import java.util.Map;
  *   2: parallelism (operator parallelism for the heavy vertex)
  *   3: window (currently unused — kept for arg-position compatibility)
  *   4: cpuLoad   (currently unused — kept for compatibility)
- *   5: distribution (CONSTANT | SINE | STEP)
+ *   5: distribution (CONSTANT | SINE | STEP | RAMP)
  *   6: heavyParallelism (initial parallelism for the heavy vertex)
  *   7: maxEventAgeMs (stale-drop)
  *   8: query   (q5)

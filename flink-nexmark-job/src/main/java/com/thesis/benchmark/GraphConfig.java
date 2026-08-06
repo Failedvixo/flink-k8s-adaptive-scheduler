@@ -50,13 +50,23 @@ public class GraphConfig implements java.io.Serializable {
     
     public double sineAmplitude = 0.7;
     public int sinePeriodSeconds = 60;
-    
+
+    // RAMP climbs linearly from this fraction of the base rate to stepHighRateFraction
+    // over the whole run. Unlike STEP the load never comes back down, so the
+    // autoscaler cannot recover from a bad scaling decision by waiting it out.
+    public double rampStartRateFraction = 0.25;
+
     public enum WindowType { TUMBLING, SLIDING, SESSION }
     public enum AggregationType { SUM, AVERAGE, COUNT, MAX, MIN }
-    public enum ArrivalDistribution { CONSTANT, STEP, SINE }
-    
+    public enum ArrivalDistribution { CONSTANT, STEP, SINE, RAMP }
+
     public int getInstantRate(double elapsedSeconds) {
         switch (arrivalDistribution) {
+            case RAMP:
+                double progress = Math.min(1.0, elapsedSeconds / Math.max(1.0, durationSeconds));
+                double multiplier = rampStartRateFraction
+                    + (stepHighRateFraction - rampStartRateFraction) * progress;
+                return Math.max(1, (int)(eventsPerSecond * multiplier));
             case STEP:
                 double phase1End = durationSeconds * stepPhase1Fraction;
                 double phase2End = durationSeconds * stepPhase2Fraction;
@@ -124,6 +134,12 @@ public class GraphConfig implements java.io.Serializable {
             int minRate = Math.max(1, (int)(eventsPerSecond * (1.0 - sineAmplitude)));
             int maxRate = (int)(eventsPerSecond * (1.0 + sineAmplitude));
             System.out.println("    Rate range:    " + minRate + " - " + maxRate + " ev/s");
+        }
+        if (arrivalDistribution == ArrivalDistribution.RAMP) {
+            System.out.println("    Ramp:          "
+                + Math.max(1, (int)(eventsPerSecond * rampStartRateFraction)) + " -> "
+                + (int)(eventsPerSecond * stepHighRateFraction) + " ev/s, linear over "
+                + durationSeconds + "s");
         }
         System.out.println();
         System.out.println("Parallelism:");

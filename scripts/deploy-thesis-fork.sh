@@ -12,11 +12,18 @@
 # Usage:
 #   scripts/deploy-thesis-fork.sh [STRATEGY]
 #
-#   STRATEGY  STOCK | DEFAULT | ROUND_ROBIN | LEAST_LOADED   (default: ROUND_ROBIN)
+#   STRATEGY  STOCK | FCFS | ROUND_ROBIN | LEAST_LOADED | ACO | GA  (default: ROUND_ROBIN)
 #
 #   STOCK delegates to the assigner unpatched Flink would have used, so it is the
-#   experimental baseline; DEFAULT is iteration order unconditionally, which stock
-#   Flink only does on a first submission.
+#   experimental baseline; FCFS is iteration order unconditionally, which stock
+#   Flink only does on a first submission (it was called DEFAULT before Phase 3,
+#   and that name is still accepted). ACO and GA search the balance-versus-state-
+#   locality cost instead of following a fixed rule.
+#
+# Since Phase 3 the strategy is ALSO the initial contents of the arm file the
+# JobManager watches (/var/thesis/arm), so the meta-scheduler can change arms
+# mid-run with scripts/publish-arm.sh and no restart. The env var stays as the
+# fallback the JobManager uses when no arm has been published.
 #
 # Revert with:  kubectl apply -f kubernetes/flink-manifests.yaml
 
@@ -41,9 +48,9 @@ log_error() {
 
 STRATEGY="${1:-ROUND_ROBIN}"
 case "$STRATEGY" in
-    STOCK|DEFAULT|ROUND_ROBIN|LEAST_LOADED) ;;
+    STOCK|FCFS|DEFAULT|ROUND_ROBIN|LEAST_LOADED|ACO|GA) ;;
     *)
-        log_error "Unknown strategy '$STRATEGY' (expected STOCK, DEFAULT, ROUND_ROBIN or LEAST_LOADED)"
+        log_error "Unknown strategy '$STRATEGY' (expected STOCK, FCFS, ROUND_ROBIN, LEAST_LOADED, ACO or GA)"
         exit 1
         ;;
 esac
@@ -52,7 +59,9 @@ FORK_DIR="${FORK_DIR:-$HOME/projects/flink-custom-scheduler}"
 JAVA_HOME="${JAVA_HOME:-/usr/lib/jvm/java-11-openjdk-amd64}"
 NAMESPACE=flink
 FLINK_DIST_JAR=flink-dist-1.18.0.jar
-HOST_JAR_PATH=/var/thesis/flink-dist-thesis.jar
+THESIS_DIR=/var/thesis
+HOST_JAR_PATH=$THESIS_DIR/flink-dist-thesis.jar
+ARM_FILE=$THESIS_DIR/arm
 CLASS_DIR="$FORK_DIR/flink-runtime/target/classes"
 CLASS_PACKAGE=org/apache/flink/runtime/scheduler/adaptive/allocator
 
@@ -114,9 +123,13 @@ log_info "      Patched $CLASS_COUNT allocator classes into the jar"
 # 4. Ship it to the control-plane node
 # ============================================
 log_info "[4/6] Copying jar to minikube node..."
-minikube ssh -n minikube -- sudo mkdir -p /var/thesis
+minikube ssh -n minikube -- sudo mkdir -p "$THESIS_DIR"
 minikube cp "$WORK_DIR/thesis.jar" "minikube:$HOST_JAR_PATH"
 minikube ssh -n minikube -- sudo chmod 644 "$HOST_JAR_PATH"
+
+# Publish the starting arm before the JobManager comes up, so its very first
+# assignment already follows the requested strategy instead of the env fallback.
+"$(dirname "$0")/publish-arm.sh" "$STRATEGY" >/dev/null
 
 # ============================================
 # 5. Patch the JobManager deployment
@@ -133,12 +146,18 @@ kubectl patch deployment flink-jobmanager -n "$NAMESPACE" --type=strategic -p "$
             "name": "jobmanager",
             "env": [
               {"name": "THESIS_SLOT_ASSIGNER", "value": "true"},
-              {"name": "THESIS_ASSIGN_STRATEGY", "value": "$STRATEGY"}
+              {"name": "THESIS_ASSIGN_STRATEGY", "value": "$STRATEGY"},
+              {"name": "THESIS_ARM_FILE", "value": "$ARM_FILE"}
             ],
             "volumeMounts": [
               {
                 "name": "thesis-flink-dist",
                 "mountPath": "/opt/flink/lib/$FLINK_DIST_JAR"
+              },
+              {
+                "name": "thesis-arm",
+                "mountPath": "$THESIS_DIR",
+                "readOnly": true
               }
             ]
           }
@@ -147,6 +166,10 @@ kubectl patch deployment flink-jobmanager -n "$NAMESPACE" --type=strategic -p "$
           {
             "name": "thesis-flink-dist",
             "hostPath": {"path": "$HOST_JAR_PATH", "type": "File"}
+          },
+          {
+            "name": "thesis-arm",
+            "hostPath": {"path": "$THESIS_DIR", "type": "Directory"}
           }
         ]
       }
@@ -174,6 +197,9 @@ log_info "[6/6] Done. JobManager: $NEW_JM"
 echo ""
 echo "Submit a job and watch the placement:"
 echo "  kubectl exec -n $NAMESPACE $NEW_JM -- flink run -d /opt/flink/examples/streaming/TopSpeedWindowing.jar"
-echo "  kubectl logs -n $NAMESPACE $NEW_JM -f | grep THESIS_ASSIGN"
+echo "  kubectl logs -n $NAMESPACE $NEW_JM -f | grep -E 'THESIS_ASSIGN|THESIS_ARM'"
+echo ""
+echo "Change the arm without restarting the JobManager:"
+echo "  scripts/publish-arm.sh LEAST_LOADED   # takes effect on the next rescale"
 echo ""
 log_warn "Revert with: kubectl apply -f kubernetes/flink-manifests.yaml"

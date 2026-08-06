@@ -40,14 +40,20 @@ OUT="$RESULTS_DIR/${STRATEGY}-$(date +%Y%m%d-%H%M%S).csv"
 JM=$(kubectl get pods -n "$NAMESPACE" -l component=jobmanager \
     --field-selector=status.phase=Running --sort-by=.metadata.creationTimestamp \
     -o jsonpath='{.items[-1:].metadata.name}')
-RUNNING_STRATEGY=$(kubectl get pod -n "$NAMESPACE" "$JM" \
-    -o jsonpath='{.spec.containers[0].env[?(@.name=="THESIS_ASSIGN_STRATEGY")].value}')
+FORK_ENABLED=$(kubectl get pod -n "$NAMESPACE" "$JM" \
+    -o jsonpath='{.spec.containers[0].env[?(@.name=="THESIS_SLOT_ASSIGNER")].value}')
 
-if [ "$RUNNING_STRATEGY" != "$STRATEGY" ]; then
-    echo "ERROR: JobManager runs strategy '$RUNNING_STRATEGY', not '$STRATEGY'."
+if [ "$FORK_ENABLED" != "true" ]; then
+    echo "ERROR: the JobManager is not running the thesis assigner."
     echo "       Run: scripts/deploy-thesis-fork.sh $STRATEGY"
     exit 1
 fi
+
+# Since Phase 3 the arm is a published signal, not a pod setting, so switching
+# strategy no longer costs a JobManager restart: publish it and the next
+# assignment picks it up. The assigner caches the file for a second.
+"$(dirname "$0")/publish-arm.sh" "$STRATEGY" >/dev/null
+sleep 2
 
 echo "=========================================="
 echo "  Assigner spread: $STRATEGY  ($REPS reps)"
