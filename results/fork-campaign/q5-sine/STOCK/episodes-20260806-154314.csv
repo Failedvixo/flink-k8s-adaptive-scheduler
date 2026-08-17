@@ -1,0 +1,4 @@
+epoch,timestamp,job_id,arm_applied,had_choice,delegate,slices,free_slots,tms_available,tms_used,tms_hosting,busy_mean_ms_s,cv_busy_all,cv_busy_hosting,backpressure_mean_ms_s,idle_mean_ms_s,source_out_rps,sink_in_rps,throughput_per_slot,state,reward,creditable,credit_note,q_before,q_after,arm_next,exploring,samples
+1,2026-08-06T15:44:02,dd5f4d2bc1056e1ed31c50b14d488abc,STOCK,True,StateLocalitySlotAssigner,8,8,4,4,4,7.82,0.7809,0.5365,0.0,852.37,25702.7,0.09,3212.84,sat=LOW|imb=HIGH|bp=LOW,0.5615,1,,,,STOCK,0,3
+4,2026-08-06T15:45:34,dd5f4d2bc1056e1ed31c50b14d488abc,STOCK,True,StateLocalitySlotAssigner,2,8,4,2,2,2.11,1.2249,0.0105,0.22,864.56,35353.09,0.23,17676.55,sat=LOW|imb=HIGH|bp=LOW,0.4495,0,job too idle (2.1 < 5.0 ms/s busy),,,STOCK,0,3
+6,2026-08-06T15:48:21,dd5f4d2bc1056e1ed31c50b14d488abc,STOCK,True,StateLocalitySlotAssigner,2,4,3,2,2,0.0,0.0,0.0,0.29,866.67,35005.33,0.27,17502.67,sat=LOW|imb=LOW|bp=LOW,1.0,0,job too idle (0.0 < 5.0 ms/s busy),,,STOCK,0,3

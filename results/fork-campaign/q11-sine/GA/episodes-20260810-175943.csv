@@ -1,0 +1,4 @@
+epoch,timestamp,job_id,arm_applied,had_choice,delegate,slices,free_slots,tms_available,tms_used,tms_hosting,busy_mean_ms_s,cv_busy_all,cv_busy_hosting,backpressure_mean_ms_s,idle_mean_ms_s,source_out_rps,sink_in_rps,throughput_per_slot,state,reward,creditable,credit_note,q_before,q_after,arm_next,exploring,samples
+1,2026-08-10T18:01:00,2a3d7e4f5ad150d6fb467974a4ea5627,GA,True,,8,8,4,4,4,96.95,0.8061,0.5655,179.93,604.07,25789.53,21460.08,3223.69,sat=LOW|imb=HIGH|bp=MED,0.5537,1,,,,GA,0,3
+3,2026-08-10T18:02:24,2a3d7e4f5ad150d6fb467974a4ea5627,GA,True,,4,6,4,4,4,120.35,0.7315,0.4776,138.75,453.22,37698.73,23251.83,9424.68,sat=LOW|imb=HIGH|bp=MED,0.5775,1,,,,GA,0,3
+5,2026-08-10T18:03:29,2a3d7e4f5ad150d6fb467974a4ea5627,GA,True,,2,4,4,2,2,125.44,1.3135,0.3003,7.58,701.86,38521.29,37358.7,19260.65,sat=LOW|imb=HIGH|bp=LOW,0.4322,1,,,,GA,0,3

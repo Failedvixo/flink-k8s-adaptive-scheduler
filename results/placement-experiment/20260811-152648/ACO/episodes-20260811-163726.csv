@@ -1,0 +1,10 @@
+epoch,timestamp,job_id,arm_applied,had_choice,delegate,slices,free_slots,tms_available,tms_used,tms_hosting,busy_mean_ms_s,cv_busy_all,cv_busy_hosting,backpressure_mean_ms_s,idle_mean_ms_s,source_out_rps,sink_in_rps,throughput_per_slot,state,reward,creditable,credit_note,q_before,q_after,arm_next,exploring,samples
+1,2026-08-11T16:38:01,c52de63dc33fa3f3ad47c900f5a07c53,ACO,False,,8,8,4,4,4,42.78,0.801,0.5597,0.15,790.55,26397.93,16318.14,3299.74,sat=LOW|imb=HIGH|bp=LOW,0.5553,0,the assigner had no choice (freeSlots == slices),,,,0,3
+2,2026-08-11T16:39:00,c52de63dc33fa3f3ad47c900f5a07c53,ACO,True,,4,8,4,4,4,27.06,1.0641,0.8401,36.5,430.4,33101.39,0.0,8275.35,sat=LOW|imb=HIGH|bp=LOW,0.4845,1,,,,,0,2
+3,2026-08-11T16:40:09,c52de63dc33fa3f3ad47c900f5a07c53,ACO,False,,8,8,4,4,4,76.18,0.6372,0.3533,73.83,703.75,20933.33,17435.46,2616.67,sat=LOW|imb=HIGH|bp=MED,0.6108,0,the assigner had no choice (freeSlots == slices),,,,0,3
+4,2026-08-11T16:40:58,c52de63dc33fa3f3ad47c900f5a07c53,ACO,True,,4,8,4,4,4,68.35,0.6853,0.4192,57.28,722.85,43825.1,40571.71,10956.27,sat=LOW|imb=HIGH|bp=MED,0.5934,1,,,,,0,4
+6,2026-08-11T16:43:30,c52de63dc33fa3f3ad47c900f5a07c53,ACO,True,,4,8,4,4,4,34.1,0.9284,0.6997,0.19,799.23,44425.0,34345.02,11106.25,sat=LOW|imb=HIGH|bp=LOW,0.5186,1,,,,,0,4
+7,2026-08-11T16:44:45,c52de63dc33fa3f3ad47c900f5a07c53,ACO,False,,8,8,5,5,5,245.94,0.5816,0.5816,98.17,528.93,16863.33,14255.09,2107.92,sat=LOW|imb=HIGH|bp=MED,0.6323,0,the assigner had no choice (freeSlots == slices),,,,0,3
+8,2026-08-11T16:45:47,c52de63dc33fa3f3ad47c900f5a07c53,ACO,True,,4,8,5,4,4,26.29,1.0214,0.7966,64.35,351.12,19424.41,11715.02,4856.1,sat=LOW|imb=HIGH|bp=MED,0.4947,1,,,,,0,2
+9,2026-08-11T16:46:56,c52de63dc33fa3f3ad47c900f5a07c53,ACO,False,,8,8,4,4,4,307.88,0.5182,0.1216,1.35,525.46,12833.33,10266.24,1604.17,sat=MED|imb=HIGH|bp=LOW,0.6587,0,the assigner had no choice (freeSlots == slices),,,,0,3
+10,2026-08-11T16:47:36,c52de63dc33fa3f3ad47c900f5a07c53,ACO,True,,4,8,4,4,4,64.74,0.6534,0.3762,0.39,768.89,37150.0,35253.47,9287.5,sat=LOW|imb=HIGH|bp=LOW,0.6048,1,,,,,0,3

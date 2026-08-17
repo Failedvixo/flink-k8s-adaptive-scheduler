@@ -1,0 +1,59 @@
+{
+  "arm": "ROUND_ROBIN",
+  "query": "q11",
+  "dist": "SINE",
+  "rate": "60000",
+  "duration_s": "300",
+  "tm_replicas": "5",
+  "warmup_s": "30",
+  "window_s": "30",
+  "job_id": "d5b71a6a9361134130ad961bddd24324",
+  "job": {
+    "state": "RUNNING",
+    "duration_ms": 365191,
+    "vertices": [
+      {
+        "name": "Source: nexmark-source",
+        "parallelism": 2
+      },
+      {
+        "name": "Timestamps/Watermarks",
+        "parallelism": 2
+      },
+      {
+        "name": "filter-bids-q11",
+        "parallelism": 2
+      },
+      {
+        "name": "to-bidder-one-q11",
+        "parallelism": 2
+      },
+      {
+        "name": "q11-sessions",
+        "parallelism": 2
+      },
+      {
+        "name": "Sink: q11-sink",
+        "parallelism": 2
+      }
+    ]
+  },
+  "assignments": {
+    "rounds": 6,
+    "decisions": 4,
+    "arms_applied": {
+      "FCFS": 2,
+      "ROUND_ROBIN": 4
+    }
+  },
+  "episodes": {
+    "episodes": 2,
+    "credited": 2,
+    "reward_mean": 0.4882,
+    "reward_stdev": 0.0566,
+    "cv_busy_mean": 1.0762,
+    "busy_mean_ms_s": 159.3,
+    "backpressure_mean_ms_s": 103.9,
+    "throughput_per_slot": 3168.7
+  }
+}

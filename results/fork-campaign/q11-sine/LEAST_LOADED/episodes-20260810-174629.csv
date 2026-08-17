@@ -1,0 +1,4 @@
+epoch,timestamp,job_id,arm_applied,had_choice,delegate,slices,free_slots,tms_available,tms_used,tms_hosting,busy_mean_ms_s,cv_busy_all,cv_busy_hosting,backpressure_mean_ms_s,idle_mean_ms_s,source_out_rps,sink_in_rps,throughput_per_slot,state,reward,creditable,credit_note,q_before,q_after,arm_next,exploring,samples
+1,2026-08-10T17:47:23,3e3c45d757f4f2fab7c9b3fcb5c8dd8f,LEAST_LOADED,True,,8,8,4,4,4,122.3,0.7427,0.4913,128.47,620.77,24610.87,17539.19,3076.36,sat=LOW|imb=HIGH|bp=MED,0.5738,1,,,,LEAST_LOADED,0,3
+4,2026-08-10T17:49:06,3e3c45d757f4f2fab7c9b3fcb5c8dd8f,LEAST_LOADED,True,,2,6,4,2,2,123.15,1.257,0.1788,156.23,602.27,25343.18,36113.28,12671.59,sat=LOW|imb=HIGH|bp=MED,0.4431,1,,,,LEAST_LOADED,0,4
+6,2026-08-10T17:51:57,3e3c45d757f4f2fab7c9b3fcb5c8dd8f,LEAST_LOADED,True,,2,4,3,2,2,90.9,1.2295,0.0681,4.23,741.02,38626.6,34235.9,19313.3,sat=LOW|imb=HIGH|bp=LOW,0.4485,1,,,,LEAST_LOADED,0,4

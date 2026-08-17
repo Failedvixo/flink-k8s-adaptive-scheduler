@@ -1,0 +1,4 @@
+epoch,timestamp,job_id,arm_applied,had_choice,delegate,slices,free_slots,tms_available,tms_used,tms_hosting,busy_mean_ms_s,cv_busy_all,cv_busy_hosting,backpressure_mean_ms_s,idle_mean_ms_s,source_out_rps,sink_in_rps,throughput_per_slot,state,reward,creditable,credit_note,q_before,q_after,arm_next,exploring,samples
+1,2026-08-10T17:27:41,de7171c725f76c3825c7d1a51cb295aa,STOCK,True,StateLocalitySlotAssigner,8,8,4,3,4,97.59,0.6133,0.3176,5.51,734.04,29293.78,16083.92,3661.72,sat=LOW|imb=HIGH|bp=LOW,0.6199,1,,,,STOCK,0,3
+3,2026-08-10T17:29:18,de7171c725f76c3825c7d1a51cb295aa,STOCK,True,StateLocalitySlotAssigner,2,8,4,2,2,61.1,1.261,0.1899,59.62,728.31,36013.06,44213.7,18006.53,sat=LOW|imb=HIGH|bp=MED,0.4423,1,,,,STOCK,0,4
+4,2026-08-10T17:30:42,de7171c725f76c3825c7d1a51cb295aa,STOCK,True,StateLocalitySlotAssigner,2,8,4,2,2,23.15,1.5204,0.5698,1.33,810.19,19852.12,16721.45,9926.06,sat=LOW|imb=HIGH|bp=LOW,0.3968,1,,,,STOCK,0,4

@@ -1,0 +1,3 @@
+epoch,timestamp,job_id,arm_applied,had_choice,delegate,slices,free_slots,tms_available,tms_used,tms_hosting,busy_mean_ms_s,cv_busy_all,cv_busy_hosting,backpressure_mean_ms_s,idle_mean_ms_s,source_out_rps,sink_in_rps,throughput_per_slot,state,reward,creditable,credit_note,q_before,q_after,arm_next,exploring,samples
+1,2026-08-06T15:50:56,e02ee308e2d1557453286499123955ec,FCFS,False,,8,8,4,4,4,11.59,1.1953,0.9711,0.35,848.06,35312.48,0.11,4414.06,sat=LOW|imb=HIGH|bp=LOW,0.4555,0,the assigner had no choice (freeSlots == slices),,,FCFS,0,3
+4,2026-08-06T15:52:57,e02ee308e2d1557453286499123955ec,FCFS,True,,2,8,4,2,2,0.0,0.0,0.0,0.24,866.67,35295.38,0.13,17647.69,sat=LOW|imb=LOW|bp=LOW,1.0,0,job too idle (0.0 < 5.0 ms/s busy),,,FCFS,0,3

@@ -1,0 +1,5 @@
+epoch,timestamp,job_id,arm_applied,had_choice,delegate,slices,free_slots,tms_available,tms_used,tms_hosting,busy_mean_ms_s,cv_busy_all,cv_busy_hosting,backpressure_mean_ms_s,idle_mean_ms_s,source_out_rps,sink_in_rps,throughput_per_slot,state,reward,creditable,credit_note,q_before,q_after,arm_next,exploring,samples
+1,2026-08-10T17:34:15,bef2359769eb53867c71b9f9f2f906a8,FCFS,True,,8,8,4,4,4,89.99,0.7692,0.5228,2.22,743.32,31892.98,15393.86,3986.62,sat=LOW|imb=HIGH|bp=LOW,0.5652,1,,,,FCFS,0,3
+3,2026-08-10T17:35:32,bef2359769eb53867c71b9f9f2f906a8,FCFS,True,,4,6,4,2,4,73.88,0.7979,0.5561,64.04,713.9,16381.67,37399.79,4095.42,sat=LOW|imb=HIGH|bp=MED,0.5562,1,,,,FCFS,0,2
+4,2026-08-10T17:36:24,bef2359769eb53867c71b9f9f2f906a8,FCFS,True,,2,6,4,2,2,102.15,1.2834,0.2425,33.15,708.54,38172.65,33095.4,19086.33,sat=LOW|imb=HIGH|bp=LOW,0.438,1,,,,FCFS,0,4
+6,2026-08-10T17:38:46,bef2359769eb53867c71b9f9f2f906a8,FCFS,True,,4,4,3,2,3,473.99,1.1991,0.6802,47.46,322.25,7712.01,3262.18,1928.0,sat=MED|imb=HIGH|bp=LOW,0.4547,1,,,,FCFS,0,3

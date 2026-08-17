@@ -1,0 +1,12 @@
+epoch,timestamp,job_id,arm_applied,had_choice,delegate,slices,free_slots,tms_available,tms_used,tms_hosting,busy_mean_ms_s,cv_busy_all,cv_busy_hosting,backpressure_mean_ms_s,idle_mean_ms_s,source_out_rps,sink_in_rps,throughput_per_slot,state,reward,creditable,credit_note,q_before,q_after,arm_next,exploring,samples
+1,2026-08-11T15:46:56,ff1d9eea774c6d3d2e1897351b29099a,FCFS,False,,8,8,4,4,4,98.03,0.5788,0.2609,7.96,728.65,27570.83,15222.57,3446.35,sat=LOW|imb=HIGH|bp=LOW,0.6334,0,the assigner had no choice (freeSlots == slices),,,,0,3
+2,2026-08-11T15:47:37,ff1d9eea774c6d3d2e1897351b29099a,FCFS,True,,4,8,4,3,3,54.58,0.8821,0.2586,3.89,774.99,37441.67,33613.17,9360.42,sat=LOW|imb=HIGH|bp=LOW,0.5313,1,,,,,0,3
+3,2026-08-11T15:49:08,ff1d9eea774c6d3d2e1897351b29099a,FCFS,False,,8,8,4,4,4,74.17,1.2888,1.0625,47.77,726.46,33750.0,29838.28,4218.75,sat=LOW|imb=HIGH|bp=LOW,0.4369,0,the assigner had no choice (freeSlots == slices),,,,0,1
+4,2026-08-11T15:49:42,ff1d9eea774c6d3d2e1897351b29099a,FCFS,True,,4,8,4,3,3,212.72,1.6405,1.1022,235.75,463.53,29912.99,26756.34,7478.25,sat=LOW|imb=HIGH|bp=MED,0.3787,1,,,,,0,3
+6,2026-08-11T15:51:37,ff1d9eea774c6d3d2e1897351b29099a,FCFS,True,,4,8,4,3,3,42.78,1.0615,0.5254,23.55,775.02,42500.0,40939.47,10625.0,sat=LOW|imb=HIGH|bp=LOW,0.4851,1,,,,,0,4
+8,2026-08-11T15:53:15,ff1d9eea774c6d3d2e1897351b29099a,FCFS,False,,8,8,4,4,4,254.64,0.9606,0.7336,72.85,535.6,17341.36,14782.86,2167.67,sat=LOW|imb=HIGH|bp=MED,0.51,0,the assigner had no choice (freeSlots == slices),,,,0,3
+9,2026-08-11T15:54:00,ff1d9eea774c6d3d2e1897351b29099a,FCFS,True,,4,8,4,3,3,31.96,0.8486,0.1791,4.28,799.85,44262.5,43184.88,11065.62,sat=LOW|imb=HIGH|bp=LOW,0.5409,1,,,,,0,4
+10,2026-08-11T15:55:09,ff1d9eea774c6d3d2e1897351b29099a,FCFS,False,,8,8,4,4,4,31.33,1.1613,0.9375,31.36,793.94,24300.0,22379.66,3037.5,sat=LOW|imb=HIGH|bp=LOW,0.4627,0,the assigner had no choice (freeSlots == slices),,,,0,3
+11,2026-08-11T15:56:00,ff1d9eea774c6d3d2e1897351b29099a,UNKNOWN,,,4,,5,,3,21.36,1.2031,0.6845,4.9,809.25,34750.0,33892.65,8687.5,sat=LOW|imb=HIGH|bp=LOW,0.4539,0,the assigner had no choice (freeSlots == slices),,,,0,3
+12,2026-08-11T15:57:24,ff1d9eea774c6d3d2e1897351b29099a,FCFS,False,,8,8,4,4,4,33.19,0.9596,0.7325,102.77,742.7,18987.5,12554.99,2373.44,sat=LOW|imb=HIGH|bp=MED,0.5103,0,the assigner had no choice (freeSlots == slices),,,,0,3
+13,2026-08-11T15:58:05,ff1d9eea774c6d3d2e1897351b29099a,FCFS,True,,4,8,4,3,3,34.12,1.22,0.7022,51.38,764.79,40150.0,36285.06,10037.5,sat=LOW|imb=HIGH|bp=MED,0.4504,1,,,,,0,3

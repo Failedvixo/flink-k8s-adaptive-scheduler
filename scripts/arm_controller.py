@@ -106,7 +106,18 @@ SUBTASK_METRICS = [
     "idleTimeMsPerSecond",
     "numRecordsInPerSecond",
     "numRecordsOutPerSecond",
+    # End-to-end delay in EVENT time: how far the sink's notion of event time
+    # trails the wall clock. Unlike busy%, which says how hard the machines are
+    # working, this says what the pipeline's user actually waits for, and it is
+    # where an imbalance shows up worst — the watermark is a MINIMUM over the
+    # subtasks, so one lagging subtask holds the whole job back.
+    "currentInputWatermark",
 ]
+
+# A subtask that has not seen a watermark yet reports Long.MIN_VALUE; treating it
+# as a timestamp yields a delay of ~2.9e11 seconds and poisons every mean it
+# reaches. Anything older than this is not a watermark, it is the sentinel.
+WATERMARK_FLOOR_MS = 0
 
 # The assigner's own log line, which is ground truth for the arm that was really
 # applied: the controller can publish an arm that a rescale never picks up.
@@ -258,6 +269,7 @@ def sample_once(base, jid, all_taskmanagers):
     hosting = set()
     source_out = 0.0
     sink_in = 0.0
+    sink_watermarks = []
 
     for position, (vid, _name, parallelism) in enumerate(vertices):
         placement = subtask_taskmanagers(base, jid, vid)
@@ -276,13 +288,28 @@ def sample_once(base, jid, all_taskmanagers):
                 source_out += values["numRecordsOutPerSecond"]
             if position == len(vertices) - 1:
                 sink_in += values["numRecordsInPerSecond"]
+                watermark = values["currentInputWatermark"]
+                if watermark > WATERMARK_FLOOR_MS:
+                    sink_watermarks.append(watermark)
 
     if not subtask_busy:
         return None
 
+    # The job's event-time position is the SLOWEST sink subtask, because a
+    # downstream consumer can only trust event time up to the minimum. Reporting
+    # the mean would let a fast subtask mask the straggler an imbalance creates —
+    # which is precisely the effect under study.
+    now_ms = time.time() * 1000.0
+    e2e_delay = (now_ms - min(sink_watermarks)) if sink_watermarks else None
+    e2e_delay_spread = (
+        (max(sink_watermarks) - min(sink_watermarks)) if len(sink_watermarks) > 1 else 0.0
+    )
+
     return {
         "busy_per_tm": busy_per_tm,
         "hosting": hosting,
+        "e2e_delay_ms": e2e_delay,
+        "e2e_delay_spread_ms": e2e_delay_spread,
         "slices": max(p for _v, _n, p in vertices),
         "busy_mean": statistics.fmean(subtask_busy),
         "backpressure_mean": statistics.fmean(subtask_backpressure),
@@ -345,8 +372,17 @@ def measure(base, jid, all_taskmanagers, window, interval, verbose=False):
     def mean_of(field):
         return statistics.fmean([s[field] for s in samples])
 
+    # Present only once watermarks have advanced; right after a rescale the sink
+    # may have none, and averaging over the samples that DO have one is better
+    # than reporting a delay of zero for a job that simply has not caught up.
+    def mean_where_present(field):
+        values = [s[field] for s in samples if s.get(field) is not None]
+        return statistics.fmean(values) if values else None
+
     return {
         "samples": len(samples),
+        "e2e_delay_ms": mean_where_present("e2e_delay_ms"),
+        "e2e_delay_spread_ms": mean_where_present("e2e_delay_spread_ms"),
         "busy_per_tm": busy_per_tm,
         "tms_total": len(taskmanagers),
         "tms_hosting": len(hosting),
@@ -524,7 +560,7 @@ def publish(arm, script, dry_run=False):
         return False
 
 
-def applied_arm(namespace, since_seconds):
+def applied_arm(namespace, since_seconds, want_slices=None):
     """
     The arm the JobManager really used on the last assignment, read from its log.
 
@@ -532,6 +568,14 @@ def applied_arm(namespace, since_seconds):
     rescale happens is never applied, and the assigner only has a choice when
     the pool holds more slots than the job needs. Attributing a reward to the
     published arm instead of the applied one would silently poison the Q-table.
+
+    `want_slices` is the parallelism the job was actually MEASURED at. The adaptive
+    scheduler re-invokes the assigner speculatively, so the last line in the window
+    is often a later what-if for a different width, whose freeSlots and had_choice
+    describe a placement that never ran. Anchoring on the last line whose slice
+    count matches what was measured keeps every field of the returned record —
+    slices, freeSlots, had_choice — describing ONE assignment. Without it the
+    caller mixes sources and can gate crediting on the wrong invocation.
     """
     try:
         pods = subprocess.run(
@@ -554,10 +598,16 @@ def applied_arm(namespace, since_seconds):
         return None
 
     last = None
+    matching = None
     for line in logs.splitlines():
         match = RX_ASSIGN.search(line)
         if match:
             last = match.groupdict()
+            if want_slices is not None and int(last["slices"]) == int(want_slices):
+                matching = last
+    # Fall back to the last line only when nothing matches what actually ran, so a
+    # changed log format degrades to the old behaviour instead of dropping epochs.
+    last = matching or last
     if not last:
         return None
     return {
@@ -582,6 +632,7 @@ CSV_FIELDS = [
     "slices", "free_slots", "tms_available", "tms_used", "tms_hosting",
     "busy_mean_ms_s", "cv_busy_all", "cv_busy_hosting", "backpressure_mean_ms_s",
     "idle_mean_ms_s", "source_out_rps", "sink_in_rps", "throughput_per_slot",
+    "e2e_delay_ms", "e2e_delay_spread_ms",
     "state", "reward", "creditable", "credit_note", "q_before", "q_after",
     "arm_next", "exploring", "samples",
 ]
@@ -714,7 +765,8 @@ def main():
             # just before the vertices start, so a lookback that ends exactly at
             # the epoch boundary misses the very line it is after.
             since = time.time() - epoch_started + 120
-            assignment = applied_arm(args.namespace, since) or {}
+            assignment = applied_arm(args.namespace, since,
+                                     want_slices=measurement["slices"]) or {}
             arm = assignment.get("arm", args.fixed_arm or "UNKNOWN")
             state = discretise(measurement, bins)
             reward = reward_of(measurement, args.reward, args.blend_weight,
@@ -756,7 +808,11 @@ def main():
                 "arm_applied": arm,
                 "had_choice": assignment.get("had_choice", ""),
                 "delegate": assignment.get("delegate", ""),
-                "slices": measurement["slices"],
+                # Both from the SAME assignment record: pairing a measured slice
+                # count with another invocation's freeSlots produced rows like
+                # slices=4/free=8/had_choice=False, and had_choice is the gate that
+                # decides whether the episode is credited at all.
+                "slices": assignment.get("slices", measurement["slices"]),
                 "free_slots": assignment.get("free_slots", ""),
                 "tms_available": assignment.get("tms_available", measurement["tms_total"]),
                 "tms_used": assignment.get("tms_used", ""),
@@ -766,6 +822,10 @@ def main():
                 "cv_busy_hosting": round(measurement["cv_busy_hosting"], 4),
                 "backpressure_mean_ms_s": round(measurement["backpressure_mean"], 2),
                 "idle_mean_ms_s": round(measurement["idle_mean"], 2),
+                "e2e_delay_ms": ("" if measurement["e2e_delay_ms"] is None
+                                 else round(measurement["e2e_delay_ms"], 1)),
+                "e2e_delay_spread_ms": ("" if measurement["e2e_delay_spread_ms"] is None
+                                        else round(measurement["e2e_delay_spread_ms"], 1)),
                 "source_out_rps": round(measurement["source_out_rps"], 2),
                 "sink_in_rps": round(measurement["sink_in_rps"], 2),
                 "throughput_per_slot": round(measurement["source_out_rps"] / slots, 2),

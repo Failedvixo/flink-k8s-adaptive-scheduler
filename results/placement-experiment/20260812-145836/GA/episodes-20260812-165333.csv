@@ -1,0 +1,1 @@
+epoch,timestamp,job_id,arm_applied,had_choice,delegate,slices,free_slots,tms_available,tms_used,tms_hosting,busy_mean_ms_s,cv_busy_all,cv_busy_hosting,backpressure_mean_ms_s,idle_mean_ms_s,source_out_rps,sink_in_rps,throughput_per_slot,e2e_delay_ms,e2e_delay_spread_ms,state,reward,creditable,credit_note,q_before,q_after,arm_next,exploring,samples

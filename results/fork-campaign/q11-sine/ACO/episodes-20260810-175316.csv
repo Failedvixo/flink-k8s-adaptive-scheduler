@@ -1,0 +1,3 @@
+epoch,timestamp,job_id,arm_applied,had_choice,delegate,slices,free_slots,tms_available,tms_used,tms_hosting,busy_mean_ms_s,cv_busy_all,cv_busy_hosting,backpressure_mean_ms_s,idle_mean_ms_s,source_out_rps,sink_in_rps,throughput_per_slot,state,reward,creditable,credit_note,q_before,q_after,arm_next,exploring,samples
+1,2026-08-10T17:54:22,4e4b15e65b1a6322e2c236cb60c70e50,ACO,True,,8,8,4,4,4,48.47,0.8058,0.5652,16.26,784.13,28383.62,15446.32,3547.95,sat=LOW|imb=HIGH|bp=LOW,0.5538,1,,,,ACO,0,3
+4,2026-08-10T17:56:03,4e4b15e65b1a6322e2c236cb60c70e50,ACO,True,,2,8,4,2,2,88.12,1.5333,0.5835,86.58,683.21,33393.4,46357.07,16696.7,sat=LOW|imb=HIGH|bp=MED,0.3947,1,,,,ACO,0,4

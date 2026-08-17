@@ -1,0 +1,4 @@
+epoch,timestamp,job_id,arm_applied,had_choice,delegate,slices,free_slots,tms_available,tms_used,tms_hosting,busy_mean_ms_s,cv_busy_all,cv_busy_hosting,backpressure_mean_ms_s,idle_mean_ms_s,source_out_rps,sink_in_rps,throughput_per_slot,state,reward,creditable,credit_note,q_before,q_after,arm_next,exploring,samples
+1,2026-08-06T15:56:58,91c325a1c11420e666667dcc6a476fd5,ROUND_ROBIN,True,,8,8,4,4,4,1.43,1.2283,1.0035,0.0,858.76,26745.77,0.1,3343.22,sat=LOW|imb=HIGH|bp=LOW,0.4488,0,job too idle (1.4 < 5.0 ms/s busy),,,ROUND_ROBIN,0,3
+2,2026-08-06T15:57:34,91c325a1c11420e666667dcc6a476fd5,ROUND_ROBIN,True,,6,8,4,4,4,2.77,1.2287,1.0039,0.0,858.77,26721.12,0.13,4453.52,sat=LOW|imb=HIGH|bp=LOW,0.4487,0,job too idle (2.8 < 5.0 ms/s busy),,,ROUND_ROBIN,0,3
+4,2026-08-06T15:58:41,91c325a1c11420e666667dcc6a476fd5,ROUND_ROBIN,True,,2,6,4,2,2,2.93,1.2285,0.0606,0.2,863.73,35288.34,0.17,17644.17,sat=LOW|imb=HIGH|bp=LOW,0.4487,0,job too idle (2.9 < 5.0 ms/s busy),,,ROUND_ROBIN,0,3
