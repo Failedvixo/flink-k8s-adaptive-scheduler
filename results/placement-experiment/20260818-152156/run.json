@@ -1,0 +1,29 @@
+{
+  "query": "q11",
+  "dist": "CONSTANT",
+  "rate": 60000,
+  "arms": [
+    "STOCK",
+    "LEAST_LOADED",
+    "ACO"
+  ],
+  "reps": 8,
+  "schedule": [
+    "4*",
+    "6"
+  ],
+  "submit_par": 6,
+  "target_par": 4,
+  "warmup_s": 30,
+  "window_s": 30,
+  "tm_replicas": 3,
+  "slot_idle_timeout_ms": "300000",
+  "job_class": "com.thesis.benchmark.ConfigurableGraphJob",
+  "cpu_load_iter": "2500",
+  "pin_vertex": "CPU Load",
+  "pin_parallelism": "2",
+  "drain_replicas": "2",
+  "drain_par": "4",
+  "poison_arm": "",
+  "poison_schedule": "4"
+}

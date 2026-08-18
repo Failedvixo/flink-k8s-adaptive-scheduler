@@ -149,6 +149,31 @@ PIN_PARALLELISM="${PIN_PARALLELISM:-2}"
 # The bad layout is produced by an arm that concentrates the expensive slices, with
 # the published per-vertex weights temporarily disabled (that is what made ACO/GA
 # concentrate before the weights existed). Set POISON_ARM empty to skip.
+# ------------------------------------------------------------------
+# capacity loss and recovery
+# ------------------------------------------------------------------
+# The scenario that targets what stock Flink is structurally blind to.
+# StateLocalitySlotAssigner maximises ONE thing — keeping each slice on the slot
+# already holding its state — and has no notion that slices can cost different
+# amounts. So it preserves whatever layout it inherits, including a bad one.
+#
+# This induces the bad layout the way a cluster does it, not the way an
+# experimenter would: capacity disappears. Scaled down to DRAIN_REPLICAS
+# TaskManagers the job has nowhere to spread, so the expensive slices end up
+# together BY PHYSICS, not by any policy's choice — which is what keeps this from
+# being a rigged starting condition. Capacity then comes back, and the next
+# rescale asks each arm the real question: do you redistribute, or do you keep
+# what you inherited? A TaskManager restarting and rejoining is the most ordinary
+# event a cluster has.
+#
+# DRAIN_PAR must fit in DRAIN_REPLICAS × slots-per-TM, or the job cannot run
+# while the capacity is gone. With one TaskManager and two slots, a width of 2
+# puts both CPU-load subtasks on the same machine with no ambiguity at all.
+DRAIN_REPLICAS="${DRAIN_REPLICAS:-0}"
+DRAIN_PAR="${DRAIN_PAR:-2}"
+DRAIN_HOLD="${DRAIN_HOLD:-60}"
+RESTORE_HOLD="${RESTORE_HOLD:-60}"
+
 POISON_ARM="${POISON_ARM:-}"
 POISON_SCHEDULE="${POISON_SCHEDULE:-$TARGET_PAR}"
 POISON_HOLD="${POISON_HOLD:-45}"
@@ -276,7 +301,9 @@ fi
 POISON_COST=0
 for PSTEP in $POISON_SCHEDULE; do POISON_COST=$((POISON_COST + POISON_HOLD)); done
 [ -n "$POISON_ARM" ] || POISON_COST=0
-JOB_DURATION=$(( REPS * CYCLE + POISON_COST + 180 ))
+DRAIN_COST=0
+[ "$DRAIN_REPLICAS" -gt 0 ] 2>/dev/null && DRAIN_COST=$((DRAIN_HOLD + RESTORE_HOLD + 120))
+JOB_DURATION=$(( REPS * CYCLE + POISON_COST + DRAIN_COST + 180 ))
 NARMS=$(echo "$ARMS" | wc -w)
 
 echo "=========================================="
@@ -411,6 +438,33 @@ for ARM in $ARMS; do
   echo "  settling ${MEASURE_WARMUP}s before the first transition..."
   sleep "$MEASURE_WARMUP"
 
+  # ---- capacity loss and recovery, before the observer starts, so only the
+  # recovery rescale is recorded as an episode and the compaction itself is not.
+  if [ "$DRAIN_REPLICAS" -gt 0 ] 2>/dev/null; then
+      echo "  draining to $DRAIN_REPLICAS TaskManager(s) at parallelism $DRAIN_PAR"
+      set_parallelism "$JOB_ID" "$DRAIN_PAR" "drain p=$DRAIN_PAR" "$DRIVER_LOG"
+      sleep 10
+      kubectl scale deployment flink-taskmanager -n "$NAMESPACE" \
+          --replicas="$DRAIN_REPLICAS" >/dev/null 2>&1 || true
+      kubectl rollout status deployment/flink-taskmanager -n "$NAMESPACE" \
+          --timeout=180s >/dev/null 2>&1 || true
+      sleep "$DRAIN_HOLD"
+
+      DRAIN_STATE=$(jm_curl "/jobs/$JOB_ID" |
+          python3 -c "import json,sys; print(json.load(sys.stdin).get('state',''))" 2>/dev/null)
+      echo "    job is $DRAIN_STATE with capacity removed" | tee -a "$DRIVER_LOG"
+
+      echo "  restoring to $TM_REPLICAS TaskManagers"
+      kubectl scale deployment flink-taskmanager -n "$NAMESPACE" \
+          --replicas="$TM_REPLICAS" >/dev/null 2>&1 || true
+      kubectl rollout status deployment/flink-taskmanager -n "$NAMESPACE" \
+          --timeout=300s >/dev/null 2>&1 || true
+      # The slots must be back in the pool before the measured rescale, or the
+      # arm is asked to redistribute into capacity that does not exist yet.
+      sleep "$RESTORE_HOLD"
+      echo "  capacity restored; measuring $ARM from the compacted layout"
+  fi
+
   # ---- poisoning: establish a deliberately bad layout BEFORE the observer starts,
   # so the poison rescales are never recorded as episodes and only the recovery is.
   if [ -n "$POISON_ARM" ]; then
@@ -488,6 +542,7 @@ SUBMIT_PAR="$SUBMIT_PAR" TARGET_PAR="$TARGET_PAR" TM_REPLICAS="$TM_REPLICAS" \
 SLOT_IDLE_TIMEOUT="$SLOT_IDLE_TIMEOUT" JOB_CLASS="$JOB_CLASS" CPU_LOAD="$CPU_LOAD" \
 PIN_VERTEX="$PIN_VERTEX" PIN_PARALLELISM="$PIN_PARALLELISM" \
 POISON_ARM="$POISON_ARM" POISON_SCHEDULE="$POISON_SCHEDULE" \
+DRAIN_REPLICAS="$DRAIN_REPLICAS" DRAIN_PAR="$DRAIN_PAR" \
 MEASURE_WARMUP="$MEASURE_WARMUP" MEASURE_WINDOW="$MEASURE_WINDOW" \
 python3 - <<'PY' > "$OUT_ROOT/run.json"
 import json, os
@@ -513,6 +568,8 @@ print(json.dumps({
     "cpu_load_iter": os.environ.get("CPU_LOAD", ""),
     "pin_vertex": os.environ.get("PIN_VERTEX", ""),
     "pin_parallelism": os.environ.get("PIN_PARALLELISM", ""),
+    "drain_replicas": os.environ.get("DRAIN_REPLICAS", ""),
+    "drain_par": os.environ.get("DRAIN_PAR", ""),
     "poison_arm": os.environ.get("POISON_ARM", ""),
     "poison_schedule": os.environ.get("POISON_SCHEDULE", ""),
 }, indent=2))
