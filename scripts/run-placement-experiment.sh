@@ -93,6 +93,12 @@ TARGET_PAR="${TARGET_PAR:-4}"
 SCHEDULE="${SCHEDULE:-${TARGET_PAR}* ${SUBMIT_PAR}}"
 MEASURE_WARMUP="${WARMUP:-30}"
 MEASURE_WINDOW="${WINDOW:-30}"
+# How often the observer samples during the warmup, which is what sets the resolution
+# of the rescale-cost columns (restart_gap_s, recovery_s, rescale_deficit_events).
+# The observer's default of 5s is fine for detecting a new placement but far too
+# coarse for a transient that lasts a handful of seconds. One second costs one cheap
+# REST call per second and also makes the epoch boundary itself more accurate.
+RECOVERY_INTERVAL="${RECOVERY_INTERVAL:-1}"
 # CONSTANT by default: a shaped arrival rate is a nuisance variable here. The question
 # is which placement is better, not how each arm copes with a rate change.
 DIST="${DIST:-CONSTANT}"
@@ -546,6 +552,7 @@ for ARM in $ARMS; do
   timeout $((JOB_DURATION + 120)) python3 -u "$SCRIPT_DIR/arm_controller.py" \
       --observe --out-dir "$CELL_DIR" \
       --warmup "$MEASURE_WARMUP" --window "$MEASURE_WINDOW" \
+      --poll-interval "$RECOVERY_INTERVAL" \
       > "$CELL_DIR/arm-controller.log" 2>&1 &
   CONTROLLER_PID=$!
   sleep 5
@@ -603,6 +610,7 @@ PUBLISHED_SPEEDS=$("$SCRIPT_DIR/publish-speeds.sh" --read 2>/dev/null | tr '\n' 
 ARMS="$ARMS" QUERY="$QUERY" DIST="$DIST" RATE="$RATE" REPS="$REPS" SCHEDULE="$SCHEDULE" \
 TM_DEPLOYMENTS="$TM_DEPLOYMENTS" DRAIN_DEPLOYMENTS="$DRAIN_DEPLOYMENTS" \
 PUBLISHED_SPEEDS="$PUBLISHED_SPEEDS" PUBLISH_LOADS="$PUBLISH_LOADS" \
+RECOVERY_INTERVAL="$RECOVERY_INTERVAL" \
 SUBMIT_PAR="$SUBMIT_PAR" TARGET_PAR="$TARGET_PAR" TM_REPLICAS="$TM_REPLICAS" \
 SLOT_IDLE_TIMEOUT="$SLOT_IDLE_TIMEOUT" JOB_CLASS="$JOB_CLASS" CPU_LOAD="$CPU_LOAD" \
 PIN_VERTEX="$PIN_VERTEX" PIN_PARALLELISM="$PIN_PARALLELISM" \
@@ -642,6 +650,7 @@ print(json.dumps({
     "pin_parallelism": os.environ.get("PIN_PARALLELISM", ""),
     "drain_replicas": os.environ.get("DRAIN_REPLICAS", ""),
     "published_loads": os.environ.get("PUBLISH_LOADS", ""),
+    "recovery_sample_interval_s": os.environ.get("RECOVERY_INTERVAL", ""),
     "drain_par": os.environ.get("DRAIN_PAR", ""),
     "poison_arm": os.environ.get("POISON_ARM", ""),
     "poison_schedule": os.environ.get("POISON_SCHEDULE", ""),

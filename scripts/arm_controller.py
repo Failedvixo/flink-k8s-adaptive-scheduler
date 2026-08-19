@@ -338,7 +338,8 @@ def coefficient_of_variation(values):
     return math.sqrt(variance) / mean
 
 
-def measure(base, jid, all_taskmanagers, window, interval, verbose=False):
+def measure(base, jid, all_taskmanagers, window, interval, verbose=False,
+            trace=None, trace_interval=1.0):
     """
     Average several snapshots over the measurement window.
 
@@ -357,7 +358,17 @@ def measure(base, jid, all_taskmanagers, window, interval, verbose=False):
                     f"    sample busy_mean={snapshot['busy_mean']:7.1f} ms/s  "
                     f"tms_hosting={len(snapshot['hosting'])}"
                 )
-        time.sleep(interval)
+        # Sleeping straight through `interval` is what used to blind the controller
+        # for the whole window: a rescale landing inside it was detected up to
+        # `window` seconds late, and the transient it opened was already over. The
+        # cheap counter keeps ticking here so the recovery curve survives that.
+        deadline_for_this_nap = time.time() + interval
+        while time.time() < deadline_for_this_nap:
+            time.sleep(min(trace_interval, max(0.0, deadline_for_this_nap - time.time())))
+            if trace is not None:
+                produced = source_records(base, jid)
+                if produced is not None:
+                    trace.append((time.time(), produced))
 
     if not samples:
         return None
@@ -627,6 +638,92 @@ def applied_arm(namespace, since_seconds, want_slices=None):
 # ---------------------------------------------------------------------------
 # main loop
 # ---------------------------------------------------------------------------
+def source_records(base, jid):
+    """Cumulative records emitted by the source, in ONE REST call.
+
+    Deliberately not `sample_once`: that walks every vertex and every subtask —
+    around thirty REST calls — and firing it repeatedly at a JobManager that is
+    in the middle of restarting the job would perturb the very recovery it is
+    supposed to observe. The job overview already carries the source vertex's
+    `write-records` counter, which is both cheaper and a better instrument: a
+    counter integrates exactly, where sampled rates have to be interpolated.
+    """
+    data = rest(base, f"/jobs/{jid}")
+    if not data:
+        return None
+    vertices = data.get("vertices") or []
+    if not vertices:
+        return None
+    value = (vertices[0].get("metrics") or {}).get("write-records")
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def recovery_of(trace, steady_rps):
+    """What the rescale COST, read off the throughput curve during the warmup.
+
+    Every campaign so far measured only the steady state after a rescale, because
+    the warmup exists to keep rep 1 from being colder than rep N. That is correct
+    for comparing placements, but it means the price of the rescale itself — the
+    job stops, restores state from the checkpoint, and refills the pipeline — has
+    never appeared in any number. A scheduler cannot decide WHETHER a rescale is
+    worth doing without it: the benefit of a better placement is a rate, the cost
+    of getting there is a one-off, and the two are only comparable once both are
+    measured.
+
+    Three quantities, in increasing usefulness:
+      * restart_gap_s  — until the source produces anything at all again.
+      * recovery_s     — until it reaches 90% of the steady rate it will settle at.
+      * deficit        — events NOT emitted versus a job that had never stopped.
+                         This is the one a cost/benefit gate needs, because dividing
+                         it by the throughput a better placement gains gives the
+                         seconds the rescale takes to pay for itself.
+
+    `trace` holds (seconds since the rescale, cumulative source records). Rates come
+    from differences between consecutive samples; a negative difference means the
+    counter was reset by a restart, and that interval is dropped rather than
+    counted as negative production.
+
+    `recovery_s` stays empty when the job never reaches 90% within the warmup —
+    which is itself a finding, not a missing value.
+    """
+    empty = {"restart_gap_s": "", "recovery_s": "",
+             "rescale_deficit_events": "", "recovery_samples": 0}
+    # Two samples are the minimum that define an interval. With fewer, the honest
+    # answer is "not measured" — reporting a deficit of 0.0 would assert the rescale
+    # was free, which is a claim, where missing data is not.
+    if len(trace) < 2 or not steady_rps or steady_rps <= 0:
+        return empty
+
+    restart_gap, recovery, deficit = "", "", 0.0
+    previous_t, previous_records = trace[0]
+    for elapsed, records in trace[1:]:
+        span = elapsed - previous_t
+        produced = records - previous_records
+        previous_t, previous_records = elapsed, records
+        if span <= 0 or produced < 0:
+            continue
+        rate = produced / span
+        if restart_gap == "" and rate > 0.05 * steady_rps:
+            restart_gap = round(elapsed, 1)
+        # The integral STOPS at recovery on purpose. The trace keeps running into the
+        # steady state and, when an epoch is detected late, on into the NEXT rescale's
+        # transient — which would otherwise be charged to this epoch. Once the rate is
+        # back the deficit is closed by definition.
+        if recovery != "":
+            break
+        deficit += max(0.0, steady_rps * span - produced)
+        if rate >= 0.90 * steady_rps:
+            recovery = round(elapsed, 1)
+
+    return {"restart_gap_s": restart_gap,
+            "recovery_s": recovery,
+            "rescale_deficit_events": round(deficit, 1),
+            "recovery_samples": len(trace)}
+
+
 CSV_FIELDS = [
     "epoch", "timestamp", "job_id", "arm_applied", "had_choice", "delegate",
     "slices", "free_slots", "tms_available", "tms_used", "tms_hosting",
@@ -635,6 +732,8 @@ CSV_FIELDS = [
     "e2e_delay_ms", "e2e_delay_spread_ms",
     "state", "reward", "creditable", "credit_note", "q_before", "q_after",
     "arm_next", "exploring", "samples",
+    # What the rescale itself cost, sampled during the warmup instead of slept through.
+    "restart_gap_s", "recovery_s", "rescale_deficit_events", "recovery_samples",
 ]
 
 
@@ -730,6 +829,16 @@ def main():
         epoch_started = 0.0
         measured = True
         previous = None  # (state, arm, reward) of the last measured epoch
+        # (absolute time, cumulative source records), NEVER reset on an epoch change.
+        #
+        # Resetting it was the bug: the controller only notices a rescale when it next
+        # polls `epoch_key`, and it does not poll while `measure` holds the measurement
+        # window, so a rescale landing inside that window is seen up to `window` seconds
+        # late. Anchoring the trace to the moment of DETECTION therefore threw away
+        # exactly the transient it exists to capture — and did so precisely on the
+        # creditable epochs. Keeping one rolling history and slicing it by the epoch's
+        # own start time makes late detection harmless.
+        records_history = []
 
         while True:
             jid = running_job(args.rest)
@@ -750,12 +859,30 @@ def main():
                       f"— warming up {args.warmup:.0f}s")
 
             if measured or time.time() - epoch_started < args.warmup:
+                # The warmup is not dead time: it is the recovery curve. Sampling it
+                # changes nothing about when the measurement window starts, so the
+                # comparison between arms is untouched, but it turns the transient
+                # from something deliberately excluded into something recorded.
+                # Sampled unconditionally, including after the window has been
+                # measured: that stretch is the run-up to the NEXT rescale, and
+                # leaving it blind would lose the start of the next transient the
+                # same way anchoring to detection did.
+                produced = source_records(args.rest, jid)
+                if produced is not None:
+                    records_history.append((time.time(), produced))
                 time.sleep(args.poll_interval)
                 continue
 
+            # Keep only what any future epoch could still need; a campaign runs for
+            # hours and the history is appended to every second.
+            horizon = time.time() - 10 * 60
+            records_history[:] = [(t, r) for t, r in records_history if t >= horizon]
+
             taskmanagers = registered_taskmanagers(args.rest)
             measurement = measure(args.rest, jid, taskmanagers,
-                                  args.window, args.sample_interval, args.verbose)
+                                  args.window, args.sample_interval, args.verbose,
+                                  trace=records_history,
+                                  trace_interval=args.poll_interval)
             measured = True
             if measurement is None:
                 print("  (no metrics in this window — skipping the epoch)")
@@ -838,6 +965,12 @@ def main():
                 "arm_next": next_arm,
                 "exploring": int(exploring),
                 "samples": measurement["samples"],
+                # Measured against the steady rate this very epoch settled at, so a
+                # slow epoch is not scored against another epoch's baseline.
+                **recovery_of(
+                    [(t - epoch_started, r) for t, r in records_history
+                     if t >= epoch_started],
+                    measurement["source_out_rps"]),
             }
             writer.writerow(row)
             handle.flush()

@@ -44,6 +44,14 @@ TM_REPLICAS="${TM_REPLICAS:-3}"
 # 2026-08-19, once because ".10" sorts before ".9". Each class now carries an explicit
 # taskmanager.resource-id, so the condition is chosen here and survives reboots.
 ORDER="${ORDER:-slow-first}"
+# Whether the three classes may land on different minikube nodes.
+#
+# Pinned is the default and the condition every campaign so far ran under. Spreading is a
+# ROBUSTNESS CHECK, not a better setup: the three minikube "nodes" are one 12-core WSL host, so
+# separating the pods adds network hops and removes sibling CPU contention without adding any real
+# hardware difference. Worth running once to show the result survives the topology, and worth NOT
+# mixing into a campaign that has to be compared with the pinned ones.
+SPREAD="${SPREAD:-0}"
 
 jm_curl() {
     kubectl exec -n "$NAMESPACE" deployment/flink-jobmanager -- \
@@ -86,14 +94,22 @@ confirm_no_job() {
 
 case "${1:-}" in
     --heterogeneous)
-        [ "${2:-}" = "--order" ] && ORDER="${3:?--order needs slow-first or fast-first}"
+        shift
+        while [ $# -gt 0 ]; do
+            case "$1" in
+                --order)  ORDER="${2:?--order needs slow-first or fast-first}"; shift 2 ;;
+                --spread) SPREAD=1; shift ;;
+                *) echo "ERROR: unknown option '$1'" >&2; exit 1 ;;
+            esac
+        done
         case "$ORDER" in
             slow-first|fast-first) ;;
             *) echo "ERROR: --order must be slow-first or fast-first" >&2; exit 1 ;;
         esac
         confirm_no_job
-        echo "applying the three speed classes ($ORDER)..."
-        ORDER="$ORDER" python3 -c "
+        PLACEMENT=$([ "$SPREAD" = "1" ] && echo "spread over nodes" || echo "pinned to one node")
+        echo "applying the three speed classes ($ORDER, $PLACEMENT)..."
+        ORDER="$ORDER" SPREAD="$SPREAD" python3 -c "
 import os, sys, yaml
 
 # rank 1 sorts first, and 'first' is the machine every greedy tie-break reaches.
@@ -102,6 +118,8 @@ ranks = ({'slow': 1, 'medium': 2, 'fast': 3} if os.environ['ORDER'] == 'slow-fir
 docs = [d for d in yaml.safe_load_all(open('$MANIFEST')) if d]
 for d in docs:
     cls = d['metadata']['labels']['speed-class']
+    if os.environ['SPREAD'] == '1':
+        d['spec']['template']['spec'].pop('nodeSelector', None)
     env = [e for e in d['spec']['template']['spec']['containers'][0]['env']
            if e['name'] == 'FLINK_PROPERTIES'][0]
     env['value'] = '\n'.join(
@@ -130,8 +148,15 @@ except Exception:
         echo "publishing the speed vector..."
         "$SCRIPT_DIR/publish-speeds.sh"
         echo ""
-        echo "condition: $ORDER — the first line above is the machine every greedy tie-break"
-        echo "reaches while the cluster is idle."
+        echo "condition: $ORDER, $PLACEMENT — the first line above is the machine every greedy"
+        echo "tie-break reaches while the cluster is idle."
+        if [ "$SPREAD" = "1" ]; then
+            echo ""
+            echo "VERIFY the spread actually happened — the scheduler is free to co-locate them,"
+            echo "and if it did, the robustness check measures nothing:"
+            kubectl get pods -n "$NAMESPACE" -l component=taskmanager \
+                -o custom-columns='POD:.metadata.name,NODE:.spec.nodeName,IP:.status.podIP' 2>/dev/null
+        fi
         echo ""
         show_status
         ;;
@@ -150,7 +175,7 @@ except Exception:
         show_status
         ;;
     *)
-        echo "Usage: $0 --heterogeneous [--order slow-first|fast-first] | --homogeneous | --status" >&2
+        echo "Usage: $0 --heterogeneous [--order slow-first|fast-first] [--spread] | --homogeneous | --status" >&2
         exit 1
         ;;
 esac
