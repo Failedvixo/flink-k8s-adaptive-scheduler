@@ -21,4 +21,4 @@ scheduler/backups/
 
 # OS
 .DS_Store
-Thumbs.db
+Thumbs.dbscripts/__pycache__/

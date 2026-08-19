@@ -63,7 +63,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 cd "$ROOT_DIR" || exit 1
 
-ARMS="${ARMS:-STOCK FCFS ROUND_ROBIN LEAST_LOADED ACO GA}"
+ARMS="${ARMS:-STOCK FCFS ROUND_ROBIN LEAST_LOADED LPT ACO GA}"
 QUERY="${QUERY:-q11}"
 # Measurements of the SAME transition per arm. Three fits the ~45 min of the earlier
 # pilot; with a within-stratum sd of ~0.02, n=8 is what separates arms differing by
@@ -98,6 +98,23 @@ MEASURE_WINDOW="${WINDOW:-30}"
 DIST="${DIST:-CONSTANT}"
 RATE="${RATE:-60000}"
 TM_REPLICAS="${TM_REPLICAS:-5}"
+# Which TaskManager deployments make up the cluster, as "<deployment>:<replicas>" pairs.
+# One uniform pool by default, which is exactly what every run before 2026-08-18 used.
+#
+# A heterogeneous cluster cannot be one deployment: replicas share a pod template, so a
+# per-machine CPU limit needs a deployment per speed class. Point this at them to run the
+# campaign on unequal machines — the setting the offline bench identifies as the one that
+# stops every arm from tying (9-14% at 4 slices, against 0.0% on identical TaskManagers):
+#
+#   TM_DEPLOYMENTS="flink-tm-fast:1 flink-tm-medium:1 flink-tm-slow:1"
+#
+# Set up the classes and publish the speed vector with scripts/set-taskmanager-classes.sh
+# --heterogeneous first; this only holds the cluster at the shape the campaign assumes.
+TM_DEPLOYMENTS="${TM_DEPLOYMENTS:-flink-taskmanager:$TM_REPLICAS}"
+# TM_REPLICAS describes the uniform pool only, so a multi-deployment cluster made it record
+# a TaskManager count the run never had (both 2026-08-18 heterogeneous campaigns stamped 5
+# while running on 3). The cluster size is whatever TM_DEPLOYMENTS actually asks for.
+TM_REPLICAS=$(echo "$TM_DEPLOYMENTS" | tr ' ' '\n' | awk -F: '{n += $2} END {print n + 0}')
 NAMESPACE=flink
 
 # ------------------------------------------------------------------
@@ -170,6 +187,15 @@ PIN_PARALLELISM="${PIN_PARALLELISM:-2}"
 # while the capacity is gone. With one TaskManager and two slots, a width of 2
 # puts both CPU-load subtasks on the same machine with no ambiguity at all.
 DRAIN_REPLICAS="${DRAIN_REPLICAS:-0}"
+# What the cluster shrinks to, in the same "<deployment>:<replicas>" form as
+# TM_DEPLOYMENTS. On a heterogeneous cluster this is where the scenario gets its teeth:
+# leaving only the SLOW machine makes the inherited layout genuinely bad, so the arm that
+# refuses to redistribute keeps paying for it after capacity returns —
+#   DRAIN_DEPLOYMENTS="flink-tm-fast:0 flink-tm-medium:0 flink-tm-slow:1"
+DRAIN_DEPLOYMENTS="${DRAIN_DEPLOYMENTS:-flink-taskmanager:$DRAIN_REPLICAS}"
+# Measure the per-vertex weights once on the first arm and hold them for the campaign.
+PUBLISH_LOADS="${PUBLISH_LOADS:-1}"
+LOADS_PUBLISHED=0
 DRAIN_PAR="${DRAIN_PAR:-2}"
 DRAIN_HOLD="${DRAIN_HOLD:-60}"
 RESTORE_HOLD="${RESTORE_HOLD:-60}"
@@ -263,12 +289,28 @@ PF_WATCHDOG=$!
 trap 'kill "$PF_WATCHDOG" 2>/dev/null' EXIT
 
 # An arm measured against a different TM count is not comparable with the others.
-CURRENT_TMS=$(kubectl get deploy flink-taskmanager -n "$NAMESPACE" -o jsonpath='{.spec.replicas}')
-if [ "$CURRENT_TMS" != "$TM_REPLICAS" ]; then
-    echo "Scaling TaskManagers $CURRENT_TMS -> $TM_REPLICAS"
-    kubectl scale deployment flink-taskmanager -n "$NAMESPACE" --replicas="$TM_REPLICAS" >/dev/null
-    kubectl rollout status deployment/flink-taskmanager -n "$NAMESPACE" --timeout=180s >/dev/null
-fi
+scale_taskmanagers() {
+    # "<deployment>:<replicas> ..." — scales only what actually differs, so the common
+    # case costs one read per deployment and no rollout wait.
+    local spec
+    for spec in $1; do
+        local deployment="${spec%%:*}"
+        local replicas="${spec##*:}"
+        local current
+        current=$(kubectl get deploy "$deployment" -n "$NAMESPACE" \
+            -o jsonpath='{.spec.replicas}' 2>/dev/null || echo "")
+        if [ -z "$current" ]; then
+            echo "  ! deployment $deployment does not exist" >&2
+            continue
+        fi
+        if [ "$current" != "$replicas" ]; then
+            echo "  scaling $deployment $current -> $replicas"
+            kubectl scale deployment "$deployment" -n "$NAMESPACE" --replicas="$replicas" >/dev/null
+            kubectl rollout status "deployment/$deployment" -n "$NAMESPACE" --timeout=180s >/dev/null
+        fi
+    done
+}
+scale_taskmanagers "$TM_DEPLOYMENTS"
 
 LOCAL_JAR="$ROOT_DIR/flink-nexmark-job/target/flink-nexmark-job-1.0.0.jar"
 [ -f "$LOCAL_JAR" ] || { echo "ERROR: build the benchmark first (cd flink-nexmark-job && mvn package)" >&2; exit 1; }
@@ -438,27 +480,43 @@ for ARM in $ARMS; do
   echo "  settling ${MEASURE_WARMUP}s before the first transition..."
   sleep "$MEASURE_WARMUP"
 
+  # ---- per-vertex weights: measured ONCE, on the first arm, and then held fixed.
+  #
+  # The campaign used to inherit whatever was left in /var/thesis/loads from an earlier
+  # session, which is two separate problems: the weights may describe a different job
+  # entirely (every slice silently falls back to 1.0), and if they are re-measured per arm
+  # then each arm is scored against a different weight vector — a difference in the
+  # OBJECTIVE, not in the placement, which is exactly the kind of thing that makes arms
+  # look different for the wrong reason.
+  #
+  # Measured on the first arm rather than before the loop because measuring needs a running
+  # job, and the first arm has one. Set PUBLISH_LOADS=0 to keep whatever is already there.
+  if [ "$PUBLISH_LOADS" = "1" ] && [ "$LOADS_PUBLISHED" = "0" ]; then
+      echo "  measuring per-vertex load once for the whole campaign..."
+      if "$SCRIPT_DIR/publish-loads.sh" >>"$DRIVER_LOG" 2>&1; then
+          LOADS_PUBLISHED=1
+          "$SCRIPT_DIR/publish-loads.sh" --read | sed 's/^/    /'
+      else
+          echo "  ! could not measure loads; every slice will weigh 1.0" | tee -a "$DRIVER_LOG"
+          LOADS_PUBLISHED=1
+      fi
+  fi
+
   # ---- capacity loss and recovery, before the observer starts, so only the
   # recovery rescale is recorded as an episode and the compaction itself is not.
   if [ "$DRAIN_REPLICAS" -gt 0 ] 2>/dev/null; then
-      echo "  draining to $DRAIN_REPLICAS TaskManager(s) at parallelism $DRAIN_PAR"
+      echo "  draining to $DRAIN_DEPLOYMENTS at parallelism $DRAIN_PAR"
       set_parallelism "$JOB_ID" "$DRAIN_PAR" "drain p=$DRAIN_PAR" "$DRIVER_LOG"
       sleep 10
-      kubectl scale deployment flink-taskmanager -n "$NAMESPACE" \
-          --replicas="$DRAIN_REPLICAS" >/dev/null 2>&1 || true
-      kubectl rollout status deployment/flink-taskmanager -n "$NAMESPACE" \
-          --timeout=180s >/dev/null 2>&1 || true
+      scale_taskmanagers "$DRAIN_DEPLOYMENTS"
       sleep "$DRAIN_HOLD"
 
       DRAIN_STATE=$(jm_curl "/jobs/$JOB_ID" |
           python3 -c "import json,sys; print(json.load(sys.stdin).get('state',''))" 2>/dev/null)
       echo "    job is $DRAIN_STATE with capacity removed" | tee -a "$DRIVER_LOG"
 
-      echo "  restoring to $TM_REPLICAS TaskManagers"
-      kubectl scale deployment flink-taskmanager -n "$NAMESPACE" \
-          --replicas="$TM_REPLICAS" >/dev/null 2>&1 || true
-      kubectl rollout status deployment/flink-taskmanager -n "$NAMESPACE" \
-          --timeout=300s >/dev/null 2>&1 || true
+      echo "  restoring the cluster to $TM_DEPLOYMENTS"
+      scale_taskmanagers "$TM_DEPLOYMENTS"
       # The slots must be back in the pool before the measured rescale, or the
       # arm is asked to redistribute into capacity that does not exist yet.
       sleep "$RESTORE_HOLD"
@@ -537,7 +595,14 @@ for ARM in $ARMS; do
   sleep 10
 done
 
+# The speed vector in force is part of the experimental condition: the same arms on the
+# same job mean something different on unequal machines, and a result recorded without it
+# cannot be told apart from a homogeneous one later.
+PUBLISHED_SPEEDS=$("$SCRIPT_DIR/publish-speeds.sh" --read 2>/dev/null | tr '\n' ';' || echo "")
+
 ARMS="$ARMS" QUERY="$QUERY" DIST="$DIST" RATE="$RATE" REPS="$REPS" SCHEDULE="$SCHEDULE" \
+TM_DEPLOYMENTS="$TM_DEPLOYMENTS" DRAIN_DEPLOYMENTS="$DRAIN_DEPLOYMENTS" \
+PUBLISHED_SPEEDS="$PUBLISHED_SPEEDS" PUBLISH_LOADS="$PUBLISH_LOADS" \
 SUBMIT_PAR="$SUBMIT_PAR" TARGET_PAR="$TARGET_PAR" TM_REPLICAS="$TM_REPLICAS" \
 SLOT_IDLE_TIMEOUT="$SLOT_IDLE_TIMEOUT" JOB_CLASS="$JOB_CLASS" CPU_LOAD="$CPU_LOAD" \
 PIN_VERTEX="$PIN_VERTEX" PIN_PARALLELISM="$PIN_PARALLELISM" \
@@ -556,6 +621,13 @@ print(json.dumps({
     "warmup_s": int(os.environ["MEASURE_WARMUP"]),
     "window_s": int(os.environ["MEASURE_WINDOW"]),
     "tm_replicas": int(os.environ["TM_REPLICAS"]),
+    "tm_deployments": os.environ.get("TM_DEPLOYMENTS", ""),
+    "drain_deployments": os.environ.get("DRAIN_DEPLOYMENTS", ""),
+    # "" means every TaskManager is nominal, i.e. a homogeneous cluster.
+    "taskmanager_speeds": [
+        line for line in os.environ.get("PUBLISHED_SPEEDS", "").split(";")
+        if line.strip() and "nothing published" not in line
+    ],
     # Recorded because it is a CHOSEN operating point, not a fix: it decides how
     # long the pool keeps the surplus slots that give the assigner a decision at
     # all. Short (Flink's default) and the pool shrinks under the measurement —
@@ -569,6 +641,7 @@ print(json.dumps({
     "pin_vertex": os.environ.get("PIN_VERTEX", ""),
     "pin_parallelism": os.environ.get("PIN_PARALLELISM", ""),
     "drain_replicas": os.environ.get("DRAIN_REPLICAS", ""),
+    "published_loads": os.environ.get("PUBLISH_LOADS", ""),
     "drain_par": os.environ.get("DRAIN_PAR", ""),
     "poison_arm": os.environ.get("POISON_ARM", ""),
     "poison_schedule": os.environ.get("POISON_SCHEDULE", ""),

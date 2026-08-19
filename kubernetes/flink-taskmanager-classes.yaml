@@ -1,0 +1,247 @@
+# ============================================
+# Heterogeneous TaskManagers — three speed classes instead of one uniform pool
+# ============================================
+#
+# WHY. The offline bench (scripts/placement_bench.py) enumerates the exact optimum
+# and finds that on IDENTICAL TaskManagers a load-aware greedy is already optimal:
+# 0.0% gap up to 8 slices. Permuting equal machines gives the same answer, so the
+# search space collapses and no policy can beat any other — which is exactly what
+# five in-cluster runs showed, with all six arms producing identical dispersion and
+# STOCK matching them. The cluster was not failing to discriminate; it was posing a
+# problem that a greedy rule solves exactly.
+#
+# Heterogeneity is the lever that changes that, and it is the larger of the two the
+# bench measured: 9-14% at only 4 slices, against 1.6% from scaling to 10. It is
+# also the premise of Li et al. (IEEE TBD 9(4) 2023) rather than a detail of their
+# setup — CETSA exists because machines differ, and a homogeneous cluster degenerates
+# the algorithm it is meant to test.
+#
+# WHAT THIS CHANGES, AND WHAT IT DELIBERATELY DOES NOT.
+#   * CPU limit differs per class: 2 / 1.5 / 1 cores. The ratios are the bench's
+#     (1 : 0.75 : 0.5), scaled so the SLOWEST class is identical to the TaskManager
+#     every homogeneous run used — nothing is starved relative to those runs, and the
+#     comparison with them stays meaningful.
+#   * Slot count does NOT differ: two slots everywhere. The bench's model has uniform
+#     slots and varying speed, and keeping that here means any difference between arms
+#     is attributable to speed alone rather than to a changed capacity distribution.
+#   * Everything else — image, Flink properties, service account, scheduler — is the
+#     stock TaskManager template verbatim, so the only new variable is the one under
+#     study.
+#
+# The CPU LIMIT is what makes placement matter at all: measured 2026-08-17, placement
+# moved throughput 45% with limits.cpu set and 0% without, because the nodes have 12
+# cores and nothing competes for them unless something says so.
+#
+# Usage (scales the uniform deployment to zero and publishes the speed vector):
+#   scripts/set-taskmanager-classes.sh --heterogeneous
+#   scripts/set-taskmanager-classes.sh --homogeneous     # back to one uniform pool
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: flink-tm-fast
+  namespace: flink
+  labels:
+    app: flink
+    component: taskmanager
+    speed-class: fast
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: flink
+      component: taskmanager
+      speed-class: fast
+  template:
+    metadata:
+      labels:
+        app: flink
+        component: taskmanager
+        speed-class: fast
+        priority: "5"
+    spec:
+      serviceAccountName: flink
+      schedulerName: adaptive-scheduler
+      # Pinned to one node on purpose. Left free, the three classes get spread over the
+      # three minikube nodes (observed 2026-08-19 after a reboot: .0.8 / .1.3 / .2.3), which
+      # changes TWO things at once against the 2026-08-18 campaigns — where all three ran on
+      # the control-plane node: shuffle traffic starts crossing the network, and each
+      # TaskManager stops competing for CPU with its siblings, so the CPU limit is no longer
+      # the only thing that separates them. Same node keeps speed the single variable, and
+      # keeps pod IPs coming from one range so their ordering stays controllable.
+      nodeSelector:
+        kubernetes.io/hostname: minikube
+      containers:
+      - name: taskmanager
+        image: flink:1.18.0
+        args: ["taskmanager"]
+        ports:
+        - containerPort: 6122
+          name: rpc
+        resources:
+          limits:
+            cpu: "2"
+        env:
+        - name: ENABLE_BUILT_IN_PLUGINS
+          value: flink-s3-fs-presto-1.18.0.jar
+        - name: FLINK_PROPERTIES
+          value: |
+            jobmanager.rpc.address: flink-jobmanager
+            jobmanager.rpc.port: 6123
+            jobmanager.memory.process.size: 1024m
+            taskmanager.memory.process.size: 1024m
+            taskmanager.numberOfTaskSlots: 2
+            parallelism.default: 2
+            slot.request.timeout: 120000
+            jobmanager.scheduler: adaptive
+            execution.checkpointing.interval: 30s
+            execution.checkpointing.mode: AT_LEAST_ONCE
+            state.checkpoints.dir: s3://flink-checkpoints/checkpoints
+            state.savepoints.dir: s3://flink-checkpoints/savepoints
+            s3.endpoint: http://minio.flink.svc.cluster.local:9000
+            s3.path.style.access: true
+            s3.access-key: flinkcheckpoints
+            s3.secret-key: flinkcheckpoints
+            taskmanager.memory.managed.size: 16m
+            pipeline.max-parallelism: 8
+            taskmanager.resource-id: tm-3-fast
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: flink-tm-medium
+  namespace: flink
+  labels:
+    app: flink
+    component: taskmanager
+    speed-class: medium
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: flink
+      component: taskmanager
+      speed-class: medium
+  template:
+    metadata:
+      labels:
+        app: flink
+        component: taskmanager
+        speed-class: medium
+        priority: "5"
+    spec:
+      serviceAccountName: flink
+      schedulerName: adaptive-scheduler
+      # Pinned to one node on purpose. Left free, the three classes get spread over the
+      # three minikube nodes (observed 2026-08-19 after a reboot: .0.8 / .1.3 / .2.3), which
+      # changes TWO things at once against the 2026-08-18 campaigns — where all three ran on
+      # the control-plane node: shuffle traffic starts crossing the network, and each
+      # TaskManager stops competing for CPU with its siblings, so the CPU limit is no longer
+      # the only thing that separates them. Same node keeps speed the single variable, and
+      # keeps pod IPs coming from one range so their ordering stays controllable.
+      nodeSelector:
+        kubernetes.io/hostname: minikube
+      containers:
+      - name: taskmanager
+        image: flink:1.18.0
+        args: ["taskmanager"]
+        ports:
+        - containerPort: 6122
+          name: rpc
+        resources:
+          limits:
+            cpu: "1500m"
+        env:
+        - name: ENABLE_BUILT_IN_PLUGINS
+          value: flink-s3-fs-presto-1.18.0.jar
+        - name: FLINK_PROPERTIES
+          value: |
+            jobmanager.rpc.address: flink-jobmanager
+            jobmanager.rpc.port: 6123
+            jobmanager.memory.process.size: 1024m
+            taskmanager.memory.process.size: 1024m
+            taskmanager.numberOfTaskSlots: 2
+            parallelism.default: 2
+            slot.request.timeout: 120000
+            jobmanager.scheduler: adaptive
+            execution.checkpointing.interval: 30s
+            execution.checkpointing.mode: AT_LEAST_ONCE
+            state.checkpoints.dir: s3://flink-checkpoints/checkpoints
+            state.savepoints.dir: s3://flink-checkpoints/savepoints
+            s3.endpoint: http://minio.flink.svc.cluster.local:9000
+            s3.path.style.access: true
+            s3.access-key: flinkcheckpoints
+            s3.secret-key: flinkcheckpoints
+            taskmanager.memory.managed.size: 16m
+            pipeline.max-parallelism: 8
+            taskmanager.resource-id: tm-2-medium
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: flink-tm-slow
+  namespace: flink
+  labels:
+    app: flink
+    component: taskmanager
+    speed-class: slow
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: flink
+      component: taskmanager
+      speed-class: slow
+  template:
+    metadata:
+      labels:
+        app: flink
+        component: taskmanager
+        speed-class: slow
+        priority: "5"
+    spec:
+      serviceAccountName: flink
+      schedulerName: adaptive-scheduler
+      # Pinned to one node on purpose. Left free, the three classes get spread over the
+      # three minikube nodes (observed 2026-08-19 after a reboot: .0.8 / .1.3 / .2.3), which
+      # changes TWO things at once against the 2026-08-18 campaigns — where all three ran on
+      # the control-plane node: shuffle traffic starts crossing the network, and each
+      # TaskManager stops competing for CPU with its siblings, so the CPU limit is no longer
+      # the only thing that separates them. Same node keeps speed the single variable, and
+      # keeps pod IPs coming from one range so their ordering stays controllable.
+      nodeSelector:
+        kubernetes.io/hostname: minikube
+      containers:
+      - name: taskmanager
+        image: flink:1.18.0
+        args: ["taskmanager"]
+        ports:
+        - containerPort: 6122
+          name: rpc
+        resources:
+          limits:
+            cpu: "1"
+        env:
+        - name: ENABLE_BUILT_IN_PLUGINS
+          value: flink-s3-fs-presto-1.18.0.jar
+        - name: FLINK_PROPERTIES
+          value: |
+            jobmanager.rpc.address: flink-jobmanager
+            jobmanager.rpc.port: 6123
+            jobmanager.memory.process.size: 1024m
+            taskmanager.memory.process.size: 1024m
+            taskmanager.numberOfTaskSlots: 2
+            parallelism.default: 2
+            slot.request.timeout: 120000
+            jobmanager.scheduler: adaptive
+            execution.checkpointing.interval: 30s
+            execution.checkpointing.mode: AT_LEAST_ONCE
+            state.checkpoints.dir: s3://flink-checkpoints/checkpoints
+            state.savepoints.dir: s3://flink-checkpoints/savepoints
+            s3.endpoint: http://minio.flink.svc.cluster.local:9000
+            s3.path.style.access: true
+            s3.access-key: flinkcheckpoints
+            s3.secret-key: flinkcheckpoints
+            taskmanager.memory.managed.size: 16m
+            pipeline.max-parallelism: 8
+            taskmanager.resource-id: tm-1-slow

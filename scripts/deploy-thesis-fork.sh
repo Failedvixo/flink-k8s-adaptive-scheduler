@@ -12,7 +12,7 @@
 # Usage:
 #   scripts/deploy-thesis-fork.sh [STRATEGY]
 #
-#   STRATEGY  STOCK | FCFS | ROUND_ROBIN | LEAST_LOADED | ACO | GA  (default: ROUND_ROBIN)
+#   STRATEGY  STOCK | FCFS | ROUND_ROBIN | LEAST_LOADED | LPT | ACO | GA  (default: ROUND_ROBIN)
 #
 #   STOCK delegates to the assigner unpatched Flink would have used, so it is the
 #   experimental baseline; FCFS is iteration order unconditionally, which stock
@@ -48,9 +48,9 @@ log_error() {
 
 STRATEGY="${1:-ROUND_ROBIN}"
 case "$STRATEGY" in
-    STOCK|FCFS|DEFAULT|ROUND_ROBIN|LEAST_LOADED|ACO|GA) ;;
+    STOCK|FCFS|DEFAULT|ROUND_ROBIN|LEAST_LOADED|LPT|ACO|GA) ;;
     *)
-        log_error "Unknown strategy '$STRATEGY' (expected STOCK, FCFS, ROUND_ROBIN, LEAST_LOADED, ACO or GA)"
+        log_error "Unknown strategy '$STRATEGY' (expected STOCK, FCFS, ROUND_ROBIN, LEAST_LOADED, LPT, ACO or GA)"
         exit 1
         ;;
 esac

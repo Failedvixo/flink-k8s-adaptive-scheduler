@@ -96,7 +96,7 @@ import urllib.request
 from pathlib import Path
 
 DEFAULT_REST = os.environ.get("FLINK_REST_URL", "http://localhost:8081")
-DEFAULT_ARMS = ["FCFS", "ROUND_ROBIN", "LEAST_LOADED", "ACO", "GA"]
+DEFAULT_ARMS = ["FCFS", "ROUND_ROBIN", "LEAST_LOADED", "LPT", "ACO", "GA"]
 
 # Rates, not accumulators: Flink also exposes accumulated busy time, which grows
 # monotonically and would make every later window look busier than the last.

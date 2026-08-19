@@ -177,6 +177,48 @@ def sweep(instances, seed, heterogeneous):
         print(row)
 
 
+def ordering_sweep(instances, seed, width=4, n_tms=3, slots_per_tm=2):
+    """How much of a greedy's result is decided by the ORDER the machines arrive in.
+
+    Found 2026-08-18, and not something the sweep above can show, since it averages
+    over random speed vectors. The greedy rules break ties at zero load by taking
+    the first machine in whatever order the caller supplies, and on unequal machines
+    that first choice is unrecoverable: the same LEAST_LOADED sits at 1.5% from
+    optimal when the fastest machine happens to sort first and above 40% when it
+    sorts last. LPT is unaffected, because it commits the largest slice to the
+    machine that would FINISH it soonest rather than to the one that looks idle.
+
+    This is not a hypothetical in the fork: it orders TaskManagers by resource id,
+    which is "<podIP>:<port>-<hash>" — so on a heterogeneous cluster the quality of
+    every greedy arm is decided by which pod got which IP. That alone is a reason to
+    prefer LPT over tuning the others.
+    """
+    orderings = [
+        ("fastest first", [1.0, 0.75, 0.5]),
+        ("fastest in the middle", [0.75, 1.0, 0.5]),
+        ("fastest last", [0.5, 0.75, 1.0]),
+    ]
+    print(f"  {'TM ordering':>22}   " + "".join(f"{name:>14}" for name, _ in HEURISTICS))
+    print("  " + "-" * (25 + 14 * len(HEURISTICS)))
+    for label, speeds in orderings:
+        rng = random.Random(seed)
+        gaps = {name: [] for name, _ in HEURISTICS}
+        for _ in range(instances):
+            costs, _ = random_instance(
+                rng, n_vertices=5, width=width, n_tms=n_tms,
+                slots_per_tm=slots_per_tm, heterogeneous=False)
+            best = optimal(costs, speeds, slots_per_tm)
+            if not best:
+                continue
+            for name, fn in HEURISTICS:
+                m = makespan(fn(costs, speeds, slots_per_tm), costs, speeds, slots_per_tm)
+                gaps[name].append(100.0 * (m - best) / best)
+        row = f"  {label:>22}   "
+        for name, _ in HEURISTICS:
+            row += f"{st.mean(gaps[name]):>13.1f}%"
+        print(row)
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--instances", type=int, default=200)
@@ -190,8 +232,14 @@ def main():
     sweep(args.instances, args.seed, heterogeneous=False)
     print("\n  HETEROGENEOUS TaskManagers (speeds 0.5 / 0.75 / 1.0):")
     sweep(args.instances, args.seed, heterogeneous=True)
+    print("\n  SAME machines (1.0 / 0.75 / 0.5), only their ORDER changes:")
+    ordering_sweep(args.instances, args.seed)
+
     print("\n  A gap of 0% means the heuristic is already optimal and no search")
     print("  can improve on it. Room for ACO/GA exists only where the gap is not 0.")
+    print("  The last block is the sharper result: for the greedy rules most of the")
+    print("  heterogeneous gap is not about the machines at all, it is about which")
+    print("  machine the tie-break happens to reach first.")
 
 
 if __name__ == "__main__":
