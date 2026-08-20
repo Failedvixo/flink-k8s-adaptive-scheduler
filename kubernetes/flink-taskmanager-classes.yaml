@@ -73,7 +73,7 @@ spec:
         kubernetes.io/hostname: minikube
       containers:
       - name: taskmanager
-        image: flink:1.18.0
+        image: flink:2.3.0
         args: ["taskmanager"]
         ports:
         - containerPort: 6122
@@ -83,7 +83,7 @@ spec:
             cpu: "2"
         env:
         - name: ENABLE_BUILT_IN_PLUGINS
-          value: flink-s3-fs-presto-1.18.0.jar
+          value: flink-s3-fs-presto-2.3.0.jar
         - name: FLINK_PROPERTIES
           value: |
             jobmanager.rpc.address: flink-jobmanager
@@ -143,7 +143,7 @@ spec:
         kubernetes.io/hostname: minikube
       containers:
       - name: taskmanager
-        image: flink:1.18.0
+        image: flink:2.3.0
         args: ["taskmanager"]
         ports:
         - containerPort: 6122
@@ -153,7 +153,7 @@ spec:
             cpu: "1500m"
         env:
         - name: ENABLE_BUILT_IN_PLUGINS
-          value: flink-s3-fs-presto-1.18.0.jar
+          value: flink-s3-fs-presto-2.3.0.jar
         - name: FLINK_PROPERTIES
           value: |
             jobmanager.rpc.address: flink-jobmanager
@@ -213,7 +213,7 @@ spec:
         kubernetes.io/hostname: minikube
       containers:
       - name: taskmanager
-        image: flink:1.18.0
+        image: flink:2.3.0
         args: ["taskmanager"]
         ports:
         - containerPort: 6122
@@ -223,7 +223,7 @@ spec:
             cpu: "1"
         env:
         - name: ENABLE_BUILT_IN_PLUGINS
-          value: flink-s3-fs-presto-1.18.0.jar
+          value: flink-s3-fs-presto-2.3.0.jar
         - name: FLINK_PROPERTIES
           value: |
             jobmanager.rpc.address: flink-jobmanager

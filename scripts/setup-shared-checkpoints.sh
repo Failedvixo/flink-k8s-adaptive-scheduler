@@ -33,7 +33,7 @@ set -eu
 NAMESPACE=flink
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 BUCKET=flink-checkpoints
-PLUGIN=flink-s3-fs-presto-1.18.0.jar
+PLUGIN=flink-s3-fs-presto-2.3.0.jar
 ENDPOINT="http://minio.flink.svc.cluster.local:9000"
 
 if [ "${1:-}" = "--check" ]; then

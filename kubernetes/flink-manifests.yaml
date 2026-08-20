@@ -70,7 +70,7 @@ spec:
       serviceAccountName: flink
       containers:
       - name: jobmanager
-        image: flink:1.18.0
+        image: flink:2.3.0
         args: ["jobmanager"]
         ports:
         - containerPort: 6123
@@ -90,6 +90,13 @@ spec:
             parallelism.default: 2
             slot.request.timeout: 120000
             jobmanager.scheduler: adaptive
+            # Read from the JOBMANAGER's configuration (AdaptiveSchedulerFactory and
+            # DefaultSlotPoolServiceSchedulerFactory) — setting it on the TaskManagers does
+            # nothing at all. On 2.x this IS the baseline: NONE reproduces 1.18's absence of
+            # balancing, SLOTS spreads slots evenly, TASKS balances by task execution load, and
+            # MIN_RESOURCES packs onto the fewest TaskManagers. SLOTS and TASKS are upstream
+            # versions of two of the thesis arms, so the comparison needs this pinned.
+            taskmanager.load-balance.mode: NONE
             pipeline.max-parallelism: 120
             state.savepoints.dir: file:///tmp/savepoints
             state.checkpoints.dir: file:///tmp/checkpoints
@@ -121,7 +128,7 @@ spec:
       schedulerName: adaptive-scheduler
       containers:
       - name: taskmanager
-        image: flink:1.18.0
+        image: flink:2.3.0
         args: ["taskmanager"]
         ports:
         - containerPort: 6122

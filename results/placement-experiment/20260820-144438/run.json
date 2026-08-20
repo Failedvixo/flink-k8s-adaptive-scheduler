@@ -1,0 +1,38 @@
+{
+  "query": "q11",
+  "dist": "CONSTANT",
+  "rate": 60000,
+  "arms": [
+    "STOCK",
+    "LEAST_LOADED",
+    "LPT"
+  ],
+  "reps": 14,
+  "schedule": [
+    "4*",
+    "6"
+  ],
+  "submit_par": 6,
+  "target_par": 4,
+  "warmup_s": 30,
+  "window_s": 30,
+  "tm_replicas": 3,
+  "tm_deployments": "flink-tm-fast:1 flink-tm-medium:1 flink-tm-slow:1",
+  "drain_deployments": "flink-taskmanager:0",
+  "taskmanager_speeds": [
+    "tm-1-slow 1.0",
+    "tm-2-medium 1.5",
+    "tm-3-fast 2.0"
+  ],
+  "slot_idle_timeout_ms": "300000",
+  "job_class": "com.thesis.benchmark.ConfigurableGraphJob",
+  "cpu_load_iter": "2500",
+  "pin_vertex": "CPU Load",
+  "pin_parallelism": "2",
+  "drain_replicas": "0",
+  "published_loads": "1",
+  "recovery_sample_interval_s": "1",
+  "drain_par": "2",
+  "poison_arm": "",
+  "poison_schedule": "4"
+}

@@ -56,9 +56,11 @@ case "$STRATEGY" in
 esac
 
 FORK_DIR="${FORK_DIR:-$HOME/projects/flink-custom-scheduler}"
-JAVA_HOME="${JAVA_HOME:-/usr/lib/jvm/java-11-openjdk-amd64}"
+# Flink 2.x RUNS on Java 11 but BUILDS against 17 — compiling the patched classes with 11
+# fails outright ("invalid target release: 17"), so this is not a preference.
+JAVA_HOME="${JAVA_HOME:-/usr/lib/jvm/java-17-openjdk-amd64}"
 NAMESPACE=flink
-FLINK_DIST_JAR=flink-dist-1.18.0.jar
+FLINK_DIST_JAR=flink-dist-2.3.0.jar
 THESIS_DIR=/var/thesis
 HOST_JAR_PATH=$THESIS_DIR/flink-dist-thesis.jar
 ARM_FILE=$THESIS_DIR/arm
@@ -76,6 +78,23 @@ echo ""
 # ============================================
 # 1. Preconditions
 # ============================================
+# The fork repo keeps 1.18 on `main` and 2.3 on `flink-2.3`, so it is entirely possible to
+# have the wrong branch checked out. Compiling 1.18 classes and patching them into a 2.3.0 jar
+# does not fail loudly — it produces a JobManager that crashes on startup or, worse, silently
+# falls back — so the version is checked against the jar this script is about to patch.
+# Read AFTER </parent>: the first <version> in Flink's root pom belongs to the parent POM
+# (org.apache:apache) and yields something like "35" rather than the Flink version.
+FORK_VERSION=$(sed -n '/<\/parent>/,$p' "$FORK_DIR/pom.xml" 2>/dev/null |
+    grep -m1 -oP '(?<=<version>)[^<]+' || echo "")
+EXPECTED_VERSION="${FLINK_DIST_JAR#flink-dist-}"
+EXPECTED_VERSION="${EXPECTED_VERSION%.jar}"
+if [ "$FORK_VERSION" != "$EXPECTED_VERSION" ]; then
+    log_error "Fork at $FORK_DIR declares Flink $FORK_VERSION but this script patches $EXPECTED_VERSION."
+    log_error "Check out the matching branch (git -C $FORK_DIR branch -a) and retry."
+    exit 1
+fi
+log_info "Fork version: $FORK_VERSION (matches $FLINK_DIST_JAR)"
+
 log_info "[1/6] Checking cluster..."
 if ! kubectl get nodes >/dev/null 2>&1; then
     log_error "Cannot reach the cluster. Is minikube running? (minikube start)"
