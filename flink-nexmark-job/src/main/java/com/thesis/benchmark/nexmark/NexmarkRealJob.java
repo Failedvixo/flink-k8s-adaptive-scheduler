@@ -15,7 +15,7 @@ import org.apache.flink.streaming.api.windowing.assigners.EventTimeSessionWindow
 import org.apache.flink.streaming.api.windowing.assigners.ProcessingTimeSessionWindows;
 import org.apache.flink.streaming.api.windowing.assigners.SlidingEventTimeWindows;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
-import org.apache.flink.streaming.api.windowing.time.Time;
+import java.time.Duration;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.util.Collector;
 
@@ -129,14 +129,14 @@ public class NexmarkRealJob {
                         .of(new org.apache.flink.api.common.typeinfo.TypeHint<Tuple2<Long, Long>>(){}))
                 .name("to-tuple").uid("to-tuple")
                 .keyBy(t -> t.f0)
-                .window(SlidingEventTimeWindows.of(Time.seconds(60), Time.seconds(5)))
+                .window(SlidingEventTimeWindows.of(Duration.ofSeconds(60), Duration.ofSeconds(5)))
                 .aggregate(new CountAgg(), new EmitWindowEnd())
                 .setParallelism(heavyPar)
                 .name("hot-items-count").uid("hot-items-count");
 
         // Per-window: keep the global top auction.
         counts
-                .windowAll(SlidingEventTimeWindows.of(Time.seconds(60), Time.seconds(5)))
+                .windowAll(SlidingEventTimeWindows.of(Duration.ofSeconds(60), Duration.ofSeconds(5)))
                 .process(new TopHotAuction())
                 .name("top-hot-auction").uid("top-hot-auction")
                 .addSink(new HotItemsSink())
@@ -182,7 +182,7 @@ public class NexmarkRealJob {
 
     /** Lightweight stdout sink that mirrors the existing source-stats style. */
     public static class HotItemsSink
-            extends org.apache.flink.streaming.api.functions.sink.RichSinkFunction<Tuple2<Long, Long>> {
+            extends org.apache.flink.streaming.api.functions.sink.legacy.RichSinkFunction<Tuple2<Long, Long>> {
         private long received = 0;
         private long lastLog = 0;
         private final Map<Long, Long> lastTopByAuction = new HashMap<>();
@@ -195,7 +195,7 @@ public class NexmarkRealJob {
             if (now - lastLog > 5000) {
                 lastLog = now;
                 System.out.printf("[Q5-Sink-%d] received=%,d topAuction=%d count=%,d uniqueWinners=%d%n",
-                        getRuntimeContext().getIndexOfThisSubtask() + 1,
+                        getRuntimeContext().getTaskInfo().getIndexOfThisSubtask() + 1,
                         received, v.f0, v.f1, lastTopByAuction.size());
             }
         }
@@ -233,7 +233,7 @@ public class NexmarkRealJob {
                         .join(auctions)
                         .where((org.apache.flink.api.java.functions.KeySelector<Person, Long>) p -> p.id)
                         .equalTo((org.apache.flink.api.java.functions.KeySelector<Auction, Long>) a -> a.seller)
-                        .window(TumblingEventTimeWindows.of(Time.seconds(10)))
+                        .window(TumblingEventTimeWindows.of(Duration.ofSeconds(10)))
                         .apply(
                                 (JoinFunction<Person, Auction, Tuple3<Long, Long, String>>)
                                         (p, a) -> Tuple3.of(p.id, a.id, p.name),
@@ -251,7 +251,7 @@ public class NexmarkRealJob {
 
     /** Stdout sink for Q8 — periodic stats by sub-task. */
     public static class NewUsersSink
-            extends org.apache.flink.streaming.api.functions.sink.RichSinkFunction<Tuple3<Long, Long, String>> {
+            extends org.apache.flink.streaming.api.functions.sink.legacy.RichSinkFunction<Tuple3<Long, Long, String>> {
         private long received = 0;
         private long lastLog = 0;
 
@@ -262,7 +262,7 @@ public class NexmarkRealJob {
             if (now - lastLog > 5000) {
                 lastLog = now;
                 System.out.printf("[Q8-Sink-%d] received=%,d lastPair=(person=%d,auction=%d,name=%s)%n",
-                        getRuntimeContext().getIndexOfThisSubtask() + 1,
+                        getRuntimeContext().getTaskInfo().getIndexOfThisSubtask() + 1,
                         received, v.f0, v.f1, v.f2);
             }
         }
@@ -344,7 +344,7 @@ public class NexmarkRealJob {
                         .join(auctions)
                         .where((org.apache.flink.api.java.functions.KeySelector<Person, Long>) p -> p.id)
                         .equalTo((org.apache.flink.api.java.functions.KeySelector<Auction, Long>) a -> a.seller)
-                        .window(TumblingEventTimeWindows.of(Time.seconds(60)))
+                        .window(TumblingEventTimeWindows.of(Duration.ofSeconds(60)))
                         .apply(
                                 (JoinFunction<Person, Auction, Tuple3<String, String, Long>>)
                                         (p, a) -> Tuple3.of(p.name, p.city, a.id),
@@ -373,7 +373,7 @@ public class NexmarkRealJob {
 
         catPrice
                 .keyBy(t -> t.f0)
-                .window(TumblingEventTimeWindows.of(Time.seconds(60)))
+                .window(TumblingEventTimeWindows.of(Duration.ofSeconds(60)))
                 .aggregate(new AvgPriceAgg(), new EmitAvgPerKey())
                 .setParallelism(heavyPar)
                 .name("q4-cat-avg").uid("q4-cat-avg")
@@ -397,7 +397,7 @@ public class NexmarkRealJob {
 
         sellerPrice
                 .keyBy(t -> t.f0)
-                .window(TumblingEventTimeWindows.of(Time.seconds(60)))
+                .window(TumblingEventTimeWindows.of(Duration.ofSeconds(60)))
                 .aggregate(new AvgPriceAgg(), new EmitAvgPerKey())
                 .setParallelism(heavyPar)
                 .name("q6-seller-avg").uid("q6-seller-avg")
@@ -420,7 +420,7 @@ public class NexmarkRealJob {
                 .setParallelism(heavyPar)
                 .name("q7-max-bid").uid("q7-max-bid");
 
-        bids.windowAll(TumblingEventTimeWindows.of(Time.seconds(10)))
+        bids.windowAll(TumblingEventTimeWindows.of(Duration.ofSeconds(10)))
                 .max("price")
                 .name("q7-global-max").uid("q7-global-max")
                 .addSink(new GenericCountSink<>("Q7"))
@@ -442,7 +442,7 @@ public class NexmarkRealJob {
 
         auctionPrice
                 .keyBy(t -> t.f0)
-                .window(TumblingEventTimeWindows.of(Time.seconds(60)))
+                .window(TumblingEventTimeWindows.of(Duration.ofSeconds(60)))
                 .reduce((a, b) -> a.f1 >= b.f1 ? a : b)
                 .setParallelism(heavyPar)
                 .name("q9-winning-bid").uid("q9-winning-bid")
@@ -478,7 +478,7 @@ public class NexmarkRealJob {
 
         bidderOne
                 .keyBy(t -> t.f0)
-                .window(EventTimeSessionWindows.withGap(Time.seconds(10)))
+                .window(EventTimeSessionWindows.withGap(Duration.ofSeconds(10)))
                 .aggregate(new CountAgg(), new EmitWindowEnd())
                 .setParallelism(heavyPar)
                 .name("q11-sessions").uid("q11-sessions")
@@ -502,7 +502,7 @@ public class NexmarkRealJob {
 
         bidderOne
                 .keyBy(t -> t.f0)
-                .window(ProcessingTimeSessionWindows.withGap(Time.seconds(10)))
+                .window(ProcessingTimeSessionWindows.withGap(Duration.ofSeconds(10)))
                 .aggregate(new CountAgg(), new EmitWindowEnd())
                 .setParallelism(heavyPar)
                 .name("q12-proc-sessions").uid("q12-proc-sessions")
@@ -516,7 +516,7 @@ public class NexmarkRealJob {
 
     /** Generic count-and-print sink labelled by query. */
     public static class GenericCountSink<T>
-            extends org.apache.flink.streaming.api.functions.sink.RichSinkFunction<T> {
+            extends org.apache.flink.streaming.api.functions.sink.legacy.RichSinkFunction<T> {
         private final String label;
         private long received = 0;
         private long lastLog = 0;
@@ -535,7 +535,7 @@ public class NexmarkRealJob {
                 if (repr.length() > 80) repr = repr.substring(0, 77) + "...";
                 System.out.printf("[%s-Sink-%d] received=%,d last=%s%n",
                         label,
-                        getRuntimeContext().getIndexOfThisSubtask() + 1,
+                        getRuntimeContext().getTaskInfo().getIndexOfThisSubtask() + 1,
                         received, repr);
             }
         }

@@ -1,6 +1,6 @@
 package com.thesis.benchmark.nexmark;
 
-import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.RichParallelSourceFunction;
 
 import java.util.Random;
 import java.util.concurrent.ArrayBlockingQueue;
@@ -62,8 +62,8 @@ public class NexmarkGenerator extends RichParallelSourceFunction<NexmarkEvent> {
 
     @Override
     public void run(SourceContext<NexmarkEvent> ctx) throws Exception {
-        int subtask = getRuntimeContext().getIndexOfThisSubtask();
-        int parallelism = getRuntimeContext().getNumberOfParallelSubtasks();
+        int subtask = getRuntimeContext().getTaskInfo().getIndexOfThisSubtask();
+        int parallelism = getRuntimeContext().getTaskInfo().getNumberOfParallelSubtasks();
 
         long startMs = System.currentTimeMillis();
         long endMs = startMs + durationSec * 1000L;

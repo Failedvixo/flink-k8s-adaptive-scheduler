@@ -43,9 +43,9 @@
   </build>
   <properties>
     <scala.binary.version>2.12</scala.binary.version>
-    <maven.compiler.target>11</maven.compiler.target>
-    <maven.compiler.source>11</maven.compiler.source>
+    <maven.compiler.target>17</maven.compiler.target>
+    <maven.compiler.source>17</maven.compiler.source>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <flink.version>1.18.0</flink.version>
+    <flink.version>2.3.0</flink.version>
   </properties>
 </project>

@@ -1,5 +1,6 @@
 package com.thesis.benchmark;
 
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.AggregateFunction;
 import org.apache.flink.api.common.functions.MapFunction;
@@ -8,12 +9,10 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
-import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.streaming.api.windowing.assigners.EventTimeSessionWindows;
 import org.apache.flink.streaming.api.windowing.assigners.SlidingEventTimeWindows;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
-import org.apache.flink.streaming.api.windowing.time.Time;
+import java.time.Duration;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.Collector;
 import java.time.Duration;
@@ -56,15 +55,18 @@ public class ConfigurableGraphJob {
     }
 
     private static DataStream<Bid> buildSource(StreamExecutionEnvironment env, GraphConfig config) {
-        return env.addSource(new BidSource(config))
+        // fromSource takes the WatermarkStrategy directly, so what used to be a separate
+        // "Watermark Assigner" vertex is now folded into the source. That CHANGES THE JOB GRAPH:
+        // one vertex fewer, and therefore one slice composition fewer. Campaigns run before the
+        // 2.3 migration are not comparable on vertex counts.
+        return env.fromSource(
+                    new BidGeneratorSource(config),
+                    WatermarkStrategy.<Bid>forBoundedOutOfOrderness(Duration.ofSeconds(5))
+                        .withTimestampAssigner((bid, ts) -> bid.timestamp),
+                    "Source: Bid Generator")
             .uid("bid-source")
             .setParallelism(config.sourceParallelism)
-            .name("Source: Bid Generator")
-            .assignTimestampsAndWatermarks(
-                WatermarkStrategy.<Bid>forBoundedOutOfOrderness(Duration.ofSeconds(5))
-                    .withTimestampAssigner((bid, ts) -> bid.timestamp))
-            .uid("watermark-assigner")
-            .name("Watermark Assigner");
+            .name("Source: Bid Generator");
     }
 
     private static DataStream<Bid> applyFilters(DataStream<Bid> stream, GraphConfig config) {
@@ -113,11 +115,11 @@ public class ConfigurableGraphJob {
             private transient long startTime;
 
             @Override
-            public void open(Configuration parameters) {
+            public void open(OpenContext openContext) {
                 this.processed = 0;
                 this.staleDropped = 0;
-                this.subtaskIndex = getRuntimeContext().getIndexOfThisSubtask();
-                this.parallelism = getRuntimeContext().getNumberOfParallelSubtasks();
+                this.subtaskIndex = getRuntimeContext().getTaskInfo().getIndexOfThisSubtask();
+                this.parallelism = getRuntimeContext().getTaskInfo().getNumberOfParallelSubtasks();
                 this.startTime = System.currentTimeMillis();
                 this.running = true;
 
@@ -207,17 +209,17 @@ public class ConfigurableGraphJob {
         switch (config.windowType) {
             case TUMBLING:
                 return stream.keyBy(t -> t.f0)
-                    .window(TumblingEventTimeWindows.of(Time.seconds(config.windowSizeSeconds)))
+                    .window(TumblingEventTimeWindows.of(Duration.ofSeconds(config.windowSizeSeconds)))
                     .aggregate(createAggregator(config))
                     .uid("window-tumbling").name("Window: Tumbling");
             case SLIDING:
                 return stream.keyBy(t -> t.f0)
-                    .window(SlidingEventTimeWindows.of(Time.seconds(config.windowSizeSeconds), Time.seconds(config.slideSizeSeconds)))
+                    .window(SlidingEventTimeWindows.of(Duration.ofSeconds(config.windowSizeSeconds), Duration.ofSeconds(config.slideSizeSeconds)))
                     .aggregate(createAggregator(config))
                     .uid("window-sliding").name("Window: Sliding");
             case SESSION:
                 return stream.keyBy(t -> t.f0)
-                    .window(EventTimeSessionWindows.withGap(Time.seconds(config.sessionGapSeconds)))
+                    .window(EventTimeSessionWindows.withGap(Duration.ofSeconds(config.sessionGapSeconds)))
                     .aggregate(createAggregator(config))
                     .uid("window-session").name("Window: Session");
             default:
@@ -238,7 +240,7 @@ public class ConfigurableGraphJob {
 
     private static void applyTrackedSinks(DataStream<Tuple2<Long, Double>> stream, GraphConfig config) {
         if (config.enableConsoleSink) {
-            stream.addSink(new TotalLatencySink())
+            stream.sinkTo(new TrackedConsoleSink())
                 .uid("sink-tracked").name("Sink: Tracked Console")
                 .setParallelism(config.sinkParallelism);
         }
@@ -254,9 +256,9 @@ public class ConfigurableGraphJob {
         private transient int subtaskIndex;
 
         @Override
-        public void open(Configuration parameters) {
+        public void open(OpenContext openContext) {
             this.histogram = new LatencyHistogram();
-            this.subtaskIndex = getRuntimeContext().getIndexOfThisSubtask();
+            this.subtaskIndex = getRuntimeContext().getTaskInfo().getIndexOfThisSubtask();
             this.running = true;
             this.loggerThread = new Thread(() -> {
                 while (running) {
@@ -285,62 +287,6 @@ public class ConfigurableGraphJob {
             LatencyStats s = histogram.snapshot();
             if (s.count > 0) {
                 System.out.printf("[Latency-PROC-%d] FINAL count=%d min=%dms p50=%dms p95=%dms p99=%dms max=%dms avg=%.1fms%n",
-                    subtaskIndex, s.count, s.min, s.p50, s.p95, s.p99, s.max, s.avg);
-            }
-        }
-    }
-
-    public static class TotalLatencySink extends RichSinkFunction<Tuple2<Long, Double>> {
-        private static final long serialVersionUID = 1L;
-        private transient LatencyHistogram sinkHistogram;
-        private transient AtomicLong recordCount;
-        private transient long firstRecordTime;
-        private transient long lastRecordTime;
-        private transient Thread loggerThread;
-        private transient volatile boolean running;
-        private transient int subtaskIndex;
-
-        @Override
-        public void open(Configuration parameters) {
-            this.sinkHistogram = new LatencyHistogram();
-            this.recordCount = new AtomicLong(0);
-            this.firstRecordTime = 0; this.lastRecordTime = 0;
-            this.subtaskIndex = getRuntimeContext().getIndexOfThisSubtask();
-            this.running = true;
-            this.loggerThread = new Thread(() -> {
-                long lastCount = 0; long lastTime = System.currentTimeMillis();
-                while (running) {
-                    try { Thread.sleep(10000); } catch (InterruptedException e) { return; }
-                    long now = System.currentTimeMillis(); long c = recordCount.get();
-                    double rate = (c - lastCount) / ((now - lastTime) / 1000.0);
-                    System.out.printf("[Sink-%d] records=%d rate=%.0f/s%n", subtaskIndex, c, rate);
-                    lastCount = c; lastTime = now;
-                }
-            }, "sink-logger-" + subtaskIndex);
-            loggerThread.setDaemon(true); loggerThread.start();
-        }
-
-        @Override
-        public void invoke(Tuple2<Long, Double> value, Context context) {
-            long now = System.currentTimeMillis();
-            long count = recordCount.incrementAndGet();
-            if (count == 1) firstRecordTime = now;
-            lastRecordTime = now;
-            Long eventTs = context.timestamp();
-            if (eventTs != null && eventTs > 0) {
-                long latency = now - eventTs;
-                if (latency >= 0) sinkHistogram.add(latency);
-            }
-        }
-
-        @Override
-        public void close() {
-            running = false;
-            long c = recordCount.get(); LatencyStats s = sinkHistogram.snapshot();
-            System.out.printf("[Sink-%d] FINAL records=%d firstRecord=%d lastRecord=%d%n",
-                subtaskIndex, c, firstRecordTime, lastRecordTime);
-            if (s.count > 0) {
-                System.out.printf("[Latency-TOTAL-%d] FINAL count=%d min=%dms p50=%dms p95=%dms p99=%dms max=%dms avg=%.1fms%n",
                     subtaskIndex, s.count, s.min, s.p50, s.p95, s.p99, s.max, s.avg);
             }
         }
@@ -389,98 +335,6 @@ public class ConfigurableGraphJob {
     }
 
     // ========== SOURCE ==========
-
-    public static class BidSource extends RichParallelSourceFunction<Bid> {
-        private static final long serialVersionUID = 1L;
-        private final GraphConfig config;
-        private volatile boolean running = true;
-
-        public BidSource(GraphConfig config) { this.config = config; }
-
-        @Override
-        public void run(SourceContext<Bid> ctx) throws Exception {
-            int parallelism = getRuntimeContext().getNumberOfParallelSubtasks();
-            int subtaskIndex = getRuntimeContext().getIndexOfThisSubtask();
-            int peakRate;
-            if (config.arrivalDistribution == GraphConfig.ArrivalDistribution.STEP)
-                peakRate = (int)(config.eventsPerSecond * config.stepHighRateFraction);
-            else if (config.arrivalDistribution == GraphConfig.ArrivalDistribution.SINE)
-                peakRate = (int)(config.eventsPerSecond * (1.0 + config.sineAmplitude));
-            else peakRate = config.eventsPerSecond;
-
-            int maxRatePerInstance = Math.max(1, peakRate / parallelism);
-            int queueCapacity = maxRatePerInstance * 2;
-            java.util.concurrent.ArrayBlockingQueue<Bid> queue = new java.util.concurrent.ArrayBlockingQueue<>(queueCapacity);
-            java.util.concurrent.atomic.AtomicLong generated = new java.util.concurrent.atomic.AtomicLong(0);
-            java.util.concurrent.atomic.AtomicLong dropped = new java.util.concurrent.atomic.AtomicLong(0);
-            java.util.concurrent.atomic.AtomicLong emitted = new java.util.concurrent.atomic.AtomicLong(0);
-            long start = System.currentTimeMillis();
-            long end = start + (config.durationSeconds * 1000L);
-
-            System.out.printf("[Source-%d/%d] NON-BLOCKING: dist=%s baseRate=%d peakRate=%d qCap=%d maxAge=%dms%n",
-                subtaskIndex+1, parallelism, config.arrivalDistribution, config.eventsPerSecond, peakRate, queueCapacity, config.maxEventAgeMs);
-
-            Thread producer = new Thread(() -> {
-                Random random = new Random();
-                Bid[] pool = new Bid[10_000];
-                for (int i = 0; i < pool.length; i++)
-                    pool[i] = new Bid(random.nextInt(1000), random.nextInt(10000), 10+random.nextDouble()*990, 0L);
-                int bps = 50; long batchNanos = 1_000_000_000L / bps;
-                long nextBatch = System.nanoTime(); int poolIdx = 0;
-                int ratePI = Math.max(1, config.eventsPerSecond / parallelism);
-                int batchSize = Math.max(1, ratePI / bps);
-                long lastRateUpdate = System.currentTimeMillis();
-
-                while (running && System.currentTimeMillis() < end) {
-                    long now = System.currentTimeMillis();
-                    if (now - lastRateUpdate >= 1000) {
-                        int globalRate = config.getInstantRate((now - start) / 1000.0);
-                        ratePI = Math.max(1, globalRate / parallelism);
-                        batchSize = Math.max(1, ratePI / bps);
-                        lastRateUpdate = now;
-                    }
-                    for (int i = 0; i < batchSize; i++) {
-                        Bid t = pool[poolIdx]; poolIdx = (poolIdx+1) % pool.length;
-                        generated.incrementAndGet();
-                        if (!queue.offer(new Bid(t.auctionId, t.bidderId, t.price, now))) dropped.incrementAndGet();
-                    }
-                    nextBatch += batchNanos;
-                    long sleepNanos = nextBatch - System.nanoTime();
-                    if (sleepNanos > 0) {
-                        try { Thread.sleep(sleepNanos/1_000_000, (int)(sleepNanos%1_000_000)); }
-                        catch (InterruptedException e) { return; }
-                    } else nextBatch = System.nanoTime();
-                }
-            }, "bid-producer-" + subtaskIndex);
-            producer.setDaemon(true); producer.start();
-
-            Thread logger = new Thread(() -> {
-                long lg=0, ld=0, le=0, lt=System.currentTimeMillis();
-                while (running && System.currentTimeMillis() < end) {
-                    try { Thread.sleep(10000); } catch (InterruptedException e) { return; }
-                    long now=System.currentTimeMillis(); long g=generated.get(), d=dropped.get(), e=emitted.get();
-                    double dt=(now-lt)/1000.0; double elapsed=(now-start)/1000.0;
-                    System.out.printf("[Source-%d] t=%.0fs target=%dk/s gen=%,d (%.0f/s) emit=%,d (%.0f/s) drop=%,d (%.1f%%) q=%d%n",
-                        subtaskIndex+1, elapsed, config.getInstantRate(elapsed)/1000,
-                        g,(g-lg)/dt, e,(e-le)/dt, d, g>0?(d*100.0/g):0, queue.size());
-                    lg=g; ld=d; le=e; lt=now;
-                }
-            }, "bid-logger-" + subtaskIndex);
-            logger.setDaemon(true); logger.start();
-
-            while (running && (System.currentTimeMillis() < end || !queue.isEmpty())) {
-                Bid bid = queue.poll(100, java.util.concurrent.TimeUnit.MILLISECONDS);
-                if (bid == null) continue;
-                synchronized (ctx.getCheckpointLock()) { ctx.collect(bid); }
-                emitted.incrementAndGet();
-            }
-            long g=generated.get(), d=dropped.get(), e=emitted.get();
-            System.out.printf("[Source-%d] FINALIZADO en %.1fs: generated=%,d, emitted=%,d, dropped=%,d (%.1f%%)%n",
-                subtaskIndex+1, (System.currentTimeMillis()-start)/1000.0, g, e, d, g>0?(d*100.0/g):0);
-        }
-
-        @Override public void cancel() { running = false; }
-    }
 
     // ========== TRANSFORMERS & AGGREGATORS ==========
 

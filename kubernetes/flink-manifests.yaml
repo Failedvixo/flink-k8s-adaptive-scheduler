@@ -68,6 +68,12 @@ spec:
         component: jobmanager
     spec:
       serviceAccountName: flink
+      # Pinned to the control-plane node because /var/thesis lives there as a hostPath: the
+      # patched flink-dist jar, the arm file, the published loads and the speeds vector. A
+      # JobManager scheduled anywhere else mounts an empty directory and the fork silently
+      # falls back to stock behaviour — which looks like a null result, not like a failure.
+      nodeSelector:
+        kubernetes.io/hostname: minikube
       containers:
       - name: jobmanager
         image: flink:2.3.0
@@ -80,6 +86,12 @@ spec:
         - containerPort: 8081
           name: webui
         env:
+        # Was set live by setup-shared-checkpoints.sh and therefore invisible to kubectl apply:
+        # bumping the image to 2.3.0 left this pointing at the 1.18 plugin and every
+        # container refused to start ("Plugin ... does not exist. Exiting."). Declared here
+        # so the manifest describes the deployment that actually runs.
+        - name: ENABLE_BUILT_IN_PLUGINS
+          value: flink-s3-fs-presto-2.3.0.jar
         - name: FLINK_PROPERTIES
           value: |
             jobmanager.rpc.address: flink-jobmanager
@@ -90,6 +102,14 @@ spec:
             parallelism.default: 2
             slot.request.timeout: 120000
             jobmanager.scheduler: adaptive
+            # Experimental control, not a scheduling change: decides how long surplus slots stay
+            # in the job's pool. The 2.x default inherits the 50s heartbeat timeout, which expires
+            # DURING the 60s measurement window. Control A ran without this line, control B with
+            # it; the difference between them is the measured cost of leaving it at the default.
+            #
+            # Goes in the JOBMANAGER block: the slot pool belongs to the job, and this anchor
+            # appears in the TaskManager block too, where it would do nothing.
+            slot.idle.timeout: 300000
             # Read from the JOBMANAGER's configuration (AdaptiveSchedulerFactory and
             # DefaultSlotPoolServiceSchedulerFactory) — setting it on the TaskManagers does
             # nothing at all. On 2.x this IS the baseline: NONE reproduces 1.18's absence of
@@ -98,8 +118,17 @@ spec:
             # versions of two of the thesis arms, so the comparison needs this pinned.
             taskmanager.load-balance.mode: NONE
             pipeline.max-parallelism: 120
-            state.savepoints.dir: file:///tmp/savepoints
-            state.checkpoints.dir: file:///tmp/checkpoints
+            # MinIO, not the container's /tmp. Local paths look fine until a rescale: the
+            # checkpoint is written by one TaskManager and restored by another, and the second
+            # one finds nothing ("FileNotFoundException: /tmp/checkpoints/.../chk-N"), so the job
+            # restart-loops. Was applied live by setup-shared-checkpoints.sh and therefore lost
+            # the moment the deployment was recreated from this file.
+            state.checkpoints.dir: s3://flink-checkpoints/checkpoints
+            state.savepoints.dir: s3://flink-checkpoints/savepoints
+            s3.endpoint: http://minio.flink.svc.cluster.local:9000
+            s3.path.style.access: true
+            s3.access-key: flinkcheckpoints
+            s3.secret-key: flinkcheckpoints
             execution.checkpointing.interval: 30s
             execution.checkpointing.mode: AT_LEAST_ONCE
             jobmanager.adaptive-scheduler.resource-stabilization-timeout: 10s
@@ -112,7 +141,12 @@ metadata:
   name: flink-taskmanager
   namespace: flink
 spec:
-  replicas: 5
+  # Zero on purpose. This is the UNIFORM pool, and the heterogeneous speed classes in
+  # flink-taskmanager-classes.yaml are what the campaigns run on. Declared at 5 it silently
+  # resurrected itself on every `kubectl apply`, undoing the scale-down the class switch had
+  # done and leaving five spurious TaskManagers in the cluster. Bring it back with
+  # scripts/set-taskmanager-classes.sh --homogeneous.
+  replicas: 0
   selector:
     matchLabels:
       app: flink
@@ -134,6 +168,12 @@ spec:
         - containerPort: 6122
           name: rpc
         env:
+        # Was set live by setup-shared-checkpoints.sh and therefore invisible to kubectl apply:
+        # bumping the image to 2.3.0 left this pointing at the 1.18 plugin and every
+        # container refused to start ("Plugin ... does not exist. Exiting."). Declared here
+        # so the manifest describes the deployment that actually runs.
+        - name: ENABLE_BUILT_IN_PLUGINS
+          value: flink-s3-fs-presto-2.3.0.jar
         - name: FLINK_PROPERTIES
           value: |
             jobmanager.rpc.address: flink-jobmanager
@@ -145,6 +185,16 @@ spec:
             slot.request.timeout: 120000
             jobmanager.scheduler: adaptive
             pipeline.max-parallelism: 120
-            state.checkpoints.dir: file:///tmp/checkpoints
+            # MinIO, not the container's /tmp. Local paths look fine until a rescale: the
+            # checkpoint is written by one TaskManager and restored by another, and the second
+            # one finds nothing ("FileNotFoundException: /tmp/checkpoints/.../chk-N"), so the job
+            # restart-loops. Was applied live by setup-shared-checkpoints.sh and therefore lost
+            # the moment the deployment was recreated from this file.
+            state.checkpoints.dir: s3://flink-checkpoints/checkpoints
+            state.savepoints.dir: s3://flink-checkpoints/savepoints
+            s3.endpoint: http://minio.flink.svc.cluster.local:9000
+            s3.path.style.access: true
+            s3.access-key: flinkcheckpoints
+            s3.secret-key: flinkcheckpoints
             execution.checkpointing.interval: 30s
             execution.checkpointing.mode: AT_LEAST_ONCE

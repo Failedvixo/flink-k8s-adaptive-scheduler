@@ -158,6 +158,41 @@ def registered_taskmanagers(base):
     return [tm["id"] for tm in payload.get("taskmanagers", [])]
 
 
+def slot_capacity(base):
+    """(TaskManagers, total slots) as the cluster reports them."""
+    payload = rest(base, "/taskmanagers")
+    if not payload:
+        return 0, 0
+    taskmanagers = payload.get("taskmanagers", [])
+    return len(taskmanagers), sum(int(tm.get("slotsNumber", 0)) for tm in taskmanagers)
+
+
+def assignment_from_rest(base, measurement, arm):
+    """
+    The assignment record rebuilt from Flink's own REST API instead of the fork's log.
+
+    UNMODIFIED Flink logs no `[THESIS_ASSIGN]` line, so measuring stock Flink as a baseline —
+    which is the only honest comparison now that 2.x ships its own load balancing — would
+    otherwise yield episodes with no `had_choice` and be discarded wholesale by the analysis.
+
+    Everything here is derivable: the slice count and the TaskManagers hosting them come from
+    the measurement, and the slot pool from /taskmanagers. `had_choice` is the one inference —
+    a rescale restarts the whole job, so every slot is free at the moment of assignment, and the
+    assigner therefore had a decision exactly when the pool is larger than the job is wide.
+    """
+    taskmanagers, total_slots = slot_capacity(base)
+    slices = measurement["slices"]
+    return {
+        "arm": arm,
+        "delegate": "stock",
+        "slices": slices,
+        "free_slots": total_slots,
+        "tms_available": taskmanagers or measurement["tms_total"],
+        "tms_used": measurement["tms_hosting"],
+        "had_choice": total_slots > slices,
+    }
+
+
 def job_vertices(base, jid):
     """[(vertex_id, name, parallelism)] for the job, in topological order."""
     detail = rest(base, f"/jobs/{jid}")
@@ -893,7 +928,13 @@ def main():
             # the epoch boundary misses the very line it is after.
             since = time.time() - epoch_started + 120
             assignment = applied_arm(args.namespace, since,
-                                     want_slices=measurement["slices"]) or {}
+                                      want_slices=measurement["slices"])
+            if not assignment:
+                # No assigner log line: either the fork is not deployed (a stock-Flink baseline
+                # run) or the line fell outside the lookback. Rebuilding from REST keeps the
+                # episode creditable instead of silently dropping it.
+                assignment = assignment_from_rest(
+                    args.rest, measurement, args.fixed_arm or "STOCK")
             arm = assignment.get("arm", args.fixed_arm or "UNKNOWN")
             state = discretise(measurement, bins)
             reward = reward_of(measurement, args.reward, args.blend_weight,

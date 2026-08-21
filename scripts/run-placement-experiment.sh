@@ -247,7 +247,23 @@ JM_POD=$(kubectl get pod -n "$NAMESPACE" -l component=jobmanager \
 
 FORK=$(kubectl get pod -n "$NAMESPACE" "$JM_POD" \
     -o jsonpath='{.spec.containers[0].env[?(@.name=="THESIS_SLOT_ASSIGNER")].value}')
-[ "$FORK" = "true" ] || { echo "ERROR: JobManager is not on the fork (scripts/deploy-thesis-fork.sh)" >&2; exit 1; }
+# Running against UNMODIFIED Flink is a legitimate configuration, not a mistake: since 2.x ships
+# its own load balancing, stock Flink is the baseline every arm has to beat. It has to be asked
+# for explicitly, though — an accidental stock run looks exactly like a campaign where every arm
+# tied, which is the failure mode this whole thesis already spent months on.
+if [ "$FORK" != "true" ]; then
+    if [ "${ALLOW_STOCK_JM:-0}" = "1" ]; then
+        echo "NOTE: JobManager is UNMODIFIED Flink. Measuring the stock baseline;"
+        echo "      the arm names below are labels, not policies — nothing is being selected."
+        STOCK_JM=1
+    else
+        echo "ERROR: JobManager is not on the fork (scripts/deploy-thesis-fork.sh)." >&2
+        echo "       To measure unmodified Flink as the baseline, set ALLOW_STOCK_JM=1." >&2
+        exit 1
+    fi
+else
+    STOCK_JM=0
+fi
 
 # ------------------------------------------------------------------
 # REST access
@@ -610,7 +626,7 @@ PUBLISHED_SPEEDS=$("$SCRIPT_DIR/publish-speeds.sh" --read 2>/dev/null | tr '\n' 
 ARMS="$ARMS" QUERY="$QUERY" DIST="$DIST" RATE="$RATE" REPS="$REPS" SCHEDULE="$SCHEDULE" \
 TM_DEPLOYMENTS="$TM_DEPLOYMENTS" DRAIN_DEPLOYMENTS="$DRAIN_DEPLOYMENTS" \
 PUBLISHED_SPEEDS="$PUBLISHED_SPEEDS" PUBLISH_LOADS="$PUBLISH_LOADS" \
-RECOVERY_INTERVAL="$RECOVERY_INTERVAL" \
+RECOVERY_INTERVAL="$RECOVERY_INTERVAL" STOCK_JM="${STOCK_JM:-0}" \
 SUBMIT_PAR="$SUBMIT_PAR" TARGET_PAR="$TARGET_PAR" TM_REPLICAS="$TM_REPLICAS" \
 SLOT_IDLE_TIMEOUT="$SLOT_IDLE_TIMEOUT" JOB_CLASS="$JOB_CLASS" CPU_LOAD="$CPU_LOAD" \
 PIN_VERTEX="$PIN_VERTEX" PIN_PARALLELISM="$PIN_PARALLELISM" \
@@ -651,6 +667,9 @@ print(json.dumps({
     "drain_replicas": os.environ.get("DRAIN_REPLICAS", ""),
     "published_loads": os.environ.get("PUBLISH_LOADS", ""),
     "recovery_sample_interval_s": os.environ.get("RECOVERY_INTERVAL", ""),
+    # 1 = the JobManager ran UNMODIFIED Flink and no arm was in force. Without this a stock
+    # baseline is indistinguishable from a fork campaign in which every arm tied.
+    "stock_jobmanager": int(os.environ.get("STOCK_JM", "0")),
     "drain_par": os.environ.get("DRAIN_PAR", ""),
     "poison_arm": os.environ.get("POISON_ARM", ""),
     "poison_schedule": os.environ.get("POISON_SCHEDULE", ""),
