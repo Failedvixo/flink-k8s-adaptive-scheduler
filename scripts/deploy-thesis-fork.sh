@@ -131,11 +131,44 @@ fi
 # Every class of the allocator package that the fork rebuilt, inner and
 # synthetic classes included: missing e.g. ThesisSlotAssigner\$1 (the switch map)
 # only fails at runtime, with a NoClassDefFoundError inside the scheduler.
-CLASS_COUNT=0
-while IFS= read -r class_file; do
-    (cd "$CLASS_DIR" && jar uf "$WORK_DIR/thesis.jar" "$class_file")
-    CLASS_COUNT=$((CLASS_COUNT + 1))
-done < <(cd "$CLASS_DIR" && find "$CLASS_PACKAGE" -name '*.class' | sort)
+#
+# Rewritten in Python rather than with `jar uf`, for two reasons found on 2.3:
+#   * JDK 17's jar tool VALIDATES the module descriptor on every update, and the 2.3
+#     flink-dist carries a shaded module-info whose ModulePackages attribute does not
+#     list every Jackson package — so `jar uf` dies with
+#     InvalidModuleDescriptorException before writing anything. JDK 11 did not check.
+#   * the old loop spawned one JVM per class file.
+# Appending duplicate entries would dodge the validation but leave two copies of
+# SlotSharingSlotAllocator in the archive, with the winner decided by the reader; this
+# substitutes instead, so the jar has exactly one of each class.
+CLASS_COUNT=$(CLASS_DIR="$CLASS_DIR" CLASS_PACKAGE="$CLASS_PACKAGE" JAR="$WORK_DIR/thesis.jar" python3 - <<'PY'
+import os, pathlib, shutil, sys, zipfile
+
+class_dir = pathlib.Path(os.environ["CLASS_DIR"])
+package = os.environ["CLASS_PACKAGE"]
+jar = pathlib.Path(os.environ["JAR"])
+
+patched = {
+    str(f.relative_to(class_dir)): f
+    for f in sorted((class_dir / package).rglob("*.class"))
+}
+if not patched:
+    print("0")
+    sys.exit(1)
+
+tmp = jar.with_suffix(".patched")
+with zipfile.ZipFile(jar) as src, zipfile.ZipFile(tmp, "w", zipfile.ZIP_DEFLATED) as dst:
+    for item in src.infolist():
+        if item.filename in patched:
+            continue
+        dst.writestr(item, src.read(item.filename))
+    for name, path in patched.items():
+        dst.writestr(name, path.read_bytes())
+shutil.move(tmp, jar)
+print(len(patched))
+PY
+)
+[ -n "$CLASS_COUNT" ] && [ "$CLASS_COUNT" -gt 0 ] || { log_error "No allocator classes were patched into the jar"; exit 1; }
 log_info "      Patched $CLASS_COUNT allocator classes into the jar"
 
 # ============================================
