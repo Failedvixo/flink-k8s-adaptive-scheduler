@@ -17,10 +17,14 @@
 # the algorithm it is meant to test.
 #
 # WHAT THIS CHANGES, AND WHAT IT DELIBERATELY DOES NOT.
-#   * CPU limit differs per class: 2 / 1.5 / 1 cores. The ratios are the bench's
-#     (1 : 0.75 : 0.5), scaled so the SLOWEST class is identical to the TaskManager
-#     every homogeneous run used — nothing is starved relative to those runs, and the
-#     comparison with them stays meaningful.
+#   * CPU limit differs per class: 4 / 2 / 1 cores — the ratio SP-Ant uses (Farrokh et
+#     al., ESWA 2022: one 4-core, two 2-core, two 1-core VMs) and close to Li et al.'s
+#     12/8/4. The earlier 2 / 1.5 / 1 was too narrow to matter: measured 2026-08-24,
+#     the capacity of the machines hosting the heavy slices correlated -0.28 with
+#     throughput, i.e. not at all.
+#   * A CPU limit only BINDS when a TaskManager hosts more busy subtasks than it has
+#     cores — a subtask is one thread, so a wider machine does not make it faster. That
+#     is why the workload must now run PIN_PARALLELISM above the TaskManager count.
 #   * Slot count does NOT differ: two slots everywhere. The bench's model has uniform
 #     slots and varying speed, and keeping that here means any difference between arms
 #     is attributable to speed alone rather than to a changed capacity distribution.
@@ -80,7 +84,7 @@ spec:
           name: rpc
         resources:
           limits:
-            cpu: "2"
+            cpu: "4"
         env:
         - name: ENABLE_BUILT_IN_PLUGINS
           value: flink-s3-fs-presto-2.3.0.jar
@@ -90,7 +94,13 @@ spec:
             jobmanager.rpc.port: 6123
             jobmanager.memory.process.size: 1024m
             taskmanager.memory.process.size: 1024m
-            taskmanager.numberOfTaskSlots: 2
+            # Four, not two. With only two slots per TaskManager the WORST placement is capped:
+            # at most two subtasks can be piled onto the 1-core machine, so a random placement
+            # loses only ~13% against the best one. At four slots a machine can genuinely be
+            # overloaded and that figure rises to ~33% — which is the margin a placement policy
+            # has to work with, and the reason more SLOTS matter here where more TASKMANAGERS
+            # do not (5 TMs at two slots each is still only ~10%). Li et al. also run 4.
+            taskmanager.numberOfTaskSlots: 4
             parallelism.default: 2
             slot.request.timeout: 120000
             jobmanager.scheduler: adaptive
@@ -150,7 +160,7 @@ spec:
           name: rpc
         resources:
           limits:
-            cpu: "1500m"
+            cpu: "2"
         env:
         - name: ENABLE_BUILT_IN_PLUGINS
           value: flink-s3-fs-presto-2.3.0.jar
@@ -160,7 +170,13 @@ spec:
             jobmanager.rpc.port: 6123
             jobmanager.memory.process.size: 1024m
             taskmanager.memory.process.size: 1024m
-            taskmanager.numberOfTaskSlots: 2
+            # Four, not two. With only two slots per TaskManager the WORST placement is capped:
+            # at most two subtasks can be piled onto the 1-core machine, so a random placement
+            # loses only ~13% against the best one. At four slots a machine can genuinely be
+            # overloaded and that figure rises to ~33% — which is the margin a placement policy
+            # has to work with, and the reason more SLOTS matter here where more TASKMANAGERS
+            # do not (5 TMs at two slots each is still only ~10%). Li et al. also run 4.
+            taskmanager.numberOfTaskSlots: 4
             parallelism.default: 2
             slot.request.timeout: 120000
             jobmanager.scheduler: adaptive
@@ -230,7 +246,13 @@ spec:
             jobmanager.rpc.port: 6123
             jobmanager.memory.process.size: 1024m
             taskmanager.memory.process.size: 1024m
-            taskmanager.numberOfTaskSlots: 2
+            # Four, not two. With only two slots per TaskManager the WORST placement is capped:
+            # at most two subtasks can be piled onto the 1-core machine, so a random placement
+            # loses only ~13% against the best one. At four slots a machine can genuinely be
+            # overloaded and that figure rises to ~33% — which is the margin a placement policy
+            # has to work with, and the reason more SLOTS matter here where more TASKMANAGERS
+            # do not (5 TMs at two slots each is still only ~10%). Li et al. also run 4.
+            taskmanager.numberOfTaskSlots: 4
             parallelism.default: 2
             slot.request.timeout: 120000
             jobmanager.scheduler: adaptive
