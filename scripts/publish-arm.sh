@@ -18,7 +18,7 @@
 # inside the container.
 #
 # Usage:
-#   scripts/publish-arm.sh STOCK|FCFS|DEFAULT|ROUND_ROBIN|LEAST_LOADED|LPT|ACO|GA
+#   scripts/publish-arm.sh STOCK|FCFS|DEFAULT|ROUND_ROBIN|LEAST_LOADED|LPT|PACK|ACO|GA|OPTIMAL
 #   scripts/publish-arm.sh --read      # what is published right now
 
 set -eu
@@ -36,9 +36,9 @@ if [ "$ARM" = "--read" ]; then
 fi
 
 case "$ARM" in
-    STOCK|FCFS|DEFAULT|ROUND_ROBIN|LEAST_LOADED|LPT|ACO|GA) ;;
+    STOCK|FCFS|DEFAULT|ROUND_ROBIN|LEAST_LOADED|LPT|PACK|ACO|GA|OPTIMAL) ;;
     *)
-        echo "Usage: $0 STOCK|FCFS|DEFAULT|ROUND_ROBIN|LEAST_LOADED|LPT|ACO|GA  |  $0 --read" >&2
+        echo "Usage: $0 STOCK|FCFS|DEFAULT|ROUND_ROBIN|LEAST_LOADED|LPT|PACK|ACO|GA|OPTIMAL  |  $0 --read" >&2
         exit 1
         ;;
 esac

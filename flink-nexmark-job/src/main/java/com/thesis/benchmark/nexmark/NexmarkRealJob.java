@@ -6,7 +6,9 @@ import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
+import com.thesis.benchmark.GraphConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.windowing.ProcessWindowFunction;
 import org.apache.flink.api.common.functions.JoinFunction;
@@ -61,6 +63,18 @@ public class NexmarkRealJob {
         String query       = args[8].toLowerCase();
         double zipfAlpha   = args.length > 9  ? Double.parseDouble(args[9])  : 0.5;
         int hotPool        = args.length > 10 ? Integer.parseInt(args[10])   : 1000;
+        SLOT_SHARING = args.length > 11 && !args[11].isEmpty()
+                ? GraphConfig.SlotSharingMode.valueOf(args[11].toUpperCase())
+                : GraphConfig.SlotSharingMode.SHARED;
+
+        // Only q8 has its stages assigned. Letting the mode through on another query
+        // would put every vertex in one propagated group, which is SHARED wearing a
+        // different name — indistinguishable in the results and therefore worse than
+        // refusing.
+        if (SLOT_SHARING != GraphConfig.SlotSharingMode.SHARED && !"q8".equals(query)) {
+            throw new IllegalArgumentException(
+                    "slot sharing mode " + SLOT_SHARING + " is only implemented for q8, got " + query);
+        }
 
         System.out.println("==========================================");
         System.out.println("  NEXMARK REAL — query=" + query);
@@ -79,8 +93,8 @@ public class NexmarkRealJob {
                 /*stepHighFrac*/  1.5,
                 zipfAlpha, maxEventAgeMs, hotPool);
 
-        DataStream<NexmarkEvent> events = env
-                .addSource(gen).name("nexmark-source").uid("nexmark-source")
+        DataStream<NexmarkEvent> events = g(env
+                .addSource(gen).name("nexmark-source").uid("nexmark-source"), "src", "nexmark-source")
                 .assignTimestampsAndWatermarks(
                         WatermarkStrategy.<NexmarkEvent>forBoundedOutOfOrderness(Duration.ofSeconds(2))
                                 .withTimestampAssigner((e, ts) -> e.eventTime));
@@ -104,7 +118,8 @@ public class NexmarkRealJob {
                         + " (supported: q0..q12)");
         }
 
-        env.execute("Nexmark-" + query.toUpperCase());
+        env.execute("Nexmark-" + query.toUpperCase()
+                + (SLOT_SHARING == GraphConfig.SlotSharingMode.SHARED ? "" : "[ssg=" + SLOT_SHARING + "]"));
     }
 
     // ----------------------------------------------------------------
@@ -201,6 +216,22 @@ public class NexmarkRealJob {
         }
     }
 
+    /**
+     * How this job packs operators into slots; see {@link GraphConfig.SlotSharingMode}.
+     * Static because the per-query builders are static and take only the stream.
+     */
+    private static GraphConfig.SlotSharingMode SLOT_SHARING = GraphConfig.SlotSharingMode.SHARED;
+
+    /** Puts an operator in its group, or leaves Flink's default alone under SHARED. */
+    private static <T> SingleOutputStreamOperator<T> g(
+            SingleOutputStreamOperator<T> operator, String stage, String vertex) {
+        switch (SLOT_SHARING) {
+            case PER_STAGE:     return operator.slotSharingGroup(stage);
+            case PER_OPERATOR:  return operator.slotSharingGroup(vertex);
+            default:            return operator;
+        }
+    }
+
     // ----------------------------------------------------------------
     //   Q8 — Monitor New Users
     //     Over a 10s tumbling event-time window, emit (person, auction)
@@ -210,19 +241,22 @@ public class NexmarkRealJob {
     //   inside the same window.
     // ----------------------------------------------------------------
     private static void runQ8(DataStream<NexmarkEvent> events, int heavyPar) {
-        DataStream<Person> persons = events
+        // The two branches are deliberately separate groups: they carry DIFFERENT loads
+        // (Nexmark emits far more auctions than persons) and are the cheapest genuinely
+        // asymmetric choice in this graph — which branch shares a machine with the join.
+        DataStream<Person> persons = g(g(events
                 .filter((FilterFunction<NexmarkEvent>) e -> e.type == NexmarkEvent.Type.PERSON)
-                .name("filter-persons").uid("filter-persons")
+                .name("filter-persons").uid("filter-persons"), "person", "filter-persons")
                 .map((MapFunction<NexmarkEvent, Person>) e -> e.person)
                 .returns(Person.class)
-                .name("project-person").uid("project-person");
+                .name("project-person").uid("project-person"), "person", "project-person");
 
-        DataStream<Auction> auctions = events
+        DataStream<Auction> auctions = g(g(events
                 .filter((FilterFunction<NexmarkEvent>) e -> e.type == NexmarkEvent.Type.AUCTION)
-                .name("filter-auctions").uid("filter-auctions")
+                .name("filter-auctions").uid("filter-auctions"), "auction", "filter-auctions")
                 .map((MapFunction<NexmarkEvent, Auction>) e -> e.auction)
                 .returns(Auction.class)
-                .name("project-auction").uid("project-auction");
+                .name("project-auction").uid("project-auction"), "auction", "project-auction");
 
         // JoinedStreams.WithWindow.apply() declares DataStream<T> but the runtime
         // instance is SingleOutputStreamOperator<T> — cast it back to recover
@@ -240,13 +274,19 @@ public class NexmarkRealJob {
                                 org.apache.flink.api.common.typeinfo.TypeInformation
                                         .of(new org.apache.flink.api.common.typeinfo.TypeHint<Tuple3<Long, Long, String>>(){}));
 
-        newUsers
+        // The join is the operator the whole exercise is about: it is state- and
+        // memory-bound rather than CPU-bound, so the machine that suits it best is not
+        // the one a scalar load model would pick.
+        g(newUsers
                 .setParallelism(heavyPar)
-                .name("new-users-join").uid("new-users-join");
+                .name("new-users-join").uid("new-users-join"), "join", "new-users-join");
 
-        newUsers
+        final DataStreamSink<Tuple3<Long, Long, String>> sink = newUsers
                 .addSink(new NewUsersSink())
                 .name("q8-sink").uid("q8-sink");
+        if (SLOT_SHARING != GraphConfig.SlotSharingMode.SHARED) {
+            sink.slotSharingGroup("snk");
+        }
     }
 
     /** Stdout sink for Q8 — periodic stats by sub-task. */

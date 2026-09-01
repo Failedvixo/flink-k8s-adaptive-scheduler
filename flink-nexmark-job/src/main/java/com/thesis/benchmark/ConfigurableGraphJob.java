@@ -8,6 +8,8 @@ import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.datastream.DataStreamSink;
+import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.windowing.assigners.EventTimeSessionWindows;
 import org.apache.flink.streaming.api.windowing.assigners.SlidingEventTimeWindows;
@@ -31,6 +33,43 @@ import java.util.concurrent.atomic.AtomicLong;
  */
 public class ConfigurableGraphJob {
 
+    /**
+     * Puts an operator in the slot sharing group its mode calls for, and leaves Flink's
+     * default alone under SHARED.
+     *
+     * <p>Called on every operator rather than only at the group boundaries: a slot sharing
+     * group PROPAGATES downstream, so an operator left unset silently joins whatever its
+     * input belongs to. Being explicit everywhere means the graph reads the same as the
+     * grouping it produces.
+     */
+    private static <T> SingleOutputStreamOperator<T> group(
+            SingleOutputStreamOperator<T> operator, GraphConfig config,
+            String stage, String vertex) {
+        switch (config.slotSharingMode) {
+            case PER_STAGE:
+                return operator.slotSharingGroup(stage);
+            case PER_OPERATOR:
+                return operator.slotSharingGroup(vertex);
+            case SHARED:
+            default:
+                return operator;
+        }
+    }
+
+    /** Same for a sink, which is a {@link DataStreamSink} and not an operator. */
+    private static <T> DataStreamSink<T> group(
+            DataStreamSink<T> sink, GraphConfig config, String stage, String vertex) {
+        switch (config.slotSharingMode) {
+            case PER_STAGE:
+                return sink.slotSharingGroup(stage);
+            case PER_OPERATOR:
+                return sink.slotSharingGroup(vertex);
+            case SHARED:
+            default:
+                return sink;
+        }
+    }
+
     public static void main(String[] args) throws Exception {
         GraphConfig config = GraphConfig.fromArgs(args);
         config.print();
@@ -42,10 +81,10 @@ public class ConfigurableGraphJob {
         DataStream<Bid> filtered = applyFilters(bids, config);
         DataStream<Bid> loaded = applyCpuLoad(filtered, config);
 
-        DataStream<Bid> trackedProcessing = loaded.map(new ProcessingLatencyTracker())
+        DataStream<Bid> trackedProcessing = group(loaded.map(new ProcessingLatencyTracker())
             .uid("latency-tracker")
             .name("Latency Tracker (processing)")
-            .setParallelism(config.globalParallelism);
+            .setParallelism(config.globalParallelism), config, "cpu", "tracker");
 
         DataStream<Tuple2<Long, Double>> transformed = applyTransformations(trackedProcessing, config);
         DataStream<Tuple2<Long, Double>> windowed = applyWindows(transformed, config);
@@ -59,31 +98,31 @@ public class ConfigurableGraphJob {
         // "Watermark Assigner" vertex is now folded into the source. That CHANGES THE JOB GRAPH:
         // one vertex fewer, and therefore one slice composition fewer. Campaigns run before the
         // 2.3 migration are not comparable on vertex counts.
-        return env.fromSource(
+        return group(env.fromSource(
                     new BidGeneratorSource(config),
                     WatermarkStrategy.<Bid>forBoundedOutOfOrderness(Duration.ofSeconds(5))
                         .withTimestampAssigner((bid, ts) -> bid.timestamp),
                     "Source: Bid Generator")
             .uid("bid-source")
             .setParallelism(config.sourceParallelism)
-            .name("Source: Bid Generator");
+            .name("Source: Bid Generator"), config, "src", "source");
     }
 
     private static DataStream<Bid> applyFilters(DataStream<Bid> stream, GraphConfig config) {
         if (config.enableHighValueFilter) {
-            stream = stream.filter(bid -> bid.price > config.minBidPrice)
+            stream = group(stream.filter(bid -> bid.price > config.minBidPrice)
                 .uid("filter-high-value")
-                .name("Filter: High Value Bids");
+                .name("Filter: High Value Bids"), config, "src", "filter-high-value");
         }
         if (config.enableAuctionFilter) {
-            stream = stream.filter(bid -> bid.auctionId < config.maxAuctionId)
+            stream = group(stream.filter(bid -> bid.auctionId < config.maxAuctionId)
                 .uid("filter-auction")
-                .name("Filter: Auction Range");
+                .name("Filter: Auction Range"), config, "src", "filter-auction");
         }
         if (config.enableBidderFilter) {
-            stream = stream.filter(bid -> bid.bidderId < config.maxBidderId)
+            stream = group(stream.filter(bid -> bid.bidderId < config.maxBidderId)
                 .uid("filter-bidder")
-                .name("Filter: Bidder Range");
+                .name("Filter: Bidder Range"), config, "src", "filter-bidder");
         }
         return stream;
     }
@@ -103,7 +142,7 @@ public class ConfigurableGraphJob {
         final int iterations = config.cpuLoadIterationsPerEvent;
         final long maxAge = config.maxEventAgeMs;
 
-        return stream.flatMap(new RichFlatMapFunction<Bid, Bid>() {
+        return group(stream.flatMap(new RichFlatMapFunction<Bid, Bid>() {
             private static final long serialVersionUID = 1L;
 
             private transient long processed;
@@ -186,21 +225,21 @@ public class ConfigurableGraphJob {
           .uid("cpu-load-simulator")
           .name("CPU Load Simulator (" + iterations + " iter/event, maxAge=" + maxAge + "ms)")
           .setParallelism(config.cpuLoadParallelism)
-          .disableChaining();
+          .disableChaining(), config, "cpu", "cpu-load");
     }
 
     private static DataStream<Tuple2<Long, Double>> applyTransformations(
             DataStream<Bid> stream, GraphConfig config) {
         if (config.enableCurrencyConversion) {
-            return stream.map(new CurrencyConverter())
+            return group(stream.map(new CurrencyConverter())
                 .uid("transform-currency")
                 .name("Transform: USD to EUR")
-                .setParallelism(config.transformParallelism);
+                .setParallelism(config.transformParallelism), config, "cpu", "transform");
         } else {
-            return stream.map(bid -> new Tuple2<>(bid.auctionId, bid.price))
+            return group(stream.map(bid -> new Tuple2<>(bid.auctionId, bid.price))
                 .uid("transform-extract")
                 .name("Transform: Extract Price")
-                .setParallelism(config.transformParallelism);
+                .setParallelism(config.transformParallelism), config, "cpu", "transform");
         }
     }
 
@@ -208,20 +247,20 @@ public class ConfigurableGraphJob {
             DataStream<Tuple2<Long, Double>> stream, GraphConfig config) {
         switch (config.windowType) {
             case TUMBLING:
-                return stream.keyBy(t -> t.f0)
+                return group(stream.keyBy(t -> t.f0)
                     .window(TumblingEventTimeWindows.of(Duration.ofSeconds(config.windowSizeSeconds)))
                     .aggregate(createAggregator(config))
-                    .uid("window-tumbling").name("Window: Tumbling");
+                    .uid("window-tumbling").name("Window: Tumbling"), config, "win", "window");
             case SLIDING:
-                return stream.keyBy(t -> t.f0)
+                return group(stream.keyBy(t -> t.f0)
                     .window(SlidingEventTimeWindows.of(Duration.ofSeconds(config.windowSizeSeconds), Duration.ofSeconds(config.slideSizeSeconds)))
                     .aggregate(createAggregator(config))
-                    .uid("window-sliding").name("Window: Sliding");
+                    .uid("window-sliding").name("Window: Sliding"), config, "win", "window");
             case SESSION:
-                return stream.keyBy(t -> t.f0)
+                return group(stream.keyBy(t -> t.f0)
                     .window(EventTimeSessionWindows.withGap(Duration.ofSeconds(config.sessionGapSeconds)))
                     .aggregate(createAggregator(config))
-                    .uid("window-session").name("Window: Session");
+                    .uid("window-session").name("Window: Session"), config, "win", "window");
             default:
                 throw new IllegalArgumentException("Unknown window type");
         }
@@ -240,9 +279,9 @@ public class ConfigurableGraphJob {
 
     private static void applyTrackedSinks(DataStream<Tuple2<Long, Double>> stream, GraphConfig config) {
         if (config.enableConsoleSink) {
-            stream.sinkTo(new TrackedConsoleSink())
+            group(stream.sinkTo(new TrackedConsoleSink())
                 .uid("sink-tracked").name("Sink: Tracked Console")
-                .setParallelism(config.sinkParallelism);
+                .setParallelism(config.sinkParallelism), config, "snk", "sink");
         }
     }
 
@@ -329,6 +368,13 @@ public class ConfigurableGraphJob {
 
     public static class Bid {
         public long auctionId; public long bidderId; public double price; public long timestamp;
+        /**
+         * Dead weight, sized by {@code payloadBytes} and shared by every Bid a source subtask emits.
+         * Never read; it exists so that crossing a TaskManager boundary costs serialization. Shared
+         * rather than allocated per record, because a fresh array per event would measure the
+         * garbage collector instead of the network.
+         */
+        public byte[] payload;
         public Bid() {}
         public Bid(long a, long b, double p, long t) { auctionId=a; bidderId=b; price=p; timestamp=t; }
         @Override public String toString() { return String.format("Bid(auction=%d,bidder=%d,price=%.2f)", auctionId, bidderId, price); }

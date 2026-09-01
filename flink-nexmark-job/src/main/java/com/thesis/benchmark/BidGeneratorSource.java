@@ -267,6 +267,9 @@ public class BidGeneratorSource implements Source<ConfigurableGraphJob.Bid, BidG
                                 0L);
             }
 
+            // One array for the whole subtask: see ConfigurableGraphJob.Bid.payload.
+            final byte[] payload = config.payloadBytes > 0 ? new byte[config.payloadBytes] : null;
+
             final int batchesPerSecond = 50;
             final long batchNanos = 1_000_000_000L / batchesPerSecond;
             long nextBatch = System.nanoTime();
@@ -290,6 +293,7 @@ public class BidGeneratorSource implements Source<ConfigurableGraphJob.Bid, BidG
                     generated.incrementAndGet();
                     final ConfigurableGraphJob.Bid bid =
                             new ConfigurableGraphJob.Bid(template.auctionId, template.bidderId, template.price, now);
+                    bid.payload = payload;
                     if (!queue.offer(bid)) {
                         // The pipeline cannot keep up. Dropping rather than blocking is the whole
                         // point: the arrival process must not be throttled by the thing under test.

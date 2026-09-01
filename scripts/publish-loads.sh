@@ -95,25 +95,64 @@ import json, sys
 for v in json.load(sys.stdin).get('vertices', []):
     print(v['id'], v.get('parallelism', 1), v.get('name', '')[:40].replace(' ', '_'))" 2>/dev/null)
 
-CONTENT=""
-while read -r VID PAR NAME; do
-    [ -n "$VID" ] || continue
-    TOTAL=0; COUNT=0
-    for i in $(seq 0 $((PAR - 1))); do
-        BUSY=$(jm_curl "/jobs/$JID/vertices/$VID/subtasks/$i/metrics?get=busyTimeMsPerSecond" |
-            python3 -c "
+# WHY THIS IS SAMPLED REPEATEDLY AND NOT READ ONCE (measured 2026-08-29):
+# `busyTimeMsPerSecond` is a short-window gauge, so a single read is a one-second
+# photograph. Two campaigns with identical configuration published vectors that
+# differed by up to 10x on the same vertex (Filter 26.7 vs 248.0 ms/s), which is
+# larger than the differences between the vertices the vector exists to rank.
+# Every capacity-aware arm consumes this: LPT sorts by it, ACO and GA score with
+# it. Optimising a noisy estimate is how four campaigns of real structure came
+# out looking like the noise floor. The median over several spaced samples costs
+# well under a minute against campaigns that run for hours.
+SAMPLES="${LOAD_SAMPLES:-9}"
+INTERVAL="${LOAD_INTERVAL:-2}"
+RAW="$(mktemp)"
+trap 'rm -f "$RAW"' EXIT
+
+echo "  sampling ${SAMPLES}x every ${INTERVAL}s..."
+for _round in $(seq 1 "$SAMPLES"); do
+    while read -r VID PAR NAME; do
+        [ -n "$VID" ] || continue
+        for i in $(seq 0 $((PAR - 1))); do
+            BUSY=$(jm_curl "/jobs/$JID/vertices/$VID/subtasks/$i/metrics?get=busyTimeMsPerSecond" |
+                python3 -c "
 import json, sys, math
 try:
     v = float(json.load(sys.stdin)[0]['value'])
     print(v if math.isfinite(v) else 0.0)
 except Exception:
     print(0.0)" 2>/dev/null || echo 0)
-        TOTAL=$(python3 -c "print($TOTAL + $BUSY)")
-        COUNT=$((COUNT + 1))
-    done
-    # Per-SUBTASK cost, not per-vertex: a slice contains one subtask, so summing
-    # vertex totals would weigh a wide operator as if every slice carried all of it.
-    COST=$(python3 -c "print(round($TOTAL / max(1, $COUNT), 3))")
+            echo "$VID $i $BUSY" >> "$RAW"
+        done
+    done <<< "$VERTICES"
+    [ "$_round" -lt "$SAMPLES" ] && sleep "$INTERVAL"
+done
+
+# Median per subtask across the rounds, then the mean across subtasks. Median
+# first because the outliers are transients — a GC pause, a checkpoint — that a
+# mean would carry straight into the placement.
+#
+# Per-SUBTASK cost, not per-vertex: a slice contains one subtask, so summing
+# vertex totals would weigh a wide operator as if every slice carried all of it.
+COSTS=$(python3 -c "
+import collections, statistics, sys
+samples = collections.defaultdict(list)
+for line in open('$RAW'):
+    parts = line.split()
+    if len(parts) == 3:
+        samples[(parts[0], parts[1])].append(float(parts[2]))
+byVertex = collections.defaultdict(list)
+for (vid, _subtask), values in samples.items():
+    byVertex[vid].append(statistics.median(values))
+for vid, medians in byVertex.items():
+    print(vid, round(sum(medians) / len(medians), 3))
+")
+
+CONTENT=""
+while read -r VID PAR NAME; do
+    [ -n "$VID" ] || continue
+    COST=$(echo "$COSTS" | awk -v v="$VID" '$1 == v {print $2}')
+    [ -n "$COST" ] || COST=0
     echo "  $NAME  par=$PAR  ${COST} ms/s per subtask"
     CONTENT="${CONTENT}${VID} ${COST}
 "

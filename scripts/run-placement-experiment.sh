@@ -58,6 +58,13 @@
 # Analyse:  python3 scripts/analyse_placement_experiment.py <that dir>
 
 set -u
+# Pathname expansion off for the whole script. Several settings are deliberately
+# word-split unquoted — SCHEDULE, ARMS, TM_DEPLOYMENTS — and a step written as "1*"
+# is a glob: with a file named 1-something in the working directory the shell
+# replaced it with that filename, the trailing star vanished, and the campaign
+# aborted with "SCHEDULE has no measured step". Nothing here relies on globbing,
+# and a run must not depend on what happens to be sitting in the current directory.
+set -f
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
@@ -147,6 +154,29 @@ NAMESPACE=flink
 JOB_CLASS="${JOB_CLASS:-com.thesis.benchmark.nexmark.NexmarkRealJob}"
 CPU_LOAD="${CPU_LOAD:-2500}"
 MAX_EVENT_AGE="${MAX_EVENT_AGE:-15000}"
+# How the job packs operators into slots. Empty (the default) leaves Flink's own slot
+# sharing alone, which is what every campaign up to 2026-08-28 measured.
+#
+# WHY IT MATTERS. Under default slot sharing the unit of placement is the SLICE, and a
+# slice holds one subtask of every vertex — so the slices are interchangeable by
+# construction and no arm can put a particular operator on a particular machine. That is
+# the symmetry behind the early null results, and adding operators does not break it.
+#
+#   SLOT_SHARING=PER_STAGE      source/filters, cpu chain, window, sink each placeable
+#   SLOT_SHARING=PER_OPERATOR   one group per vertex
+#
+# Slots stop being the MAXIMUM parallelism and become the SUM over groups, so the pool
+# fills up fast: on the 12-slot cluster PER_STAGE fits up to SUBMIT_PAR=3 and
+# PER_OPERATOR only at 2, where it leaves no free slot and therefore no decision at all.
+# The job prints its own requirement at startup ("Slots required").
+SLOT_SHARING="${SLOT_SHARING:-}"
+# Bytes of padding on every Bid, which is what gives an edge a price. Records are handed over by
+# reference inside one slot and serialized when they cross into another JVM, so with a 32-byte Bid
+# the two cost the same and a policy that ignores edges loses nothing by ignoring them. Padding puts
+# real CPU on the split. Only the Bid carries it, so the expensive edge is source/filters -> cpu
+# chain and nothing downstream — the smallest instance of SP-Ant's "collect for communication or
+# scatter for compute" dilemma. Empty or 0 reproduces every earlier campaign.
+PAYLOAD_BYTES="${PAYLOAD_BYTES:-}"
 JOB_WINDOW="${JOB_WINDOW:-10}"
 # Vertices matching this name pattern keep their parallelism through every
 # rescale. Leaving it empty scales everything, which is what the Nexmark runs did
@@ -328,11 +358,46 @@ scale_taskmanagers() {
         if [ "$current" != "$replicas" ]; then
             echo "  scaling $deployment $current -> $replicas"
             kubectl scale deployment "$deployment" -n "$NAMESPACE" --replicas="$replicas" >/dev/null
-            kubectl rollout status "deployment/$deployment" -n "$NAMESPACE" --timeout=180s >/dev/null
+        fi
+        # Always waited on, never only after a scale: a deployment already sitting at the
+        # requested replica count can still have a pod that never became ready (Pending on
+        # cpu, CrashLoopBackOff), and skipping the wait in that case let a whole campaign
+        # run with a TaskManager silently missing from the pool.
+        if ! kubectl rollout status "deployment/$deployment" -n "$NAMESPACE" \
+                --timeout=180s >/dev/null 2>&1; then
+            echo "  ! $deployment is not ready after 180s" >&2
         fi
     done
 }
 scale_taskmanagers "$TM_DEPLOYMENTS"
+
+# The pool the assigner will actually see. A campaign whose whole point is a contrast
+# between machine classes is void if one class never registered, so the mismatch is
+# reported up front instead of being discovered in the mapping= lines afterwards.
+assert_taskmanagers_registered() {
+    local expected="$1" registered=0 waited=0
+    [ -n "$expected" ] || return 0
+    ensure_port_forward
+    # Polled, not sampled once: a TaskManager that was registered with the PREVIOUS JobManager has
+    # to notice the new one through a heartbeat timeout, which takes about two minutes. Checking
+    # immediately after a deploy reports an empty cluster that is merely late.
+    while [ "$waited" -lt 210 ]; do
+        registered=$(jm_curl /overview | python3 -c \
+            'import json,sys; print(json.load(sys.stdin).get("taskmanagers", 0))' 2>/dev/null || echo 0)
+        [ "$registered" = "$expected" ] && break
+        [ "$waited" = 0 ] && echo "  waiting for TaskManagers to register ($registered/$expected)..."
+        sleep 10
+        waited=$((waited + 10))
+    done
+    echo "TaskManagers registered: $registered (expected $expected) after ${waited}s"
+    if [ "$registered" != "$expected" ]; then
+        echo "  ! WARNING: $((expected - registered)) TaskManager(s) missing from the pool;" >&2
+        echo "  ! placement arms will be compared over a smaller cluster than declared." >&2
+        [ "${REQUIRE_ALL_TMS:-0}" = "1" ] && exit 1
+    fi
+}
+EXPECTED_TMS=$(echo "$TM_DEPLOYMENTS" | tr ' ' '\n' | awk -F: 'NF{s+=$NF} END{print s+0}')
+assert_taskmanagers_registered "$EXPECTED_TMS"
 
 LOCAL_JAR="$ROOT_DIR/flink-nexmark-job/target/flink-nexmark-job-1.0.0.jar"
 [ -f "$LOCAL_JAR" ] || { echo "ERROR: build the benchmark first (cd flink-nexmark-job && mvn package)" >&2; exit 1; }
@@ -401,17 +466,37 @@ set_parallelism() {
 import json, os, re, sys
 data = json.load(sys.stdin)
 t = int(os.environ['TARGET'])
+# PIN accepts either a single pattern (with PINPAR as its width) or a list of
+# 'pattern:width' pairs separated by commas. Several pins at DIFFERENT widths are
+# what give the slices several distinct demand levels: a slice carries a vertex
+# only if that vertex's width reaches its index, so two pins at 2 and 4 over a
+# graph of width 6 produce three tiers of slice rather than two.
+#
+# That matters more than it sounds. Measured by enumeration on the latency
+# objective, a greedy's gap to the optimum is 0.0% with one demand level, ~3%
+# with two, and 6-9% with four — so a workload with a single pin cannot show a
+# placement policy doing anything, no matter how many operators the query has.
 pin = os.environ.get('PIN', '')
 pinpar = int(os.environ.get('PINPAR', '2'))
+pins = []
+if ':' in pin:
+    for part in pin.split(','):
+        pattern, _, width = part.rpartition(':')
+        if pattern.strip():
+            pins.append((pattern.strip(), int(width)))
+elif pin:
+    pins.append((pin, pinpar))
+
 reqs = {}
 for v in data.get('vertices', []):
     par = max(v.get('parallelism', 1), 1)
     name = v.get('name', '')
-    if pin and re.search(pin, name, re.IGNORECASE):
+    pinned = next((w for pattern, w in pins if re.search(pattern, name, re.IGNORECASE)), None)
+    if pinned is not None:
         # Held at a width the rest of the graph does not share. That gap is what
         # makes some slices carry this operator and others not — scaling it with
         # everything else would make every slice identical again.
-        reqs[v['id']] = {'parallelism': {'lowerBound': pinpar, 'upperBound': pinpar}}
+        reqs[v['id']] = {'parallelism': {'lowerBound': pinned, 'upperBound': pinned}}
     elif par > 1:
         reqs[v['id']] = {'parallelism': {'lowerBound': t, 'upperBound': t}}
     else:
@@ -461,13 +546,23 @@ for ARM in $ARMS; do
   # the heavy vertex's initial width.
   if [ "${JOB_CLASS##*.}" = "NexmarkRealJob" ]; then
       ARG6="$SUBMIT_PAR"
-      TAIL_ARGS="$(query_job_args "$QUERY")"
+      # Nexmark already uses args[8..10] for query/zipf/hotPool, so the mode lands at [11].
+      TAIL_ARGS="$(query_job_args "$QUERY") $SLOT_SHARING"
       WHAT="$QUERY"
   else
       ARG6="$PIN_PARALLELISM"
-      TAIL_ARGS=""
+      # The synthetic job stops at args[7], so the mode is args[8] and the payload args[9]. The
+      # mode has to be filled in when only a payload is asked for, or the payload would be read
+      # as the mode.
+      if [ -n "$PAYLOAD_BYTES" ]; then
+          TAIL_ARGS="${SLOT_SHARING:-SHARED} $PAYLOAD_BYTES"
+      else
+          TAIL_ARGS="$SLOT_SHARING"
+      fi
       WHAT="${JOB_CLASS##*.} (cpuLoad=${CPU_LOAD} iter/ev, cpuLoadPar=${PIN_PARALLELISM})"
   fi
+  [ -n "$SLOT_SHARING" ] && WHAT="$WHAT, slot sharing $SLOT_SHARING"
+  [ -n "$PAYLOAD_BYTES" ] && WHAT="$WHAT, payload ${PAYLOAD_BYTES}B"
 
   echo "  submitting $WHAT at parallelism $SUBMIT_PAR (duration ${JOB_DURATION}s)..."
   SUBMIT_OUT=$(kubectl exec -n "$NAMESPACE" "$JM_POD" -- \
@@ -626,7 +721,9 @@ PUBLISHED_SPEEDS=$("$SCRIPT_DIR/publish-speeds.sh" --read 2>/dev/null | tr '\n' 
 ARMS="$ARMS" QUERY="$QUERY" DIST="$DIST" RATE="$RATE" REPS="$REPS" SCHEDULE="$SCHEDULE" \
 TM_DEPLOYMENTS="$TM_DEPLOYMENTS" DRAIN_DEPLOYMENTS="$DRAIN_DEPLOYMENTS" \
 PUBLISHED_SPEEDS="$PUBLISHED_SPEEDS" PUBLISH_LOADS="$PUBLISH_LOADS" \
+SLOT_SHARING="$SLOT_SHARING" PAYLOAD_BYTES="$PAYLOAD_BYTES" \
 RECOVERY_INTERVAL="$RECOVERY_INTERVAL" STOCK_JM="${STOCK_JM:-0}" \
+JM_COST_WEIGHTS="$(kubectl get pod -n "$NAMESPACE" "$JM_POD" -o jsonpath='{range .spec.containers[0].env[?(@.name)]}{.name}={.value} {end}' 2>/dev/null | tr ' ' '\n' | grep '^THESIS_COST' | tr '\n' ' ')" \
 SUBMIT_PAR="$SUBMIT_PAR" TARGET_PAR="$TARGET_PAR" TM_REPLICAS="$TM_REPLICAS" \
 SLOT_IDLE_TIMEOUT="$SLOT_IDLE_TIMEOUT" JOB_CLASS="$JOB_CLASS" CPU_LOAD="$CPU_LOAD" \
 PIN_VERTEX="$PIN_VERTEX" PIN_PARALLELISM="$PIN_PARALLELISM" \
@@ -666,10 +763,16 @@ print(json.dumps({
     "pin_parallelism": os.environ.get("PIN_PARALLELISM", ""),
     "drain_replicas": os.environ.get("DRAIN_REPLICAS", ""),
     "published_loads": os.environ.get("PUBLISH_LOADS", ""),
+    "slot_sharing": os.environ.get("SLOT_SHARING", "") or "SHARED",
+    "payload_bytes": os.environ.get("PAYLOAD_BYTES", "") or "0",
     "recovery_sample_interval_s": os.environ.get("RECOVERY_INTERVAL", ""),
     # 1 = the JobManager ran UNMODIFIED Flink and no arm was in force. Without this a stock
     # baseline is indistinguishable from a fork campaign in which every arm tied.
     "stock_jobmanager": int(os.environ.get("STOCK_JM", "0")),
+    # Read off the RUNNING JobManager, not from this shell: the weights live in the pod's
+    # environment and are set at deploy time, so a campaign cannot change them and must not
+    # claim to. "" means the pod does not declare it and the fork's default applies.
+    "cost_weights": os.environ.get("JM_COST_WEIGHTS", ""),
     "drain_par": os.environ.get("DRAIN_PAR", ""),
     "poison_arm": os.environ.get("POISON_ARM", ""),
     "poison_schedule": os.environ.get("POISON_SCHEDULE", ""),

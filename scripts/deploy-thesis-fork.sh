@@ -48,12 +48,28 @@ log_error() {
 
 STRATEGY="${1:-ROUND_ROBIN}"
 case "$STRATEGY" in
-    STOCK|FCFS|DEFAULT|ROUND_ROBIN|LEAST_LOADED|LPT|ACO|GA) ;;
+    STOCK|FCFS|DEFAULT|ROUND_ROBIN|LEAST_LOADED|LPT|PACK|ACO|GA) ;;
     *)
-        log_error "Unknown strategy '$STRATEGY' (expected STOCK, FCFS, ROUND_ROBIN, LEAST_LOADED, LPT, ACO or GA)"
+        log_error "Unknown strategy '$STRATEGY' (expected STOCK, FCFS, ROUND_ROBIN, LEAST_LOADED, LPT, PACK, ACO or GA)"
         exit 1
         ;;
 esac
+
+# The cost weights belong to the DEPLOYMENT, not to a campaign run: they change what the
+# JobManager's cost function means, and the JobManager is a different process in a different pod
+# from the shell that launches a campaign. Setting them there does nothing at all — the run would
+# silently measure weight 0 while the log said otherwise.
+#
+# THESIS_COST_COMMUNICATION defaults to 0 because the term did not exist when the earlier campaigns
+# ran; switching it on changes what ACO and GA optimise.
+COST_BALANCE="${THESIS_COST_BALANCE:-1.0}"
+COST_LOCALITY="${THESIS_COST_LOCALITY:-1.0}"
+COST_COMMUNICATION="${THESIS_COST_COMMUNICATION:-0.0}"
+# DISPERSION scores balance as the spread of load across TaskManagers; MAKESPAN scores it as the
+# busiest machine alone. They are different problems, not two readings of one: a sum is separable
+# and a greedy solves it exactly, while min-max is the NP-hard one and is what actually sets
+# end-to-end latency. Default stays DISPERSION so every earlier campaign keeps its meaning.
+COST_BALANCE_METRIC="${THESIS_COST_BALANCE_METRIC:-DISPERSION}"
 
 FORK_DIR="${FORK_DIR:-$HOME/projects/flink-custom-scheduler}"
 # Flink 2.x RUNS on Java 11 but BUILDS against 17 — compiling the patched classes with 11
@@ -72,6 +88,8 @@ trap 'rm -rf "$WORK_DIR"' EXIT
 
 echo "=========================================="
 echo "  Deploy thesis fork  (strategy: $STRATEGY)"
+echo "  cost weights: balance=$COST_BALANCE locality=$COST_LOCALITY communication=$COST_COMMUNICATION"
+echo "  balance metric: $COST_BALANCE_METRIC"
 echo "=========================================="
 echo ""
 
@@ -122,9 +140,15 @@ log_info "[2/6] Compiling flink-runtime..."
 # 3. Patch the jar
 # ============================================
 log_info "[3/6] Building patched $FLINK_DIST_JAR..."
-kubectl cp -n "$NAMESPACE" "$TM_POD:/opt/flink/lib/$FLINK_DIST_JAR" "$WORK_DIR/thesis.jar" >/dev/null 2>&1
+# `|| true` is load-bearing: with `set -e` a failing kubectl cp aborts the script on this
+# very line, and with stderr silenced it does so WITHOUT PRINTING ANYTHING — the check below
+# was unreachable dead code. Observed 2026-08-26: the deploy stopped after "[3/6]" with no
+# message at all. Keep the failure, report it, and show what kubectl actually said.
+kubectl cp -n "$NAMESPACE" "$TM_POD:/opt/flink/lib/$FLINK_DIST_JAR" "$WORK_DIR/thesis.jar" \
+    >/dev/null 2>"$WORK_DIR/cp.err" || true
 if [ ! -s "$WORK_DIR/thesis.jar" ]; then
     log_error "Failed to copy the base jar out of $TM_POD"
+    [ -s "$WORK_DIR/cp.err" ] && sed 's/^/         kubectl: /' "$WORK_DIR/cp.err" >&2
     exit 1
 fi
 
@@ -199,7 +223,11 @@ kubectl patch deployment flink-jobmanager -n "$NAMESPACE" --type=strategic -p "$
             "env": [
               {"name": "THESIS_SLOT_ASSIGNER", "value": "true"},
               {"name": "THESIS_ASSIGN_STRATEGY", "value": "$STRATEGY"},
-              {"name": "THESIS_ARM_FILE", "value": "$ARM_FILE"}
+              {"name": "THESIS_ARM_FILE", "value": "$ARM_FILE"},
+              {"name": "THESIS_COST_BALANCE", "value": "$COST_BALANCE"},
+              {"name": "THESIS_COST_LOCALITY", "value": "$COST_LOCALITY"},
+              {"name": "THESIS_COST_COMMUNICATION", "value": "$COST_COMMUNICATION"},
+              {"name": "THESIS_COST_BALANCE_METRIC", "value": "$COST_BALANCE_METRIC"}
             ],
             "volumeMounts": [
               {

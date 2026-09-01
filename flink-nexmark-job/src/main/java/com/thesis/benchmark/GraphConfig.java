@@ -56,6 +56,51 @@ public class GraphConfig implements java.io.Serializable {
     // autoscaler cannot recover from a bad scaling decision by waiting it out.
     public double rampStartRateFraction = 0.25;
 
+    /**
+     * How the operators are packed into slots, which decides whether placement is a
+     * decision at all.
+     *
+     * <p>SHARED is Flink's default and what every campaign before this used: one slot
+     * sharing group for the whole pipeline, so each slot holds one subtask of EVERY
+     * vertex. Under it the slices are interchangeable by construction — an arm cannot
+     * "put the join on the fast machine", because the join's subtasks are spread across
+     * all slices along with everything else. Adding operators (Q8) does not help; it
+     * makes every slice heavier and MORE alike.
+     *
+     * <p>PER_STAGE gives each resource profile its own group — source/filters (I/O),
+     * cpu-load chain (CPU), window (state and memory), sink — so a stage becomes an
+     * independently placeable unit whose machine can be chosen on its own merits.
+     *
+     * <p>PER_OPERATOR is the maximal version, one group per vertex. It costs the most
+     * slots and the most network, and exists to bound how far the effect goes.
+     *
+     * <p>Breaking the sharing is not free: slots needed stop being the MAXIMUM
+     * parallelism and become the SUM over groups, and data that used to stay inside one
+     * slot now crosses the network. Both are the point rather than a side effect — the
+     * second is what makes the communication term of the cost function do anything.
+     */
+    /**
+     * Bytes of dead weight carried by every Bid, which is how an edge is made expensive.
+     *
+     * <p>Records only pay to be serialized when they cross a slot boundary into another JVM; inside
+     * one slot they are handed over by reference. A 32-byte Bid makes that difference unmeasurable,
+     * so the cost of splitting two communicating stages across machines stays invisible and a
+     * placement policy that ignores edges — LPT does, by construction — loses nothing by ignoring
+     * them. Padding the record turns serialization into real CPU on the scarce resource.
+     *
+     * <p>Only the Bid carries it, so exactly ONE edge is expensive: source/filters to the cpu chain.
+     * Downstream of the currency conversion the records are Tuple2 and cheap again. That is
+     * deliberate — one costly edge is the smallest instance in which "collect the communicating
+     * operators or scatter them for compute" (SP-Ant, Farrokh et al. 2022) is a real dilemma.
+     *
+     * <p>0 disables it and reproduces every earlier campaign exactly.
+     */
+    public int payloadBytes = 0;
+
+    public enum SlotSharingMode { SHARED, PER_STAGE, PER_OPERATOR }
+
+    public SlotSharingMode slotSharingMode = SlotSharingMode.SHARED;
+
     public enum WindowType { TUMBLING, SLIDING, SESSION }
     public enum AggregationType { SUM, AVERAGE, COUNT, MAX, MIN }
     public enum ArrivalDistribution { CONSTANT, STEP, SINE, RAMP }
@@ -88,8 +133,13 @@ public class GraphConfig implements java.io.Serializable {
     }
     
     /**
-     * Args: rate duration parallelism window cpuLoad arrivalDist cpuLoadParallelism maxEventAgeMs
-     *        [0]   [1]       [2]      [3]    [4]       [5]           [6]               [7]
+     * Args: rate duration parallelism window cpuLoad arrivalDist cpuLoadParallelism maxEventAgeMs slotSharing payloadBytes
+     *        [0]   [1]       [2]      [3]    [4]       [5]           [6]               [7]           [8]         [9]
+     *
+     * Positional and not an environment variable on purpose: a misread env var would
+     * silently produce a campaign that looks fine and measures the wrong graph, which
+     * has already happened once here with JOB_CLASS. The mode is echoed into the job
+     * NAME instead, so job-details.json records which world a run belongs to.
      */
     public static GraphConfig fromArgs(String[] args) {
         GraphConfig config = new GraphConfig();
@@ -103,6 +153,10 @@ public class GraphConfig implements java.io.Serializable {
         }
         if (args.length > 6) config.cpuLoadParallelism = Integer.parseInt(args[6]);
         if (args.length > 7) config.maxEventAgeMs = Long.parseLong(args[7]);
+        if (args.length > 8 && !args[8].isEmpty()) {
+            config.slotSharingMode = SlotSharingMode.valueOf(args[8].toUpperCase());
+        }
+        if (args.length > 9 && !args[9].isEmpty()) config.payloadBytes = Integer.parseInt(args[9]);
         
         config.sourceParallelism = Math.max(1, config.globalParallelism / 2);
         config.transformParallelism = config.globalParallelism;
@@ -113,6 +167,40 @@ public class GraphConfig implements java.io.Serializable {
         return config;
     }
     
+    /**
+     * Slots the job needs AT SUBMISSION, which is the sum over slot sharing groups of the
+     * widest vertex in each. Printed because exceeding the pool does not fail loudly — the
+     * job simply sits waiting for resources that will never arrive, and a campaign burns
+     * its whole schedule before anyone notices.
+     *
+     * <p>Only the submission-time figure: the adaptive scheduler rescales vertices
+     * afterwards, so the running job's requirement moves with the parallelism it lands on.
+     */
+    public int slotsRequired() {
+        int filters = (enableHighValueFilter || enableAuctionFilter || enableBidderFilter)
+            ? globalParallelism : 0;
+        switch (slotSharingMode) {
+            case PER_STAGE:
+                return Math.max(sourceParallelism, filters)
+                    + Math.max(cpuLoadParallelism, Math.max(globalParallelism, transformParallelism))
+                    + globalParallelism
+                    + sinkParallelism;
+            case PER_OPERATOR:
+                int total = sourceParallelism + cpuLoadParallelism + globalParallelism
+                    + transformParallelism + globalParallelism + sinkParallelism;
+                if (enableHighValueFilter) total += globalParallelism;
+                if (enableAuctionFilter) total += globalParallelism;
+                if (enableBidderFilter) total += globalParallelism;
+                return total;
+            case SHARED:
+            default:
+                return Math.max(globalParallelism,
+                    Math.max(sourceParallelism,
+                        Math.max(cpuLoadParallelism,
+                            Math.max(transformParallelism, sinkParallelism))));
+        }
+    }
+
     public void print() {
         System.out.println("==========================================");
         System.out.println("  Graph Configuration");
@@ -149,6 +237,12 @@ public class GraphConfig implements java.io.Serializable {
         System.out.println("  Transform:       " + transformParallelism);
         System.out.println("  Sink:            " + sinkParallelism);
         System.out.println();
+        System.out.println("Slot sharing:      " + slotSharingMode
+            + (slotSharingMode == SlotSharingMode.SHARED ? " (Flink default)" : " (BROKEN — placement per group)"));
+        System.out.println("  Slots required:  " + slotsRequired() + " at submission");
+        System.out.println("Record payload:    "
+            + (payloadBytes > 0 ? payloadBytes + " bytes per Bid" : "none (32-byte Bid)"));
+        System.out.println();
         System.out.println("Graph Topology:");
         System.out.println("  High value filter:     " + (enableHighValueFilter ? "YES" : "NO"));
         System.out.println("  Currency conversion:   " + (enableCurrencyConversion ? "YES" : "NO"));
@@ -175,9 +269,14 @@ public class GraphConfig implements java.io.Serializable {
         if (cpuLoadParallelism != globalParallelism) {
             cpuParSuffix = ",cpuPar=" + cpuLoadParallelism;
         }
-        return String.format("Nexmark-Config[rate=%dk,par=%d,win=%s-%ds,cpu=%d%s%s%s]",
+        String payloadSuffix = payloadBytes > 0 ? ",pay=" + payloadBytes + "B" : "";
+        String ssgSuffix = "";
+        if (slotSharingMode != SlotSharingMode.SHARED) {
+            ssgSuffix = ",ssg=" + slotSharingMode;
+        }
+        return String.format("Nexmark-Config[rate=%dk,par=%d,win=%s-%ds,cpu=%d%s%s%s%s%s]",
             eventsPerSecond / 1000, globalParallelism,
             windowType.toString().substring(0, 3), windowSizeSeconds,
-            cpuLoadIterationsPerEvent, distSuffix, ageSuffix, cpuParSuffix);
+            cpuLoadIterationsPerEvent, distSuffix, ageSuffix, cpuParSuffix, ssgSuffix, payloadSuffix);
     }
 }

@@ -83,6 +83,14 @@ spec:
         - containerPort: 6122
           name: rpc
         resources:
+          # Only the LIMIT creates the heterogeneity — it is what throttles the container. The
+          # REQUEST is what Kubernetes reserves, and left unset it defaults to the limit: the three
+          # classes then reserved 4+2+1 = 7 of the node's 12 cores permanently, and a rolling update
+          # needed double that while the old pod lingered, so a replacement landed in OutOfcpu and
+          # took a TaskManager out of the pool mid-deploy (observed 2026-08-26). A small explicit
+          # request keeps the scheduler out of the way without changing what the container may use.
+          requests:
+            cpu: "250m"
           limits:
             cpu: "4"
         env:
@@ -94,13 +102,23 @@ spec:
             jobmanager.rpc.port: 6123
             jobmanager.memory.process.size: 1024m
             taskmanager.memory.process.size: 1024m
-            # Four, not two. With only two slots per TaskManager the WORST placement is capped:
+            # Slots are INVERSE to cores on purpose: fast 2, medium 4, slow 6 (twelve in total,
+            # as before). Symmetric slots let any policy spread and dodge the conflict, which is
+            # why every campaign found a greedy to be exactly optimal. Capping the FAST machine at
+            # two slots makes the good cores the scarce resource, so the placement has to CHOOSE
+            # which two slices get them. Measured by enumeration on the latency objective, that
+            # raises LPT's gap from 0.0% to 7-9% mean (33% worst). 8/4/1 does NOT work — one slot
+            # on fast leaves no decision at all.
+            # Slot count is an operational knob independent of core count, so this is a legitimate
+            # configuration, not a rigged one: fewer, larger slots on a big machine is a real
+            # deployment pattern.
+            # (previous note) With only two slots per TaskManager the WORST placement is capped:
             # at most two subtasks can be piled onto the 1-core machine, so a random placement
             # loses only ~13% against the best one. At four slots a machine can genuinely be
             # overloaded and that figure rises to ~33% — which is the margin a placement policy
             # has to work with, and the reason more SLOTS matter here where more TASKMANAGERS
             # do not (5 TMs at two slots each is still only ~10%). Li et al. also run 4.
-            taskmanager.numberOfTaskSlots: 4
+            taskmanager.numberOfTaskSlots: 2
             parallelism.default: 2
             slot.request.timeout: 120000
             jobmanager.scheduler: adaptive
@@ -159,6 +177,14 @@ spec:
         - containerPort: 6122
           name: rpc
         resources:
+          # Only the LIMIT creates the heterogeneity — it is what throttles the container. The
+          # REQUEST is what Kubernetes reserves, and left unset it defaults to the limit: the three
+          # classes then reserved 4+2+1 = 7 of the node's 12 cores permanently, and a rolling update
+          # needed double that while the old pod lingered, so a replacement landed in OutOfcpu and
+          # took a TaskManager out of the pool mid-deploy (observed 2026-08-26). A small explicit
+          # request keeps the scheduler out of the way without changing what the container may use.
+          requests:
+            cpu: "250m"
           limits:
             cpu: "2"
         env:
@@ -170,7 +196,17 @@ spec:
             jobmanager.rpc.port: 6123
             jobmanager.memory.process.size: 1024m
             taskmanager.memory.process.size: 1024m
-            # Four, not two. With only two slots per TaskManager the WORST placement is capped:
+            # Slots are INVERSE to cores on purpose: fast 2, medium 4, slow 6 (twelve in total,
+            # as before). Symmetric slots let any policy spread and dodge the conflict, which is
+            # why every campaign found a greedy to be exactly optimal. Capping the FAST machine at
+            # two slots makes the good cores the scarce resource, so the placement has to CHOOSE
+            # which two slices get them. Measured by enumeration on the latency objective, that
+            # raises LPT's gap from 0.0% to 7-9% mean (33% worst). 8/4/1 does NOT work — one slot
+            # on fast leaves no decision at all.
+            # Slot count is an operational knob independent of core count, so this is a legitimate
+            # configuration, not a rigged one: fewer, larger slots on a big machine is a real
+            # deployment pattern.
+            # (previous note) With only two slots per TaskManager the WORST placement is capped:
             # at most two subtasks can be piled onto the 1-core machine, so a random placement
             # loses only ~13% against the best one. At four slots a machine can genuinely be
             # overloaded and that figure rises to ~33% — which is the margin a placement policy
@@ -235,6 +271,14 @@ spec:
         - containerPort: 6122
           name: rpc
         resources:
+          # Only the LIMIT creates the heterogeneity — it is what throttles the container. The
+          # REQUEST is what Kubernetes reserves, and left unset it defaults to the limit: the three
+          # classes then reserved 4+2+1 = 7 of the node's 12 cores permanently, and a rolling update
+          # needed double that while the old pod lingered, so a replacement landed in OutOfcpu and
+          # took a TaskManager out of the pool mid-deploy (observed 2026-08-26). A small explicit
+          # request keeps the scheduler out of the way without changing what the container may use.
+          requests:
+            cpu: "250m"
           limits:
             cpu: "1"
         env:
@@ -246,13 +290,23 @@ spec:
             jobmanager.rpc.port: 6123
             jobmanager.memory.process.size: 1024m
             taskmanager.memory.process.size: 1024m
-            # Four, not two. With only two slots per TaskManager the WORST placement is capped:
+            # Slots are INVERSE to cores on purpose: fast 2, medium 4, slow 6 (twelve in total,
+            # as before). Symmetric slots let any policy spread and dodge the conflict, which is
+            # why every campaign found a greedy to be exactly optimal. Capping the FAST machine at
+            # two slots makes the good cores the scarce resource, so the placement has to CHOOSE
+            # which two slices get them. Measured by enumeration on the latency objective, that
+            # raises LPT's gap from 0.0% to 7-9% mean (33% worst). 8/4/1 does NOT work — one slot
+            # on fast leaves no decision at all.
+            # Slot count is an operational knob independent of core count, so this is a legitimate
+            # configuration, not a rigged one: fewer, larger slots on a big machine is a real
+            # deployment pattern.
+            # (previous note) With only two slots per TaskManager the WORST placement is capped:
             # at most two subtasks can be piled onto the 1-core machine, so a random placement
             # loses only ~13% against the best one. At four slots a machine can genuinely be
             # overloaded and that figure rises to ~33% — which is the margin a placement policy
             # has to work with, and the reason more SLOTS matter here where more TASKMANAGERS
             # do not (5 TMs at two slots each is still only ~10%). Li et al. also run 4.
-            taskmanager.numberOfTaskSlots: 4
+            taskmanager.numberOfTaskSlots: 6
             parallelism.default: 2
             slot.request.timeout: 120000
             jobmanager.scheduler: adaptive
