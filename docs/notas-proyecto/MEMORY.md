@@ -18,3 +18,4 @@
 - [Resultado citable — campaña 20260830](project_headline_result.md) — LPT +33% y ACO +34% pasando Bonferroni; por qué las campañas previas subestiman
 - [Comunicación: cerrada con doble nulo](project_communication_closed.md) — el mecanismo cambia las decisiones pero no hay red que ahorrar en un host único
 - [Costo de romper el slot sharing](project_slot_sharing_cost.md) — nada en throughput, 3.5x en slots; y por qué SHARED a par 2 es inestable con CPU_LOAD=2500
+- [El modelo de costo no predice el throughput](project_cost_model_does_not_predict.md) — OPTIMAL vs LPT: 1.6% medido contra 15.6% predicho; un slot reserva memoria, no CPU
