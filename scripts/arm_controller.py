@@ -81,6 +81,7 @@ svc/flink-jobmanager 8081:8081) and that the JobManager runs the fork
 (scripts/deploy-thesis-fork.sh).
 """
 import argparse
+import concurrent.futures
 import csv
 import json
 import math
@@ -131,14 +132,51 @@ RX_ASSIGN = re.compile(
 # ---------------------------------------------------------------------------
 # Flink REST
 # ---------------------------------------------------------------------------
+# Set by main() when --jm-pod is given: every REST call then goes through
+# `kubectl exec` into the JobManager instead of a host port-forward.
+_JM_POD = None
+_NAMESPACE = "flink"
+
+
 def rest(base, path, timeout=5.0):
-    """GET a JSON document from the Flink REST API, or None if it is unreachable."""
-    url = f"{base}{path}"
-    try:
-        with urllib.request.urlopen(url, timeout=timeout) as response:
-            return json.loads(response.read().decode("utf-8"))
-    except (urllib.error.URLError, OSError, ValueError, json.JSONDecodeError):
-        return None
+    """GET a JSON document from the Flink REST API, or None if it is unreachable.
+
+    WHY THERE IS A POD TRANSPORT AT ALL (2026-09-03). This controller was the last
+    component still reaching Flink over `kubectl port-forward`, and that is how a
+    campaign came to record three episodes out of eight measurements. The driver
+    performed every rescale and logged HTTP 200 for each; the controller, polling a
+    tunnel that had quietly died, never saw a placement change after the first
+    minute and simply sat there. Nothing errored — the run looked healthy and the
+    data was not collected. A dead tunnel is indistinguishable from a cluster where
+    nothing happens, which is the worst possible failure for an observer.
+
+    NOT retried, unlike every other call into this cluster, and that is deliberate.
+    Elsewhere a lost call costs a measurement, so retrying is worth the wait. Here
+    the controller polls in a loop, so a failed call is retried a second later by
+    construction — while a retry INSIDE the call blinds it. Measured 2026-09-07:
+    with three attempts at forty seconds each, one snapshot could stall for minutes
+    and the controller registered two placement changes where the driver performed
+    eight. Fail fast and let the loop handle it.
+    """
+    for attempt in range(1):
+        if _JM_POD:
+            try:
+                out = subprocess.run(
+                    ["kubectl", "exec", "-n", _NAMESPACE, _JM_POD, "--",
+                     "curl", "-s", "-m", str(int(max(timeout, 5))),
+                     f"http://localhost:8081{path}"],
+                    capture_output=True, text=True, timeout=max(timeout, 5) + 10)
+                if out.returncode == 0 and out.stdout.strip():
+                    return json.loads(out.stdout)
+            except (subprocess.SubprocessError, ValueError, json.JSONDecodeError):
+                pass
+        else:
+            try:
+                with urllib.request.urlopen(f"{base}{path}", timeout=timeout) as response:
+                    return json.loads(response.read().decode("utf-8"))
+            except (urllib.error.URLError, OSError, ValueError, json.JSONDecodeError):
+                pass
+    return None
 
 
 def running_job(base):
@@ -189,7 +227,8 @@ def assignment_from_rest(base, measurement, arm):
         "free_slots": total_slots,
         "tms_available": taskmanagers or measurement["tms_total"],
         "tms_used": measurement["tms_hosting"],
-        "had_choice": total_slots > slices,
+        "had_choice": (total_slots > slices
+                       or (CHOICE_RULE == "permutation" and len(all_taskmanagers) > 1)),
     }
 
 
@@ -202,6 +241,34 @@ def job_vertices(base, jid):
         (v["id"], v.get("name", ""), int(v.get("parallelism", 0)))
         for v in detail.get("vertices", [])
     ]
+
+
+def graph_roles(detail):
+    """({source vertex ids}, {sink vertex ids}) from the job plan.
+
+    WHY NOT `vertices[0]` AND `vertices[-1]`, which is what this file used to do.
+    That holds while a job has exactly one source and one sink, which was true of
+    the project's own generator: it emitted one tagged stream that the query then
+    filtered. The reference Nexmark implementation has a source per event type, so
+    Q8 has TWO — persons at a quarter of the rate and auctions at three quarters —
+    and position 0 is whichever one Flink happens to list first.
+
+    Measured 2026-09-07: a campaign at 6500 rec/s recorded `source_out_rps` of
+    about 1450, i.e. a quarter of the offered load, because it was reading the
+    person branch alone. The auction branch — three quarters of the traffic, and
+    the one that feeds the join where placement actually bites — was invisible, so
+    both arms looked identical in throughput. The same mistake had already been
+    found and fixed in calibrate-rate.sh and was not carried across.
+
+    A source is a plan node with no inputs; a sink is one that is nobody's input.
+    """
+    nodes = (detail.get("plan") or {}).get("nodes") or []
+    if not nodes:
+        return set(), set()
+    sources = {n["id"] for n in nodes if not n.get("inputs")}
+    consumed = {i["id"] for n in nodes for i in (n.get("inputs") or [])}
+    sinks = {n["id"] for n in nodes if n["id"] not in consumed}
+    return sources, sinks
 
 
 def epoch_started_at(key, fallback):
@@ -263,6 +330,39 @@ def subtask_taskmanagers(base, jid, vid):
     return mapping
 
 
+# HOW MANY REST CALLS RUN AT ONCE. One snapshot asks for the placement of every
+# vertex plus the metrics of every subtask — around two dozen calls for a job of
+# eight vertices at parallelism two. Over plain HTTP that was milliseconds and the
+# sequential loop below was free. Through `kubectl exec` each call costs one to two
+# seconds of process spawn, so the same snapshot took the better part of a minute
+# and the controller's 60-second measurement window stretched to many minutes.
+# Measured 2026-09-06: it detected two placement changes where the driver performed
+# eight, and the campaign recorded one episode per arm. The calls are independent,
+# so they are issued together.
+REST_WORKERS = 8
+
+# "permutation": a placement across more than one machine is a decision even when
+# the slot count is exactly the slice count. "slots": only surplus slots count.
+# See the note on had_choice in applied_arm for why the default changed.
+CHOICE_RULE = "permutation"
+
+
+def fetch_parallel(jobs):
+    """Run {key: (fn, args)} concurrently, returning {key: result}."""
+    if not jobs:
+        return {}
+    out = {}
+    with concurrent.futures.ThreadPoolExecutor(max_workers=REST_WORKERS) as pool:
+        futures = {pool.submit(fn, *args): key for key, (fn, args) in jobs.items()}
+        for future in concurrent.futures.as_completed(futures):
+            key = futures[future]
+            try:
+                out[key] = future.result()
+            except Exception:
+                out[key] = None
+    return out
+
+
 def subtask_metrics(base, jid, vid, index):
     """The rate metrics of one subtask, as floats (missing metrics -> 0.0)."""
     query = ",".join(SUBTASK_METRICS)
@@ -294,6 +394,8 @@ def sample_once(base, jid, all_taskmanagers):
     hosting one, and averaging would hide exactly the packing this measures.
     """
     vertices = job_vertices(base, jid)
+    _detail = rest(base, f"/jobs/{jid}") or {}
+    source_ids, sink_ids = graph_roles(_detail)
     if not vertices:
         return None
 
@@ -306,10 +408,22 @@ def sample_once(base, jid, all_taskmanagers):
     sink_in = 0.0
     sink_watermarks = []
 
+    # Everything this snapshot needs, fetched at once rather than one call at a
+    # time; the loop below then reads from memory and its logic is unchanged.
+    placements = fetch_parallel({
+        vid: (subtask_taskmanagers, (base, jid, vid))
+        for vid, _name, _par in vertices})
+    metrics = fetch_parallel({
+        (vid, index): (subtask_metrics, (base, jid, vid, index))
+        for vid, _name, parallelism in vertices
+        for index in range(parallelism)})
+
     for position, (vid, _name, parallelism) in enumerate(vertices):
-        placement = subtask_taskmanagers(base, jid, vid)
+        placement = placements.get(vid) or {}
         for index in range(parallelism):
-            values = subtask_metrics(base, jid, vid, index)
+            values = metrics.get((vid, index))
+            if values is None:
+                values = {name: 0.0 for name in SUBTASK_METRICS}
             busy = values["busyTimeMsPerSecond"]
             subtask_busy.append(busy)
             subtask_backpressure.append(values["backPressuredTimeMsPerSecond"])
@@ -319,9 +433,9 @@ def sample_once(base, jid, all_taskmanagers):
                 busy_per_tm.setdefault(tm, 0.0)
                 busy_per_tm[tm] += busy
                 hosting.add(tm)
-            if position == 0:
+            if (vid in source_ids) if source_ids else (position == 0):
                 source_out += values["numRecordsOutPerSecond"]
-            if position == len(vertices) - 1:
+            if (vid in sink_ids) if sink_ids else (position == len(vertices) - 1):
                 sink_in += values["numRecordsInPerSecond"]
                 watermark = values["currentInputWatermark"]
                 if watermark > WATERMARK_FLOOR_MS:
@@ -373,6 +487,73 @@ def coefficient_of_variation(values):
     return math.sqrt(variance) / mean
 
 
+_SPEEDS_CACHE = None
+
+
+def taskmanager_speeds(node=None):
+    """{taskmanager id: relative capacity} from /var/thesis/speeds, read once.
+
+    FOR UTILISATION, NOT RAW BUSY TIME (2026-09-25). `cv_busy_hosting` is the dispersion of
+    summed busy time across TaskManagers, and on a 4/2/1-core cluster that mostly measures the
+    machines rather than the placement: its mean over 367 credited episodes is 0.81, it
+    correlates +0.07 with throughput, and — decisively — repeating the SAME placement three
+    times moved it by 92% while throughput moved 2.8%. Dividing by the machine's declared
+    capacity is what turns it into utilisation, which is the quantity a balance penalty was
+    always supposed to mean. Recorded so the question can be settled on data instead of
+    argued: nothing consumes it yet.
+    """
+    global _SPEEDS_CACHE
+    if _SPEEDS_CACHE is not None:
+        return _SPEEDS_CACHE
+    _SPEEDS_CACHE = {}
+    node = node or os.environ.get("THESIS_NODE", "minikube")
+    for cmd in (["docker", "exec", "-i", node, "cat", "/var/thesis/speeds"],
+                ["minikube", "ssh", "-n", node, "--", "sudo cat /var/thesis/speeds"]):
+        try:
+            done = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+        except (OSError, subprocess.SubprocessError):
+            continue
+        if done.returncode == 0:
+            for line in done.stdout.replace("\r", "").splitlines():
+                parts = line.split()
+                if len(parts) == 2:
+                    try:
+                        _SPEEDS_CACHE[parts[0]] = float(parts[1])
+                    except ValueError:
+                        pass
+            if _SPEEDS_CACHE:
+                break
+    return _SPEEDS_CACHE
+
+
+def taskmanager_cpu_seconds(base, taskmanagers):
+    """{taskmanager id: cumulative JVM CPU seconds}, from Status.JVM.CPU.Time.
+
+    THE ONLY LOAD SIGNAL HERE THAT DOES NOT INHERIT THE busyTime PROBLEM (2026-09-27). Three
+    attempts at a balance metric failed for the same root cause, each worse than the last:
+    the slice weight is bounded at 1000 ms/s so a saturated operator reads cheap; the
+    dispersion of summed busy time moved 92% between repetitions of one placement; and the
+    capacity-normalised version reported `tm-1-slow` at 0.0 utilisation while that machine was
+    hosting six of the eight slices, because the legacy sources it hosted report NaN and NaN
+    sums to zero.
+
+    This is measured by the JVM, not by the task mailbox, so it covers EVERY thread — the
+    generator thread of a legacy source included — cannot be NaN for a badly instrumented
+    operator, and being cumulative it has no ceiling: the difference across a window is
+    honest CPU seconds. Divided by the machine's cores it is a utilisation in [0,1], which is
+    what a load-balance penalty needed from the start.
+    """
+    out = {}
+    for tm in taskmanagers:
+        payload = rest(base, f"/taskmanagers/{tm}/metrics?get=Status.JVM.CPU.Time")
+        for entry in payload or []:
+            try:
+                out[tm] = float(entry["value"]) / 1e9
+            except (KeyError, TypeError, ValueError):
+                pass
+    return out
+
+
 def measure(base, jid, all_taskmanagers, window, interval, verbose=False,
             trace=None, trace_interval=1.0):
     """
@@ -383,10 +564,13 @@ def measure(base, jid, all_taskmanagers, window, interval, verbose=False,
     reward is actually computed from.
     """
     samples = []
-    deadline = time.time() + window
+    window_start = time.time()
+    cpu_at_start = taskmanager_cpu_seconds(base, all_taskmanagers)
+    deadline = window_start + window
     while time.time() < deadline:
         snapshot = sample_once(base, jid, all_taskmanagers)
         if snapshot:
+            snapshot["t"] = time.time()
             samples.append(snapshot)
             if verbose:
                 print(
@@ -414,6 +598,18 @@ def measure(base, jid, all_taskmanagers, window, interval, verbose=False,
         for tm in taskmanagers
     }
     hosting = {tm for s in samples for tm in s["hosting"]}
+    speeds = taskmanager_speeds()
+    # Real utilisation: CPU seconds actually burnt, over the wall clock of the window, over the
+    # machine's cores. The speeds file is declared proportional to cores and on this cluster it
+    # is literally 1/2/4, so it doubles as the core count.
+    cpu_at_end = taskmanager_cpu_seconds(base, all_taskmanagers)
+    elapsed = max(1e-6, time.time() - window_start)
+    cpu_util = {}
+    for tm, cores in speeds.items():
+        if tm in cpu_at_start and tm in cpu_at_end and cores:
+            cpu_util[tm] = max(0.0, (cpu_at_end[tm] - cpu_at_start[tm]) / (elapsed * cores))
+    utilisation = {tm: busy / speeds[tm]
+                   for tm, busy in busy_per_tm.items() if speeds.get(tm)}
 
     def mean_of(field):
         return statistics.fmean([s[field] for s in samples])
@@ -427,6 +623,10 @@ def measure(base, jid, all_taskmanagers, window, interval, verbose=False,
 
     return {
         "samples": len(samples),
+        "window_start": window_start,
+        "window_end": time.time(),
+        "series": [(s["t"], s["source_out_rps"], s["backpressure_mean"], s["busy_mean"])
+                   for s in samples],
         "e2e_delay_ms": mean_where_present("e2e_delay_ms"),
         "e2e_delay_spread_ms": mean_where_present("e2e_delay_spread_ms"),
         "busy_per_tm": busy_per_tm,
@@ -444,6 +644,15 @@ def measure(base, jid, all_taskmanagers, window, interval, verbose=False,
         "cv_busy_hosting": coefficient_of_variation(
             [v for tm, v in busy_per_tm.items() if tm in hosting]
         ),
+        # The capacity-normalised version of the same idea, plus the raw per-machine figures
+        # so a later analysis can define balance differently without re-running anything.
+        "cv_util_hosting": coefficient_of_variation(
+            [u for tm, u in utilisation.items() if tm in hosting]
+        ) if utilisation else 0.0,
+        "util_per_tm": "|".join(f"{tm}:{u:.1f}" for tm, u in sorted(utilisation.items())),
+        "cv_cpu_util": coefficient_of_variation(
+            [u for tm, u in cpu_util.items() if tm in hosting]) if cpu_util else 0.0,
+        "cpu_util_per_tm": "|".join(f"{tm}:{u:.3f}" for tm, u in sorted(cpu_util.items())),
     }
 
 
@@ -663,10 +872,28 @@ def applied_arm(namespace, since_seconds, want_slices=None):
         "free_slots": int(last["free"]),
         "tms_available": int(last["tms"]),
         "tms_used": int(last["used"]),
-        # The assigner only has a real decision when it is offered more slots
-        # than it has slices to place; otherwise every arm produces the same
-        # placement and the episode teaches nothing.
-        "had_choice": int(last["free"]) > int(last["slices"]),
+        # WHAT COUNTS AS A DECISION, and this rule was too strict until 2026-09-07.
+        #
+        # Surplus slots are one kind of freedom: with more slots than slices the
+        # assigner chooses how many go on each machine. But it is not the only kind.
+        # When the slots exactly match the slices the per-machine COUNTS are forced
+        # — and WHICH SLICE lands on WHICH MACHINE is not. Under PER_STAGE the
+        # slices are not interchangeable: one carries the stateful join, another the
+        # sink that does almost nothing, and putting the join on the 4-core machine
+        # instead of the 1-core one is the whole question this thesis asks.
+        #
+        # Two submissions of the same arm on 2026-09-07 produced the same spread
+        # {slow=6, medium=4, fast=2} and different mappings — slices #2 and #6 on
+        # `fast` in one, #3 and #7 in the other. The old rule discarded both as
+        # "no choice", which is how a campaign can measure real decisions all day
+        # and credit none of them.
+        #
+        # The permutation only stops mattering when the slices ARE interchangeable,
+        # which is the SHARED case: there every slice holds the whole pipeline and
+        # any two are the same. Pass --choice-rule slots to recover the old,
+        # stricter behaviour for those runs.
+        "had_choice": (int(last["free"]) > int(last["slices"])
+                       or (CHOICE_RULE == "permutation" and int(last["tms"]) > 1)),
     }
 
 
@@ -689,11 +916,84 @@ def source_records(base, jid):
     vertices = data.get("vertices") or []
     if not vertices:
         return None
-    value = (vertices[0].get("metrics") or {}).get("write-records")
-    try:
-        return float(value)
-    except (TypeError, ValueError):
-        return None
+    sources, _sinks = graph_roles(data)
+    total = 0.0
+    seen = False
+    for v in vertices:
+        if sources and v["id"] not in sources:
+            continue
+        try:
+            total += float((v.get("metrics") or {}).get("write-records"))
+            seen = True
+        except (TypeError, ValueError):
+            continue
+    return total if seen else None
+
+
+def window_stability(trace, start, end, bin_s=10.0):
+    """Throughput INSIDE the window, from the cumulative source counter, in bins.
+
+    WHY (2026-09-18). Two consecutive ten-minute windows of the same job, with the same
+    placement, differed by a median of 7% and up to 16%; with one-minute windows the
+    median was ~20% and some fell to half their neighbours. The episode kept only the
+    window's mean, so there was no way to tell a steady 30000 from a window that ran at
+    35000 and collapsed to 15000 for two minutes. The counter is already sampled every
+    second for the recovery curve; binning it costs nothing and shows the shape.
+
+    A counter that goes BACKWARDS is a task restart inside the window and ends the series:
+    after it the counts belong to a different run of the job.
+    """
+    points = [(t, r) for t, r in trace if start <= t <= end]
+    bins = []
+    edge = start
+    while edge + bin_s <= end + 1e-6:
+        inside = [(t, r) for t, r in points if edge <= t <= edge + bin_s]
+        if len(inside) >= 2 and inside[-1][1] >= inside[0][1]:
+            span = inside[-1][0] - inside[0][0]
+            if span > 0:
+                bins.append((round(edge - start, 1), (inside[-1][1] - inside[0][1]) / span))
+        edge += bin_s
+    rates = [r for _, r in bins]
+    total = None
+    if len(points) >= 2 and points[-1][1] >= points[0][1] and points[-1][0] > points[0][0]:
+        total = (points[-1][1] - points[0][1]) / (points[-1][0] - points[0][0])
+    return {
+        "bins": bins,
+        "rps_counter": round(total, 1) if total is not None else "",
+        "rps_median": round(statistics.median(rates), 1) if rates else "",
+        "rps_cv": round(coefficient_of_variation(rates), 4) if len(rates) > 1 else "",
+        "rps_min_bin": round(min(rates), 1) if rates else "",
+    }
+
+
+def checkpoints_in(base, jid, start, end):
+    """The checkpoints TRIGGERED inside the window, from the REST history.
+
+    At the throughput ceiling every checkpoint upload competes with the pipeline for the
+    same CPU and disk, so a slow or failed one is a candidate explanation for a window that
+    dips. Recorded per window so that can be checked against the rate series rather than
+    assumed. Flink keeps only a short history (web.checkpoints.history, 10 by default), so
+    in a long window the earliest checkpoints can be missing — the count is a lower bound.
+    """
+    data = rest(base, f"/jobs/{jid}/checkpoints") or {}
+    rows = []
+    for c in data.get("history") or []:
+        trigger = (c.get("trigger_timestamp") or 0) / 1000.0
+        if start <= trigger <= end:
+            rows.append({
+                "id": c.get("id"),
+                "t": round(trigger - start, 1),
+                "status": c.get("status", ""),
+                "duration_ms": c.get("end_to_end_duration", ""),
+                "size_bytes": c.get("checkpointed_size", c.get("state_size", "")),
+            })
+    durations = [r["duration_ms"] for r in rows if isinstance(r["duration_ms"], (int, float))]
+    return rows, {
+        "ckpt_count": len(rows),
+        "ckpt_failed": sum(1 for r in rows if r["status"] == "FAILED"),
+        "ckpt_duration_mean_ms": round(statistics.fmean(durations), 1) if durations else "",
+        "ckpt_duration_max_ms": max(durations) if durations else "",
+    }
 
 
 def recovery_of(trace, steady_rps):
@@ -762,19 +1062,30 @@ def recovery_of(trace, steady_rps):
 CSV_FIELDS = [
     "epoch", "timestamp", "job_id", "arm_applied", "had_choice", "delegate",
     "slices", "free_slots", "tms_available", "tms_used", "tms_hosting",
-    "busy_mean_ms_s", "cv_busy_all", "cv_busy_hosting", "backpressure_mean_ms_s",
+    "busy_mean_ms_s", "cv_busy_all", "cv_busy_hosting", "cv_util_hosting",
+    "util_per_tm", "cv_cpu_util", "cpu_util_per_tm", "backpressure_mean_ms_s",
     "idle_mean_ms_s", "source_out_rps", "sink_in_rps", "throughput_per_slot",
     "e2e_delay_ms", "e2e_delay_spread_ms",
     "state", "reward", "creditable", "credit_note", "q_before", "q_after",
     "arm_next", "exploring", "samples",
     # What the rescale itself cost, sampled during the warmup instead of slept through.
     "restart_gap_s", "recovery_s", "rescale_deficit_events", "recovery_samples",
+    # Inside the window (2026-09-18): the shape of the throughput, not only its mean, and
+    # the checkpoints that ran while it was measured.
+    "rps_counter", "rps_median", "rps_cv", "rps_min_bin",
+    "ckpt_count", "ckpt_failed", "ckpt_duration_mean_ms", "ckpt_duration_max_ms",
 ]
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--rest", default=DEFAULT_REST, help="Flink REST base URL")
+    parser.add_argument("--choice-rule", choices=["permutation", "slots"],
+                        default=os.environ.get("CHOICE_RULE", "permutation"),
+                        help="what counts as the assigner having had a decision")
+    parser.add_argument("--jm-pod", default=os.environ.get("FLINK_JM_POD", ""),
+                        help="JobManager pod: REST goes through `kubectl exec` "
+                             "instead of a port-forward, which cannot die silently")
     parser.add_argument("--namespace", default="flink")
     parser.add_argument("--arms", default=",".join(DEFAULT_ARMS),
                         help="comma-separated arms the learner may publish")
@@ -789,6 +1100,20 @@ def main():
                         help="seconds to discard after a rescale, while the job restores state")
     parser.add_argument("--window", type=float, default=60.0,
                         help="seconds of steady state the reward is averaged over")
+    # SKIP THE EPOCHS THAT ARE NOT THE MEASURED STEP (2026-09-23, after it cost two runs of
+    # three hours each). The controller measures epochs SEQUENTIALLY, spending a full
+    # warmup+window on each. With SCHEDULE="3 2*" the submission's placement at parallelism 3
+    # is an epoch like any other, so the controller burned 960 s on a width nobody analyses
+    # and only THEN began warming up the measured one — which therefore needed the cell to
+    # last 2 x (warmup+window), while the driver holds warmup+window+margin. Measured
+    # 2026-09-23: epoch 1 at 17:02:17, the rescale at 17:10:50, the controller free at
+    # 17:18:20, the cell over at 17:33:52 — twenty-eight seconds short, six cells in a row.
+    #
+    # The 2026-09-07 attempt to skip epochs failed because it used `slots-available`, which is
+    # zero by design. The width is not: it is in the epoch key the controller already computes.
+    parser.add_argument("--only-parallelism", default=None,
+                        help="comma-separated list of parallelisms to measure; epochs at any "
+                             "other width are skipped without spending a window")
     parser.add_argument("--sample-interval", type=float, default=10.0)
     parser.add_argument("--poll-interval", type=float, default=5.0,
                         help="how often to check for a new placement epoch")
@@ -812,6 +1137,16 @@ def main():
                         help="stop after this many measured epochs (0 = run forever)")
     parser.add_argument("--verbose", action="store_true")
     args = parser.parse_args()
+
+    # Pick the transport before anything reads metrics. With a pod, REST goes
+    # through `kubectl exec`; without one, the old port-forward path stays, so
+    # nothing that used to work stops working.
+    global _JM_POD, _NAMESPACE, CHOICE_RULE
+    CHOICE_RULE = args.choice_rule
+    _NAMESPACE = args.namespace
+    _JM_POD = args.jm_pod or None
+    if _JM_POD:
+        print(f"  REST via kubectl exec -> {_JM_POD}")
 
     if args.seed is not None:
         random.seed(args.seed)
@@ -875,6 +1210,8 @@ def main():
         # own start time makes late detection harmless.
         records_history = []
 
+        _measured_widths = {int(x) for x in str(args.only_parallelism).replace(",", " ").split()
+                            } if args.only_parallelism else set()
         while True:
             jid = running_job(args.rest)
             if jid is None:
@@ -887,11 +1224,25 @@ def main():
             if key is not None and key != current_key:
                 current_key = key
                 epoch_started = epoch_started_at(key, time.time())
-                measured = False
                 epoch += 1
-                print(f"\n[epoch {epoch}] placement changed at "
-                      f"{time.strftime('%H:%M:%S', time.localtime(epoch_started))} "
-                      f"— warming up {args.warmup:.0f}s")
+                width = max((p for _, p, _ in key), default=0)
+                # `measured` doubles as "nothing left to do in this epoch", so setting it
+                # here makes the sampling branch below skip the epoch at no cost.
+                measured = bool(_measured_widths and width not in _measured_widths)
+                if measured:
+                    print(f"\n[epoch {epoch}] paralelismo {width}, no esta entre los pasos "
+                          f"medidos ({sorted(_measured_widths)}) — se omite sin gastar ventana",
+                          flush=True)
+
+                # The 2026-09-07 version of this skip asked `slots-available` whether the
+                # assigner had a choice, and that figure is zero by design —
+                # slot.idle.timeout holds released slots inside the job so the pool
+                # geometry stays still — so it skipped every epoch and credited nothing.
+                # The width above is the signal that works.
+                else:
+                    print(f"\n[epoch {epoch}] placement changed at "
+                          f"{time.strftime('%H:%M:%S', time.localtime(epoch_started))} "
+                          f"— warming up {args.warmup:.0f}s")
 
             if measured or time.time() - epoch_started < args.warmup:
                 # The warmup is not dead time: it is the recovery curve. Sampling it
@@ -922,6 +1273,14 @@ def main():
             if measurement is None:
                 print("  (no metrics in this window — skipping the epoch)")
                 continue
+            # The controller does not poll the epoch while it measures, so a restart inside
+            # the window is only visible afterwards: either the vertices' start times moved,
+            # or the cumulative source counter stepped backwards.
+            in_window = [r for t, r in records_history
+                         if measurement["window_start"] <= t <= measurement["window_end"]]
+            restarted_in_window = (
+                epoch_key(args.rest, jid) != current_key
+                or any(b < a for a, b in zip(in_window, in_window[1:])))
 
             # Look back past the start of the epoch: the assignment is logged
             # just before the vertices start, so a lookback that ends exactly at
@@ -929,12 +1288,25 @@ def main():
             since = time.time() - epoch_started + 120
             assignment = applied_arm(args.namespace, since,
                                       want_slices=measurement["slices"])
+            reconstructed = False
             if not assignment:
-                # No assigner log line: either the fork is not deployed (a stock-Flink baseline
-                # run) or the line fell outside the lookback. Rebuilding from REST keeps the
-                # episode creditable instead of silently dropping it.
+                # No assigner log line for this epoch. That has an innocent reading —
+                # the fork is not deployed, or the line fell outside the lookback —
+                # and a fatal one, found 2026-09-07: THE ASSIGNER NEVER RAN. Flink's
+                # adaptive scheduler reduces parallelism by dropping subtasks from
+                # the slots it already holds, without asking for a new placement, so
+                # a scale-down step produces no decision at all. The campaign's
+                # "measured" step was then the SUBMISSION's placement running
+                # narrower, and this fallback recorded it as though the arm had
+                # chosen it.
+                #
+                # Rebuilding from REST still happens, because the measurement itself
+                # is real and worth keeping, but the episode is marked: an epoch in
+                # which no placement was decided cannot say anything about the arm
+                # that would have decided it.
                 assignment = assignment_from_rest(
                     args.rest, measurement, args.fixed_arm or "STOCK")
+                reconstructed = True
             arm = assignment.get("arm", args.fixed_arm or "UNKNOWN")
             state = discretise(measurement, bins)
             reward = reward_of(measurement, args.reward, args.blend_weight,
@@ -948,11 +1320,25 @@ def main():
             #     busy times is dominated by which TaskManager happened to log
             #     a millisecond of work.
             credit_note = ""
-            if not assignment.get("had_choice"):
+            if reconstructed:
+                # No assigner line for this epoch, so no placement was decided in
+                # it. Whatever the job is running, the arm under test did not choose
+                # it here — most likely it is the previous decision still in force.
+                credit_note = ("no assignment was logged for this epoch — the "
+                               "placement was inherited, not decided")
+            elif not assignment.get("had_choice"):
                 credit_note = "the assigner had no choice (freeSlots == slices)"
             elif measurement["busy_mean"] < args.min_busy_ms_s:
                 credit_note = (f"job too idle ({measurement['busy_mean']:.1f} < "
                                f"{args.min_busy_ms_s:.1f} ms/s busy)")
+            elif restarted_in_window:
+                # A RESTART INSIDE THE WINDOW (2026-09-18). A failed checkpoint fails the
+                # job while the default tolerates none, and the window then averages a
+                # stretch at zero and a recovery ramp into the placement's throughput:
+                # measured, one window went 38000 -> 0 -> 8392 -> ... -> 34912 and was
+                # recorded as an ordinary episode. That is the checkpoint's result, not
+                # the arm's.
+                credit_note = "the job restarted inside the measurement window"
             creditable = not credit_note
 
             if args.fixed_arm or args.observe:
@@ -988,6 +1374,10 @@ def main():
                 "busy_mean_ms_s": round(measurement["busy_mean"], 2),
                 "cv_busy_all": round(measurement["cv_busy_all"], 4),
                 "cv_busy_hosting": round(measurement["cv_busy_hosting"], 4),
+                "cv_util_hosting": round(measurement.get("cv_util_hosting", 0.0), 4),
+                "util_per_tm": measurement.get("util_per_tm", ""),
+                "cv_cpu_util": round(measurement.get("cv_cpu_util", 0.0), 4),
+                "cpu_util_per_tm": measurement.get("cpu_util_per_tm", ""),
                 "backpressure_mean_ms_s": round(measurement["backpressure_mean"], 2),
                 "idle_mean_ms_s": round(measurement["idle_mean"], 2),
                 "e2e_delay_ms": ("" if measurement["e2e_delay_ms"] is None
@@ -1013,6 +1403,30 @@ def main():
                      if t >= epoch_started],
                     measurement["source_out_rps"]),
             }
+            stability = window_stability(records_history, measurement["window_start"],
+                                         measurement["window_end"])
+            checkpoints, ckpt_summary = checkpoints_in(args.rest, jid,
+                                                       measurement["window_start"],
+                                                       measurement["window_end"])
+            row.update({k: v for k, v in stability.items() if k != "bins"})
+            row.update(ckpt_summary)
+            # Side files, one per window, so the shape can be plotted against the checkpoints.
+            with (out_dir / f"window-epoch{epoch:03d}.csv").open("w", newline="") as side:
+                w = csv.writer(side)
+                w.writerow(["t_s", "rps_counter_bin", "rps_gauge", "backpressure_ms_s",
+                            "busy_ms_s"])
+                gauge = {round(t - measurement["window_start"], 1): (r, bp, b)
+                         for t, r, bp, b in measurement["series"]}
+                for t, rate in stability["bins"]:
+                    nearest = min(gauge, key=lambda g: abs(g - t)) if gauge else None
+                    r, bp, b = gauge[nearest] if nearest is not None else ("", "", "")
+                    w.writerow([t, round(rate, 1), round(r, 1) if r != "" else "",
+                                round(bp, 1) if bp != "" else "", round(b, 1) if b != "" else ""])
+            if checkpoints:
+                with (out_dir / f"checkpoints-epoch{epoch:03d}.csv").open("w", newline="") as side:
+                    w = csv.DictWriter(side, fieldnames=list(checkpoints[0]))
+                    w.writeheader()
+                    w.writerows(checkpoints)
             writer.writerow(row)
             handle.flush()
 

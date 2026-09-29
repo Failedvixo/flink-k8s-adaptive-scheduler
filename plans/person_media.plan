@@ -1,0 +1,6 @@
+# Reparto de RL con la rama person PROTEGIDA: 2 slices en la maquina lenta (los sinks).
+# Un vertice por slice basta: el fork asigna el slice entero segun cualquiera de sus miembros.
+new-users-join: fast fast
+auction-source: medium medium
+person-source: medium medium
+q8-sink: slow slow

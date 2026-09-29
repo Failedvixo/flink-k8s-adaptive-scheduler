@@ -1,0 +1,11 @@
+# El intercambio: el join a la rapida, las subastas a la mediana. UNA variable respecto de
+# join_medium.plan — se cambian de sitio exactamente esas dos etapas, todo lo demas igual.
+#
+# Se mide con y sin el disco de `medium` limitado (DISK_LIMIT="medium:5M"), porque este cambio
+# tambien le da mas CPU al join: 2 nucleos por slot en vez de 0.5. Sin la condicion sin limite
+# no se podria saber si gana por disco o por CPU. Con las dos, el efecto del disco es la
+# diferencia entre las diferencias.
+new-users-join: fast fast
+auction-source: medium medium
+person-source: medium medium
+q8-sink: slow slow

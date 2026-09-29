@@ -1,0 +1,16 @@
+# LAS DOS SUBTAREAS DEL JOIN EN MAQUINAS DISTINTAS, para medir si la memoria muerde.
+#
+# El join es el UNICO operador con estado en Q8: 184.2 MB de checkpoint, 92.1 MB por subtarea,
+# y todos los demas vertices exactamente 0.0 (medido 2026-09-28). Con 96 MB por slot en `fast`
+# y 32 en `slow`, la subtarea 0 cabe en cache y la 1 no — y como el reparto por clave les da
+# mitad y mitad de las claves, procesan el mismo trabajo sobre los mismos datos en el mismo
+# job. Cualquier diferencia entre ellas en fallos de cache o en stalls de RocksDB es del
+# TAMANO DE LA CACHE y de nada mas.
+#
+# Es la unica forma de separar memoria de CPU en este cluster, donde las dos dimensiones
+# estan correlacionadas: aqui no se comparan dos maquinas, se compara la MISMA carga en dos
+# presupuestos de memoria distintos.
+new-users-join: fast slow
+auction-source: medium medium
+person-source: medium medium
+q8-sink: slow slow

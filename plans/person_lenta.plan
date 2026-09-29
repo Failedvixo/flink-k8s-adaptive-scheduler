@@ -1,0 +1,7 @@
+# Mismo reparto {fast=2, medium=4, slow=2}, pero la rama person va a la maquina LENTA.
+# Si esto rinde igual que person_media, lo que importa es cuantos slices van a la lenta;
+# si rinde peor, importa QUE etapa va ahi (la hipotesis del watermark del join).
+new-users-join: fast fast
+auction-source: medium medium
+q8-sink: medium medium
+person-source: slow slow

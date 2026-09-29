@@ -1,0 +1,14 @@
+# El plan del agente con UNA SOLA VARIABLE cambiada: las dos slices pesadas que el agente
+# manda a la maquina lenta — un subtask del join y uno de las fuentes de subastas — van a la
+# mediana en su lugar. Todo lo demas es identico.
+#
+# LA PREGUNTA QUE RESPONDE. La tabla aprendio que con la rapida llena conviene la lenta antes
+# que la mediana, y lo aprendio con evidencia (27 y 93 visitas), no con una muestra. Pero la
+# mediana tiene 0.5 nucleos por slot contra 0.17 de la lenta, asi que la preferencia es
+# sospechosa — y el credito compartido, que da la misma recompensa a las ocho decisiones de un
+# episodio, es exactamente el mecanismo que produciria esa ilusion. Si este plan gana, el
+# problema es la atribucion del credito; si pierde, el agente vio algo que nosotros no.
+new-users-join: medium fast
+auction-source: medium fast
+person-source: slow slow
+q8-sink: slow slow

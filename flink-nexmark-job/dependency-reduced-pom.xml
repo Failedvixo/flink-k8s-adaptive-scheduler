@@ -25,6 +25,7 @@
                   <mainClass>com.thesis.benchmark.ConfigurableGraphJob</mainClass>
                 </transformer>
               </transformers>
+              <minimizeJar>true</minimizeJar>
               <filters>
                 <filter>
                   <artifact>*:*</artifact>
@@ -33,6 +34,18 @@
                     <exclude>META-INF/*.DSA</exclude>
                     <exclude>META-INF/*.RSA</exclude>
                   </excludes>
+                </filter>
+                <filter>
+                  <artifact>org.apache.beam:beam-sdks-java-nexmark</artifact>
+                  <includes>
+                    <include>org/apache/beam/sdk/nexmark/**</include>
+                  </includes>
+                </filter>
+                <filter>
+                  <artifact>com.thesis:flink-nexmark-job</artifact>
+                  <includes>
+                    <include>**</include>
+                  </includes>
                 </filter>
               </filters>
             </configuration>
@@ -43,9 +56,10 @@
   </build>
   <properties>
     <scala.binary.version>2.12</scala.binary.version>
-    <maven.compiler.target>17</maven.compiler.target>
     <maven.compiler.source>17</maven.compiler.source>
-    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <beam.version>2.58.1</beam.version>
     <flink.version>2.3.0</flink.version>
+    <maven.compiler.target>17</maven.compiler.target>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
   </properties>
 </project>

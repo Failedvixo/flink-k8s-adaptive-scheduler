@@ -48,9 +48,9 @@ log_error() {
 
 STRATEGY="${1:-ROUND_ROBIN}"
 case "$STRATEGY" in
-    STOCK|FCFS|DEFAULT|ROUND_ROBIN|LEAST_LOADED|LPT|PACK|ACO|GA) ;;
+    STOCK|FCFS|DEFAULT|ROUND_ROBIN|LEAST_LOADED|LPT|PACK|ACO|GA|OPTIMAL|RL) ;;
     *)
-        log_error "Unknown strategy '$STRATEGY' (expected STOCK, FCFS, ROUND_ROBIN, LEAST_LOADED, LPT, PACK, ACO or GA)"
+        log_error "Unknown strategy '$STRATEGY' (expected STOCK, FCFS, ROUND_ROBIN, LEAST_LOADED, LPT, PACK, ACO, GA, OPTIMAL or RL)"
         exit 1
         ;;
 esac
@@ -120,14 +120,16 @@ if ! kubectl get nodes >/dev/null 2>&1; then
 fi
 kubectl config set-context --current --namespace="$NAMESPACE" >/dev/null
 
-JM_POD=$(kubectl get pods -n "$NAMESPACE" -l app=flink,component=jobmanager -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || true)
+JM_POD=$(kubectl get pods -n "$NAMESPACE" -l app=flink,component=jobmanager --field-selector=status.phase=Running --sort-by=.metadata.creationTimestamp \
+    -o jsonpath='{.items[-1:].metadata.name}' 2>/dev/null || true)
 if [ -z "$JM_POD" ]; then
     log_error "No JobManager pod found in namespace $NAMESPACE"
     exit 1
 fi
 # TaskManagers always run the official image, so their flink-dist jar is a
 # pristine base even when the JM is already running a patched one.
-TM_POD=$(kubectl get pods -n "$NAMESPACE" -l app=flink,component=taskmanager -o jsonpath='{.items[0].metadata.name}')
+TM_POD=$(kubectl get pods -n "$NAMESPACE" -l app=flink,component=taskmanager --field-selector=status.phase=Running --sort-by=.metadata.creationTimestamp \
+    -o jsonpath='{.items[-1:].metadata.name}')
 log_info "      JobManager: $JM_POD / base jar from TaskManager: $TM_POD"
 
 # ============================================
@@ -200,6 +202,12 @@ log_info "      Patched $CLASS_COUNT allocator classes into the jar"
 # ============================================
 log_info "[4/6] Copying jar to minikube node..."
 minikube ssh -n minikube -- sudo mkdir -p "$THESIS_DIR"
+# WRITABLE BY THE JOBMANAGER (2026-09-16). The RL arm publishes the slice layout here,
+# and the Flink container runs as uid 9999: with the hostPath left root-owned and 755
+# every write failed, the agent saw no layout, and a whole run was discarded epoch by
+# epoch with "sin layout de slices". The scripts keep writing here with sudo, so the
+# mode is widened rather than the ownership changed.
+minikube ssh -n minikube -- sudo chmod 777 "$THESIS_DIR"
 minikube cp "$WORK_DIR/thesis.jar" "minikube:$HOST_JAR_PATH"
 minikube ssh -n minikube -- sudo chmod 644 "$HOST_JAR_PATH"
 
@@ -210,6 +218,12 @@ minikube ssh -n minikube -- sudo chmod 644 "$HOST_JAR_PATH"
 # ============================================
 # 5. Patch the JobManager deployment
 # ============================================
+# THE THESIS DIRECTORY IS MOUNTED READ-WRITE since 2026-09-16 (it was read-only). The RL
+# arm publishes the slice layout to /var/thesis/slices on every decision: slices are built
+# inside the JobManager from the slot sharing groups and are invisible over the REST API, so
+# an external agent cannot decide a placement — nor respect a machine's capacity — without
+# it. The write is best effort in the fork, so a read-only mount would only cost that file,
+# never a rescale.
 log_info "[5/6] Patching JobManager deployment..."
 kubectl patch deployment flink-jobmanager -n "$NAMESPACE" --type=strategic -p "$(cat <<EOF
 {
@@ -237,7 +251,7 @@ kubectl patch deployment flink-jobmanager -n "$NAMESPACE" --type=strategic -p "$
               {
                 "name": "thesis-arm",
                 "mountPath": "$THESIS_DIR",
-                "readOnly": true
+                "readOnly": false
               }
             ]
           }

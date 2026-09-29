@@ -82,7 +82,18 @@ spec:
               cpu: 100m
               memory: 256Mi
             limits:
-              memory: 1Gi
+              # 1Gi was not enough (2026-09-07). MinIO was OOMKilled four times during a
+              # paired campaign, and the fourth kill landed in the middle of a multipart
+              # upload: the checkpoint then failed with NoSuchUpload (404), Flink restarted
+              # the job, and the driver abandoned the arm at rep 1 — so the STOCK arm has
+              # no pass-B data and the whole pairing was lost to the object store rather
+              # than to anything under test. Note the state itself is small (checkpoint 3
+              # completed in 8.6 MB), so this is MinIO's own footprint accumulating over a
+              # session's worth of jobs, not checkpoint volume.
+              # 1.5Gi and not 2Gi: the node is capped at 7Gi and Flink asks for 4.75
+              # (1 JobManager + 3 x 1.25), so 2Gi would leave the node with no headroom
+              # and trade this OOM for the one we just spent a week removing.
+              memory: 1536Mi
           readinessProbe:
             httpGet:
               path: /minio/health/ready

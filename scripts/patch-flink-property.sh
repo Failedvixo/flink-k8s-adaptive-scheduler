@@ -38,8 +38,19 @@ NAMESPACE=flink
 # empty, and an unguarded `grep || echo unset` would report "unset -> Flink
 # default" for properties that are in fact set — the most misleading answer this
 # script could give.
-if ! kubectl get nodes >/dev/null 2>&1; then
-    echo "ERROR: cluster unreachable (minikube start)" >&2
+# RETRIED, like every other call into this cluster. A single `kubectl get nodes`
+# was the very first thing these scripts did, and a transient TLS handshake
+# timeout — seen repeatedly on 2026-09-07 with the cluster demonstrably alive and
+# the API server at two restarts in fifteen hours — aborted the run before it
+# started. Three smoke tests were lost to it and read as failures of the
+# experiment's design.
+_reachable=0
+for _try in 1 2 3 4; do
+    if kubectl get nodes >/dev/null 2>&1; then _reachable=1; break; fi
+    sleep 3
+done
+if [ "$_reachable" != 1 ]; then
+    echo "ERROR: cluster unreachable after 4 attempts (minikube start)" >&2
     exit 1
 fi
 

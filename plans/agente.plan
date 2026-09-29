@@ -1,0 +1,9 @@
+# El emplazamiento que la política entrenada el 2026-09-26 produce por sí sola (41 episodios
+# acreditados, tabla en results/characterizer/q8-fixed-20260926.json). Deja la maquina mediana
+# VACIA: llena los dos slots de la rapida y manda las seis slices restantes a la lenta, que
+# tiene seis. Sale de las filas HIGH|free=011 y LOW|free=011, que ambas prefieren la lenta
+# sobre la mediana con 27/33 y 93/62 visitas.
+new-users-join: slow fast
+auction-source: slow fast
+person-source: slow slow
+q8-sink: slow slow

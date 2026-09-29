@@ -1,0 +1,6 @@
+# Lo que haria el PRIOR: las subastas (1065 de CPU, saturadas) ordenan por delante del join
+# (938, saturado) y se quedan la maquina rapida; el join cae en la mediana.
+auction-source: fast fast
+new-users-join: medium medium
+person-source: medium medium
+q8-sink: slow slow

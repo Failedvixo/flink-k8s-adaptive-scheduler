@@ -15,6 +15,12 @@
         <maven.compiler.target>17</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <flink.version>2.3.0</flink.version>
+        <!-- The reference Nexmark event generator. DS2 (OSDI'18) pinned Beam 2.3.0 and
+             CAPSys (EuroSys'25) builds on DS2's queries; the generator model has been
+             stable since, so a version that compiles on Java 17 is preferred over an
+             exact match to a 2018 pin. What matters for validity is that the events
+             come from Beam's generator rather than a reimplementation. -->
+        <beam.version>2.58.1</beam.version>
         <scala.binary.version>2.12</scala.binary.version>
     </properties>
 
@@ -32,6 +38,52 @@
             <artifactId>flink-clients</artifactId>
             <version>${flink.version}</version>
             <scope>compile</scope>
+        </dependency>
+
+        <!-- Nexmark reference event generator (Beam). Only the model and generator
+             packages are used; the runners and IO connectors are excluded so the shaded
+             jar does not grow a whole second execution engine. -->
+        <dependency>
+            <groupId>org.apache.beam</groupId>
+            <artifactId>beam-sdks-java-nexmark</artifactId>
+            <version>${beam.version}</version>
+            <scope>compile</scope>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.apache.beam</groupId>
+                    <artifactId>beam-runners-direct-java</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.apache.beam</groupId>
+                    <artifactId>beam-runners-flink-1.16</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.apache.beam</groupId>
+                    <artifactId>beam-sdks-java-io-google-cloud-platform</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.apache.beam</groupId>
+                    <artifactId>beam-sdks-java-io-kafka</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.apache.beam</groupId>
+                    <artifactId>beam-sdks-java-extensions-sql</artifactId>
+                </exclusion>
+                <!-- THE ONE THAT MATTERS. beam-sdks-java-nexmark depends on the
+                     ZetaSQL extension because Nexmark ships SQL variants of its
+                     queries; it drags Google's ZetaSQL client plus JNI native
+                     libraries for BOTH linux and darwin — 72.7 + 65.3 + 55.7 MB,
+                     which is 193 of the 295 MB the shaded jar first came to. We use
+                     the DataStream implementations, so none of it is reachable. -->
+                <exclusion>
+                    <groupId>org.apache.beam</groupId>
+                    <artifactId>beam-sdks-java-extensions-sql-zetasql</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>io.grpc</groupId>
+                    <artifactId>grpc-xds</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
 
         <!-- Logging -->
@@ -67,6 +119,18 @@
                                     <mainClass>com.thesis.benchmark.ConfigurableGraphJob</mainClass>
                                 </transformer>
                             </transformers>
+                            <!-- Beam's nexmark artifact drags the whole SDK — Avro,
+                                 Jackson, Guava, protobuf, gRPC — and took the shaded
+                                 jar from 81 MB to 295 MB. Every campaign and every
+                                 profiling run copies this file into the JobManager
+                                 pod with `kubectl cp`, so the size is operational
+                                 cost, not cosmetics. We use three packages of it:
+                                 the model, the generator and NexmarkConfiguration.
+                                 minimizeJar keeps the reachable graph; the filter
+                                 below force-keeps all of nexmark, because the
+                                 generator reaches parts of it reflectively and a
+                                 minimiser cannot see that. -->
+                            <minimizeJar>true</minimizeJar>
                             <filters>
                                 <filter>
                                     <artifact>*:*</artifact>
@@ -75,6 +139,18 @@
                                         <exclude>META-INF/*.DSA</exclude>
                                         <exclude>META-INF/*.RSA</exclude>
                                     </excludes>
+                                </filter>
+                                <filter>
+                                    <artifact>org.apache.beam:beam-sdks-java-nexmark</artifact>
+                                    <includes>
+                                        <include>org/apache/beam/sdk/nexmark/**</include>
+                                    </includes>
+                                </filter>
+                                <filter>
+                                    <artifact>com.thesis:flink-nexmark-job</artifact>
+                                    <includes>
+                                        <include>**</include>
+                                    </includes>
                                 </filter>
                             </filters>
                         </configuration>

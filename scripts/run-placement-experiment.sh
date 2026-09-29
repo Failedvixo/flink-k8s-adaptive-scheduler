@@ -244,8 +244,31 @@ POISON_HOLD="${POISON_HOLD:-45}"
 # 5s poll and the rescale itself. The restore (wide) phase only has to put the slots
 # back; the episode the controller records there lands in a different stratum and the
 # analysis drops it.
-NARROW_HOLD=$((MEASURE_WARMUP + MEASURE_WINDOW + 20))
-WIDE_HOLD="${WIDE_HOLD:-35}"
+# THE MARGIN COVERS A 40-SECOND DISAGREEMENT ABOUT WHEN THE RESCALE HAPPENED
+# (measured 2026-09-21, and it silently cost a whole calibration). The driver starts
+# counting when lib_wait_rescale sees every vertex reporting the new parallelism; the
+# controller starts counting when the vertices' START TIMES move, which is when the
+# tasks are actually deployed. In the 24000 run those were 01:10:14 and 01:10:54. With
+# a 20-second margin the driver cancelled the job at 01:18:34 while the controller's
+# window still had 20 seconds to run, so the measured step produced NO episode at all —
+# and the only row in the file was the previous epoch, whose window straddled the
+# rescale and was therefore (correctly) refused as "the job restarted inside the
+# measurement window". Four rates, four uncreditable rows, for want of 40 seconds.
+# 150, not 90 (2026-09-23). The margin has to cover everything between the driver starting
+# its clock and the observer finishing: the ~40 s disagreement about when the rescale
+# happened, plus the post-window work (an epoch-key read and a JobManager log scan, ~30 s).
+# With --only-parallelism the observer now needs warmup+window+70 and 90 left twenty seconds
+# of slack — too little for something that costs a three-hour run when it is wrong.
+STEP_MARGIN="${STEP_MARGIN:-150}"
+NARROW_HOLD=$((MEASURE_WARMUP + MEASURE_WINDOW + STEP_MARGIN))
+# LONG ENOUGH FOR THE OBSERVER, not just for Flink. The controller treats every
+# rescale as an epoch and spends warmup+window on each, so a 35-second transition
+# left it still measuring a phase that had already ended — and by the time it
+# finished, the measured step it should have captured was gone too. Measured
+# 2026-09-07: four measured rescales per cell, one episode credited. Holding the
+# wide phase as long as the narrow one costs about seven minutes per cell and lets
+# every measured step be observed.
+WIDE_HOLD="${WIDE_HOLD:-$((MEASURE_WARMUP + MEASURE_WINDOW + STEP_MARGIN))}"
 
 STAMP=$(date +%Y%m%d-%H%M%S)
 OUT_ROOT="${OUT_ROOT:-results/placement-experiment/$STAMP}"
@@ -267,8 +290,18 @@ query_heavy_vertex() {
 # ------------------------------------------------------------------
 # preconditions
 # ------------------------------------------------------------------
-if ! kubectl get nodes >/dev/null 2>&1; then
-    echo "ERROR: cluster unreachable (minikube start)" >&2; exit 1
+# RETRIED, like every other call into this cluster. A single `kubectl get nodes`
+# was the very first thing this script did, and a transient TLS handshake timeout —
+# seen repeatedly on 2026-09-07 with the cluster demonstrably alive and the API
+# server at two restarts in fifteen hours — aborted the campaign before it started.
+# Three smoke tests were lost to it and read as failures of the experiment's design.
+_reachable=0
+for _try in 1 2 3 4; do
+    if kubectl get nodes >/dev/null 2>&1; then _reachable=1; break; fi
+    sleep 3
+done
+if [ "$_reachable" != 1 ]; then
+    echo "ERROR: cluster unreachable after 4 attempts (minikube start)" >&2; exit 1
 fi
 JM_POD=$(kubectl get pod -n "$NAMESPACE" -l component=jobmanager \
     --field-selector=status.phase=Running --sort-by=.metadata.creationTimestamp \
@@ -304,16 +337,36 @@ fi
 # 2026-08-11 — the jobs were submitted and running fine, the script just could not
 # see them, waited out its RUNNING timeout and skipped the arm. Job control now
 # goes through the JobManager pod itself.
+# RETRIED, because a single transient failure used to cost a whole measurement.
+# Observed 2026-09-03 on the reference Q8 at RATE=8000: with the job in deep
+# overload and 300 MB checkpoints, the JobManager is busy enough that the exec'd
+# curl occasionally exceeds its timeout. The callers could not tell that apart from
+# a real answer — the rescale payload builder saw an empty body, gave up with
+# "could not build payload", and the step silently never happened, so the rep was
+# measured in whatever parallelism it had been left in. Three tries turn a flaky
+# transport into a slow one.
 jm_curl() {
-    kubectl exec -n "$NAMESPACE" "$JM_POD" -- \
-        curl -s -m 15 "http://localhost:8081$1" 2>/dev/null
+    local out=""
+    for _attempt in 1 2 3; do
+        out=$(kubectl exec -n "$NAMESPACE" "$JM_POD" -- \
+            curl -s -m 20 "http://localhost:8081$1" 2>/dev/null)
+        [ -n "$out" ] && break
+        sleep 2
+    done
+    printf '%s' "$out"
 }
 
 # arm_controller.py does still need a reachable HTTP endpoint, so the tunnel is
 # kept alive here rather than being assumed. Any stale forwarder is replaced: one
 # with a dead tunnel is worse than none, because it answers the port.
+# THE PROBE TIMEOUT WAS THE BUG, not the tunnel. Measured 2026-09-03: the forwarder
+# was up and listening (`Forwarding from 127.0.0.1:8081` in the log, kubectl holding
+# the socket) and the campaign still aborted with "could not establish the REST
+# port-forward", because a JobManager busy with 300 MB RocksDB checkpoints answers
+# /overview in more than the three seconds this probe allowed. A slow JobManager is
+# not an absent one.
 ensure_port_forward() {
-    curl -s -m 3 http://localhost:8081/overview >/dev/null 2>&1 && return 0
+    curl -s -m 15 http://localhost:8081/overview >/dev/null 2>&1 && return 0
     # Anchored at kubectl so the pattern can never match the shell that is running
     # this script (or the watchdog subshell), only a real forwarder.
     pkill -f "^kubectl port-forward.*flink-jobmanager.*8081" >/dev/null 2>&1
@@ -321,21 +374,26 @@ ensure_port_forward() {
     nohup kubectl port-forward -n "$NAMESPACE" svc/flink-jobmanager 8081:8081 \
         >> "$OUT_ROOT/port-forward.log" 2>&1 &
     for _ in $(seq 1 20); do
-        sleep 1
-        curl -s -m 3 http://localhost:8081/overview >/dev/null 2>&1 && return 0
+        sleep 2
+        curl -s -m 15 http://localhost:8081/overview >/dev/null 2>&1 && return 0
     done
     return 1
 }
 
+# NO LONGER FATAL. arm_controller.py now reaches Flink through `kubectl exec`
+# (--jm-pod), so the tunnel is a convenience for a human with a browser, not a
+# dependency of the measurement. It used to be fatal, and on 2026-09-03 it aborted
+# a campaign whose tunnel was in fact up and answering in 0.7 s — the probe just
+# had a three-second budget against a JobManager busy with checkpoints.
 if ! ensure_port_forward; then
-    echo "ERROR: could not establish the REST port-forward to the JobManager" >&2
-    exit 1
+    echo "WARNING: no REST port-forward; the campaign continues (the controller" >&2
+    echo "         talks to the JobManager pod directly)." >&2
 fi
 
 # Re-check often enough that the controller loses at most one poll to a reset.
 ( while true; do
       sleep 15
-      curl -s -m 3 http://localhost:8081/overview >/dev/null 2>&1 || ensure_port_forward
+      curl -s -m 15 http://localhost:8081/overview >/dev/null 2>&1 || ensure_port_forward
   done ) &
 PF_WATCHDOG=$!
 trap 'kill "$PF_WATCHDOG" 2>/dev/null' EXIT
@@ -396,6 +454,22 @@ assert_taskmanagers_registered() {
         [ "${REQUIRE_ALL_TMS:-0}" = "1" ] && exit 1
     fi
 }
+# NO TWO OBSERVERS AT ONCE (2026-09-28). A run whose driver was killed leaves its
+# arm_controller and characterizer_agent alive — they are separate processes, and
+# `pkill -f run-placement-experiment.sh` does not touch them. Measured that night: the agent of
+# a dead run kept publishing to /var/thesis/assignment while a new run was training, so the
+# placement applied at each rescale was whichever process wrote last, and the new agent was
+# crediting ITS trajectory for a reward the OLD plan produced. Mis-attributed episodes do not
+# merely waste a night, they poison the table. Silent corruption is worth refusing to start for.
+STALE=$(pgrep -f "scripts/(arm_controller|characterizer_agent)\.py" 2>/dev/null | tr '\n' ' ')
+if [ -n "${STALE// /}" ]; then
+    echo "ERROR: ya hay un observador o un agente corriendo (pids: $STALE)." >&2
+    echo "       Dos agentes escriben el mismo /var/thesis/assignment y se pisan el plan." >&2
+    echo "       Termínalos antes de empezar:  pkill -f 'scripts/(arm_controller|characterizer_agent).py'" >&2
+    [ "${ALLOW_STALE_OBSERVERS:-0}" = "1" ] || exit 1
+    echo "       ALLOW_STALE_OBSERVERS=1 — se continúa bajo tu responsabilidad." >&2
+fi
+
 EXPECTED_TMS=$(echo "$TM_DEPLOYMENTS" | tr ' ' '\n' | awk -F: 'NF{s+=$NF} END{print s+0}')
 assert_taskmanagers_registered "$EXPECTED_TMS"
 
@@ -427,12 +501,47 @@ done
 if [ "$MEASURED_STEPS" -eq 0 ]; then
     echo "ERROR: SCHEDULE has no measured step — mark at least one with '*'" >&2; exit 1
 fi
+# THE WIDTH THE OBSERVER SHOULD WAIT FOR. Passed to arm_controller so it does not spend a
+# full warmup+window on the submission's placement before reaching the step under test; see
+# the --only-parallelism note there. Only when every measured step is the same width: a
+# schedule that measures two widths needs the observer to look at both.
+# RANDOM_TARGETS="1 2": el paso medido sortea su paralelismo en cada repeticion, en vez de
+# repetir siempre el mismo. ES CONTRA EL SOBREAJUSTE, y es lo que pide el plan del profesor:
+# entrenando a un solo ancho la tabla memoriza UNA geometria de slices — con 12 slots y cuatro
+# etapas, un ancho fijo recorre siempre la misma secuencia de mascaras — en lugar de aprender
+# una regla que valga para varias. Los anchos utiles aqui son 4 y 8 slices (paralelismo 1 y 2):
+# a paralelismo 3 las slices igualan los slots y el asignador no tiene eleccion alguna.
+MEASURED_PAR=""
+if [ -n "${RANDOM_TARGETS:-}" ]; then
+    MEASURED_PAR=$(echo $RANDOM_TARGETS | tr ' ' ',')
+fi
+for STEP in $SCHEDULE; do
+    case "$STEP" in
+        *\*) W="${STEP%\*}"
+             [ -n "${RANDOM_TARGETS:-}" ] && continue   # ya cubierto por la lista sorteada
+             if [ -z "$MEASURED_PAR" ]; then MEASURED_PAR="$W"
+             elif [ "$MEASURED_PAR" != "$W" ]; then MEASURED_PAR=""; break; fi ;;
+    esac
+done
 POISON_COST=0
 for PSTEP in $POISON_SCHEDULE; do POISON_COST=$((POISON_COST + POISON_HOLD)); done
 [ -n "$POISON_ARM" ] || POISON_COST=0
 DRAIN_COST=0
 [ "$DRAIN_REPLICAS" -gt 0 ] 2>/dev/null && DRAIN_COST=$((DRAIN_HOLD + RESTORE_HOLD + 120))
-JOB_DURATION=$(( REPS * CYCLE + POISON_COST + DRAIN_COST + 180 ))
+# THE JOB HAS TO OUTLIVE THE SCHEDULE, AND THE SCHEDULE IS NOT ONLY THE HOLDS
+# (measured 2026-09-23, and it cost a three-hour run). The sources stop after
+# JOB_DURATION seconds, so if the number is short the job FINISHES mid-window and every
+# cell records the straddling epoch instead of the measured one — six cells, six rows of
+# "the job restarted inside the measurement window", zero usable data. The old estimate
+# counted the holds plus a flat 180 s and ignored three costs that grow with the
+# configuration: the settle before the first transition (which is MEASURE_WARMUP, 360 s
+# here, not a constant), the wait for the job to reach RUNNING, and the wait for EACH
+# rescale to land (88 s that night, 187 s the night before, up to RESCALE_TIMEOUT).
+# Budget the timeout for every step: overshooting costs nothing, because the driver
+# cancels the job when the schedule ends, while undershooting loses the whole run.
+STEPS_PER_REP=$(set -- $SCHEDULE; echo $#)
+JOB_DURATION=$(( REPS * (CYCLE + STEPS_PER_REP * ${RESCALE_TIMEOUT:-300})
+                 + MEASURE_WARMUP + POISON_COST + DRAIN_COST + 180 ))
 NARMS=$(echo "$ARMS" | wc -w)
 
 echo "=========================================="
@@ -462,10 +571,22 @@ set_parallelism() {
     local jid="$1" target="$2" label="$3" log="$4"
     local job_json payload code
     job_json=$(jm_curl "/jobs/$jid")
-    payload=$(echo "$job_json" | TARGET="$target" PIN="$PIN_VERTEX" PINPAR="$PIN_PARALLELISM" python3 -c "
+    payload=$(echo "$job_json" | TARGET="$target" PIN="$PIN_VERTEX" PINPAR="$PIN_PARALLELISM" \
+        DECLARED="$(dirname "$log")/declared-par-${jid:0:8}.json" python3 -c "
 import json, os, re, sys
 data = json.load(sys.stdin)
 t = int(os.environ['TARGET'])
+# DECLARED WIDTHS, NOT CURRENT ONES (2026-09-29). Which vertices are scalable used to be read off
+# the job's CURRENT parallelism (par > 1). Once a repetition pinned new-users-join to 1, the join
+# WAS at 1, looked like a vertex declared at 1 on purpose, and stayed there for the rest of the
+# job: every later 'none' draw ran the pinned geometry (7 slices, never 8). The first call sees
+# the job as submitted, before any pin, so its widths are recorded once and read from then on.
+declared_path = os.environ['DECLARED']
+try:
+    declared = json.load(open(declared_path))
+except (OSError, ValueError):
+    declared = {v['id']: max(v.get('parallelism', 1), 1) for v in data.get('vertices', [])}
+    json.dump(declared, open(declared_path, 'w'))
 # PIN accepts either a single pattern (with PINPAR as its width) or a list of
 # 'pattern:width' pairs separated by commas. Several pins at DIFFERENT widths are
 # what give the slices several distinct demand levels: a slice carries a vertex
@@ -477,7 +598,11 @@ t = int(os.environ['TARGET'])
 # with two, and 6-9% with four — so a workload with a single pin cannot show a
 # placement policy doing anything, no matter how many operators the query has.
 pin = os.environ.get('PIN', '')
-pinpar = int(os.environ.get('PINPAR', '2'))
+# OR, not a default argument (2026-09-29): an EMPTY PINPAR is present, so .get() returns ''
+# instead of the default and int('') raises. RANDOM_PINS sets it empty on the 'none' draw, and
+# every such repetition silently failed to build a payload and stayed at the wide width —
+# which cost the 'none' geometry of two whole training runs.
+pinpar = int(os.environ.get('PINPAR') or '2')
 pins = []
 if ':' in pin:
     for part in pin.split(','):
@@ -489,7 +614,7 @@ elif pin:
 
 reqs = {}
 for v in data.get('vertices', []):
-    par = max(v.get('parallelism', 1), 1)
+    par = declared.get(v['id'], max(v.get('parallelism', 1), 1))
     name = v.get('name', '')
     pinned = next((w for pattern, w in pins if re.search(pattern, name, re.IGNORECASE)), None)
     if pinned is not None:
@@ -506,15 +631,56 @@ for v in data.get('vertices', []):
 print(json.dumps(reqs))
 " 2>/dev/null)
     if [ -z "$payload" ]; then
-        echo "    ! could not build payload for $label" | tee -a "$log"; return 1
+        # Counted as a failed rescale, so three in a row abort the arm like any other. It used
+        # to return quietly and the rep was measured at whatever width the job already had.
+        echo "    ! could not build payload for $label" | tee -a "$log"
+        RESCALE_MISSES=$(( ${RESCALE_MISSES:-0} + 1 ))
+        return 1
     fi
-    code=$(kubectl exec -n "$NAMESPACE" "$JM_POD" -- \
-        curl -s -o /dev/null -w "%{http_code}" -m 15 -X PUT \
-        "http://localhost:8081/jobs/$jid/resource-requirements" \
-        -H "Content-Type: application/json" -d "$payload" 2>/dev/null)
+    # RETRIED, like every other call into the JobManager. This one was missed when
+    # jm_curl got its retries on 2026-09-03 and failed within minutes: an empty
+    # HTTP code meant the exec never ran, the transition back to the wide
+    # parallelism never happened, and the NEXT repetition's "measured" PUT became a
+    # no-op — the job was already at that width, so no rescale fired, no placement
+    # decision was taken, and the episode recorded whatever was already running.
+    # A dropped transition silently costs the repetition after it, not this one.
+    code=""
+    for _try in 1 2 3; do
+        code=$(kubectl exec -n "$NAMESPACE" "$JM_POD" -- \
+            curl -s -o /dev/null -w "%{http_code}" -m 20 -X PUT \
+            "http://localhost:8081/jobs/$jid/resource-requirements" \
+            -H "Content-Type: application/json" -d "$payload" 2>/dev/null)
+        case "$code" in 200|202) break ;; esac
+        sleep 3
+    done
     echo "    [$label] PUT parallelism=$target -> HTTP $code" | tee -a "$log"
     case "$code" in
-        200|202) ;;
+        200|202)
+            # WAIT FOR IT TO LAND. The PUT is acknowledged instantly and the job
+            # keeps running at its old width for another two and a half minutes
+            # while the adaptive scheduler walks Idling -> Stabilizing ->
+            # Stabilized -> Transitioning. Measured 2026-09-07: 156 seconds from
+            # request to the assigner producing a placement, against a hold of 140.
+            # The campaign moved on before its own rescale arrived, so every
+            # measured episode observed the SUBMISSION's placement — which is why
+            # assignments appeared in two repetitions out of four and why so many
+            # episodes were credited at the submission width.
+            python3 "$SCRIPT_DIR/lib_wait_rescale.py" --pod "$JM_POD" --job "$jid" \
+                --target "$target" --namespace "$NAMESPACE" \
+                --timeout "${RESCALE_TIMEOUT:-300}" 2>&1 | tee -a "$log"
+            # ABORT AFTER A FEW RESCALES THAT NEVER LAND (2026-09-28, and it cost ten hours).
+            # A job that stops rescaling does not recover on its own: the run of 2026-09-27 got
+            # stuck at parallelism 1 — a width that cannot sustain the rate, so it thrashed —
+            # and the driver kept PUTting requirements at it for SEVEN HOURS, writing the same
+            # warning thirty-four times and producing five epochs and zero credited episodes.
+            # `tee` in the pipeline above hides the exit status, hence PIPESTATUS.
+            if [ "${PIPESTATUS[0]}" -eq 0 ]; then
+                RESCALE_MISSES=0
+            else
+                RESCALE_MISSES=$(( ${RESCALE_MISSES:-0} + 1 ))
+                echo "    ! reescalados sin aterrizar consecutivos: $RESCALE_MISSES" | tee -a "$log"
+            fi
+            ;;
         *) echo "    ! rescale not accepted (HTTP ${code:-none}) — this rep will be" \
                 "measured in whatever configuration the job is already in" | tee -a "$log" ;;
     esac
@@ -523,7 +689,13 @@ print(json.dumps(reqs))
 CELL=0
 for ARM in $ARMS; do
   CELL=$((CELL + 1))
+  # A REPEATED ARM NAME GETS ITS OWN CELL (2026-09-22). `ARMS="LPT LPT LPT"` is the direct
+  # test for a position effect — one deterministic arm run several times in a row, where any
+  # difference between the cells IS the position and nothing else. Before this, every
+  # repetition wrote into the same directory and overwrote the previous one's episodes.
+  RESCALE_MISSES=0
   CELL_DIR="$OUT_ROOT/$ARM"
+  [ -d "$CELL_DIR" ] && CELL_DIR="$OUT_ROOT/${ARM}#${CELL}"
   mkdir -p "$CELL_DIR"
   DRIVER_LOG="$CELL_DIR/driver.log"
 
@@ -535,8 +707,148 @@ for ARM in $ARMS; do
   cleanup_jobs
   sleep 5
 
-  "$SCRIPT_DIR/publish-arm.sh" "$ARM" >/dev/null || { echo "  ! publish failed"; continue; }
-  echo "  published arm: $ARM"
+  # AND ON THE SAME TASKMANAGERS (2026-09-07). Something accumulates inside the
+  # TaskManager JVMs across jobs, and it is measurable: the THIRD measurement of a sweep
+  # is degraded no matter what rate it asks for. Three identical runs at 32000 rec/s gave
+  # ratios 0.982 / 0.979 / 0.873, and the same shape appears in every ascending sweep of
+  # that evening (1.000/0.997/0.842, 1.000/0.956/0.705, 0.996/1.012/0.717) — which is what
+  # made a nonexistent "capacity knee" appear between 28000 and 29000. It is not the disk:
+  # wiping MinIO between rates does not prevent it. It is the processes — the node held
+  # 4.1 GiB resident that `drop_caches` would not free, and these TaskManagers carry a CPU
+  # limit but NO memory limit. Restarting them brought the node back to 2.1 GiB and lifted
+  # the third run from 0.873 to 0.927, so this mitigates the drift without removing it:
+  # roughly two clean measurements per TaskManager lifetime, which is a real constraint on
+  # REPS and worth remembering when reading a cell's later repetitions.
+  # The speed vector survives this: it is keyed by taskmanager.resource-id (tm-3-fast and
+  # friends), which the manifests pin, so a restarted pod keeps its published speed even
+  # though its IP changes.
+  if [ "${RESTART_TMS:-1}" = "1" ]; then
+      # Not `set --`: this runs inside the arm loop, where clobbering the positional
+      # parameters would change what the rest of the campaign sees.
+      TM_NAMES=""
+      # shellcheck disable=SC2086
+      for spec in $TM_DEPLOYMENTS; do TM_NAMES="$TM_NAMES ${spec%%:*}"; done
+      if [ -n "$TM_NAMES" ]; then
+          echo "  reiniciando TaskManagers para empezar el brazo en frío"
+          # shellcheck disable=SC2086
+          kubectl rollout restart -n "$NAMESPACE" $(for n in $TM_NAMES; do printf 'deploy/%s ' "$n"; done) >/dev/null 2>&1 || true
+          for n in $TM_NAMES; do
+              kubectl rollout status -n "$NAMESPACE" "deploy/$n" --timeout=180s >/dev/null 2>&1 || true
+          done
+          # Registration is what matters, not the rollout: a TaskManager that was talking to
+          # the previous pod needs a heartbeat timeout to find the JobManager again.
+          assert_taskmanagers_registered "$EXPECTED_TMS"
+      fi
+  fi
+
+  # DISK_LIMIT="fast:10M medium:off": the second resource dimension, reapplied here because a
+  # restarted TaskManager is a new pod with a new cgroup, and the cap lived in the old one. Set
+  # for EVERY arm, not once, for the same reason every arm gets restarted: an arm that inherited
+  # a cap from the previous one — or silently lost it — would not be the machine it claims to
+  # be. See scripts/limit-disk.sh for why disk and not memory.
+  if [ -n "${DISK_LIMIT:-}" ]; then
+      for spec in $DISK_LIMIT; do
+          "$SCRIPT_DIR/limit-disk.sh" "${spec%%:*}" "${spec##*:}" 2>&1 | sed 's/^/  /' \
+              | tee -a "$CELL_DIR/disk-limit.log"
+      done
+  fi
+
+  # EVERY ARM MUST START ON THE SAME DISK (2026-09-07). MinIO keeps a cancelled job's
+  # checkpoints, so a session accumulates them: after sixteen jobs the hostPath held
+  # 4.3 GB, the node had written 394 GB and the container's memory had gone from 2.0 to
+  # 4.5 GiB on page cache alone, with no pod ever restarting. Capacity fell with it, and
+  # measurably — three calibrations inside twenty-five minutes emitted 33682, 22544 and
+  # 20419 rec/s while being asked for progressively LESS (40000, 32000, 29000), so what
+  # reads as a capacity ceiling is really the disk filling up.
+  # In a campaign this is not noise but bias with a direction: the arm that runs second
+  # always meets a dirtier cluster than the arm that runs first, which is exactly the
+  # position effect the reversed pass exists to cancel. Cleaning before each arm — the
+  # first one included, so a campaign does not inherit whatever ran before it — puts
+  # every cell on the same footing.
+  # WHAT ACTUALLY GROWS IS .minio.sys/multipart. Measured after sixteen jobs: the two
+  # data directories held 4 KB each while `.minio.sys/multipart` held 3.9 GB — the parts
+  # of uploads that a cancelled job never finished. Wiping only the checkpoint tree, as
+  # this did at first, emptied a directory that was already empty.
+  # THE CLUSTER MUST BE IDLE HERE. Deleting a multipart directory while an upload is in
+  # flight is precisely what produces the NoSuchUpload (404) that failed a checkpoint and
+  # restarted the job on 2026-09-07, costing that campaign its STOCK pass. cleanup_jobs
+  # above cancels every job, but `flink cancel` returns on acceptance rather than on
+  # completion, so give the last checkpoint a moment to stop writing before removing the
+  # parts underneath it.
+  if [ "${CLEAN_CHECKPOINTS:-1}" = "1" ]; then
+      sleep 5
+      # BOUNDED (2026-09-23): this call hung for 41 minutes on the sixth cell of an order
+      # experiment and the run simply stopped there — the driver has no other deadline, so an
+      # `ssh` that never returns costs the rest of the session. The `rm` is the part that
+      # matters; `sync` and `drop_caches` are hygiene, and skipping them beats stalling. Not
+      # cleaning at all is announced below, so a cell prepared differently is visible in the
+      # log rather than silently mixed into the comparison.
+      # `docker exec` FIRST, and a timeout that actually kills (2026-09-25). Two runs died
+      # here. `minikube ssh` hangs on this host — the agent has preferred `docker exec` since
+      # the SIGTTIN episode of 2026-09-16 for the same reason — and plain `timeout N` only
+      # sends TERM: when the child ignores it, timeout waits forever, which is how a call
+      # nominally bounded at 180 s was still blocking the driver twenty-four minutes later.
+      # `-k` gives it a KILL after the grace period.
+      # THE `rm` AND THE CACHE DROP ARE SEPARATE CALLS (2026-09-25). Bundled, they shared a
+      # deadline, and it is the second half that blocks: `sync` and `drop_caches` walk the
+      # whole page cache, which on WSL2 takes minutes or never returns. Killing the pair
+      # therefore threw away the deletion too — and the deletion is the part that matters,
+      # since MinIO's multipart leftovers are what degrade capacity within a session. The
+      # cache drop is hygiene: attempted, bounded, and its failure is not worth a warning.
+      # NO `sudo` ON THE docker exec PATH, AND NO STDIN (2026-09-26). This is what was
+      # actually hanging, twice, for the full 180 s: `docker exec` already runs as root inside
+      # the minikube container, and `sudo` with stdin attached but no TTY blocks forever
+      # waiting for a password nobody can type. `minikube ssh` keeps its `sudo` because there
+      # it is configured passwordless — which is why publish-loads.sh never had this problem.
+      CLEAN_PATHS="/var/thesis/minio/flink-checkpoints/checkpoints/* \
+                   /var/thesis/minio/.minio.sys/multipart/* \
+                   /var/thesis/minio/.minio.sys/tmp/*"
+      if timeout -k 10 "${CLEAN_TIMEOUT:-180}" docker exec "${THESIS_NODE:-minikube}" \
+             sh -c "rm -rf $CLEAN_PATHS 2>/dev/null" </dev/null >/dev/null 2>&1 \
+         || timeout -k 10 "${CLEAN_TIMEOUT:-180}" minikube ssh -n "${THESIS_NODE:-minikube}" \
+             -- "sudo rm -rf $CLEAN_PATHS 2>/dev/null" </dev/null >/dev/null 2>&1
+      then
+          echo "  checkpoints limpiados"
+          timeout -k 5 30 docker exec "${THESIS_NODE:-minikube}" \
+              sh -c "sync; echo 3 > /proc/sys/vm/drop_caches" \
+              </dev/null >/dev/null 2>&1 || true
+      else
+          # Not fatal: a dirty cell is still a cell, and aborting here would throw away a
+          # campaign over housekeeping. It is announced so the log records which cells
+          # started clean, because that is now part of reading the result.
+          echo "  ! no se pudieron limpiar los checkpoints — este brazo arranca sucio" >&2
+      fi
+  fi
+
+  # THE JAR LIVES INSIDE THE JOBMANAGER POD, so it goes with the pod. Measured
+  # 2026-09-07: the JobManager was recreated between two arms of one campaign and
+  # the second could not submit at all ("JAR file does not exist: /tmp/nexmark.jar"),
+  # losing the cell. Uploading once per campaign assumed a pod that outlives it.
+  # Re-uploading per arm costs half a minute against a twenty-minute cell.
+  JM_POD=$(kubectl get pod -n "$NAMESPACE" -l component=jobmanager \
+      --field-selector=status.phase=Running --sort-by=.metadata.creationTimestamp \
+    -o jsonpath='{.items[-1:].metadata.name}' 2>/dev/null)
+  if ! kubectl exec -n "$NAMESPACE" "$JM_POD" -- test -f /tmp/nexmark.jar 2>/dev/null; then
+      echo "  el jar no está en $JM_POD — subiéndolo de nuevo"
+      kubectl cp "$LOCAL_JAR" "$NAMESPACE/$JM_POD:/tmp/nexmark.jar" || true
+  fi
+
+  # PLAN_<name> ARMS (2026-09-17): a hand-written placement applied through the RL arm, so
+  # two fixed placements can be compared head to head in a paired campaign. The fork only
+  # knows RL; the cell keeps the PLAN_ label, which is what the analysis groups by. The plan
+  # itself is published once the job is running (below), because it is resolved against the
+  # job's actual vertices and TaskManagers.
+  FORK_ARM="$ARM"
+  STATIC_PLAN=""
+  case "$ARM" in
+      PLAN_*)
+          FORK_ARM="RL"
+          STATIC_PLAN="$ROOT_DIR/plans/${ARM#PLAN_}.plan"
+          [ -f "$STATIC_PLAN" ] || { echo "  ! no existe $STATIC_PLAN"; continue; }
+          ;;
+  esac
+  "$SCRIPT_DIR/publish-arm.sh" "$FORK_ARM" >/dev/null || { echo "  ! publish failed"; continue; }
+  echo "  published arm: $FORK_ARM${STATIC_PLAN:+ (plan fijo $(basename "$STATIC_PLAN"))}"
   sleep 3
 
   # The first eight arguments are shared by both jobs (GraphConfig.fromArgs and
@@ -544,7 +856,15 @@ for ARM in $ARMS; do
   # diverges: the synthetic job reads it as the CPU-load operator's own
   # parallelism — the source of the slice asymmetry — while Nexmark reads it as
   # the heavy vertex's initial width.
-  if [ "${JOB_CLASS##*.}" = "NexmarkRealJob" ]; then
+  # Both Nexmark jobs take the same positional arguments; RefNexmarkJob exists
+  # because it builds the query on the REFERENCE Beam generator with a source per
+  # event type, not because its CLI differs. Matching the class name exactly meant
+  # the reference job silently fell through to the synthetic layout.
+  case "${JOB_CLASS##*.}" in
+      NexmarkRealJob|RefNexmarkJob) IS_NEXMARK=1 ;;
+      *) IS_NEXMARK=0 ;;
+  esac
+  if [ "$IS_NEXMARK" = 1 ]; then
       ARG6="$SUBMIT_PAR"
       # Nexmark already uses args[8..10] for query/zipf/hotPool, so the mode lands at [11].
       TAIL_ARGS="$(query_job_args "$QUERY") $SLOT_SHARING"
@@ -578,6 +898,23 @@ for ARM in $ARMS; do
   echo "$JOB_ID" > "$CELL_DIR/job-id.txt"
   echo "  JobID: $JOB_ID"
 
+  # DOES THE ASSIGNER EVEN SEE THE WHOLE CLUSTER? `freeSlots` is what the JOB asked
+  # for, not what the cluster has, and Flink fills that request from whichever
+  # TaskManagers it likes. Measured 2026-09-06: a SHARED job submitted at
+  # parallelism 6 asked for 6 slots, Flink covered them from `slow` (6 slots) and
+  # `fast` (2), and `tm-2-medium` never entered the pool — the whole campaign ran
+  # on two machines out of three and nothing said so. To guarantee every machine
+  # participates the job must ask for more slots than the two largest supply.
+  sleep 8
+  SEEN_TMS=$(kubectl logs -n "$NAMESPACE" "$JM_POD" 2>/dev/null \
+      | grep -o "tmsAvailable=[0-9]*" | tail -1 | cut -d= -f2)
+  if [ -n "$SEEN_TMS" ] && [ "$SEEN_TMS" -lt "$EXPECTED_TMS" ]; then
+      echo "  ! EL POOL SOLO OFRECE $SEEN_TMS de $EXPECTED_TMS TaskManagers." | tee -a "$DRIVER_LOG"
+      echo "  ! El brazo decide sobre un clúster más pequeño que el declarado." | tee -a "$DRIVER_LOG"
+      echo "  ! Sube SUBMIT_PAR hasta que el job pida más slots que la suma de las" | tee -a "$DRIVER_LOG"
+      echo "  ! dos máquinas mayores, o la heterogeneidad no entra en la decisión." | tee -a "$DRIVER_LOG"
+  fi
+
   echo -n "  waiting for RUNNING"
   STATE=""
   for _ in $(seq 1 60); do
@@ -596,6 +933,19 @@ for ARM in $ARMS; do
   # systematically colder than rep N.
   echo "  settling ${MEASURE_WARMUP}s before the first transition..."
   sleep "$MEASURE_WARMUP"
+
+  # Before the first rescale, so the measured step is already decided by the fixed plan. The
+  # width is the slice count at the measured parallelism under PER_STAGE (four stages in Q8).
+  if [ -n "$STATIC_PLAN" ]; then
+      if python3 "$SCRIPT_DIR/publish-static-plan.py" --spec "$STATIC_PLAN" \
+              --jm-pod "$JM_POD" --width $(( TARGET_PAR * ${PLAN_STAGES:-4} )) \
+              > "$CELL_DIR/static-plan.txt" 2>&1; then
+          echo "  plan fijo publicado -> $CELL_DIR/static-plan.txt"
+      else
+          echo "  ! no se pudo publicar el plan fijo:"; sed 's/^/    /' "$CELL_DIR/static-plan.txt"
+          cleanup_jobs; continue
+      fi
+  fi
 
   # ---- per-vertex weights: measured ONCE, on the first arm, and then held fixed.
   #
@@ -655,17 +1005,72 @@ for ARM in $ARMS; do
       # one being measured: it sees the poisoned previous allocation and either keeps
       # it (locality wins) or repairs it (load-aware balance wins).
       "$SCRIPT_DIR/publish-loads.sh" --enable >/dev/null 2>&1 || true
-      "$SCRIPT_DIR/publish-arm.sh" "$ARM" >/dev/null || true
+      "$SCRIPT_DIR/publish-arm.sh" "$FORK_ARM" >/dev/null || true
       sleep 3
       echo "  poisoned; measuring $ARM from here"
   fi
 
   timeout $((JOB_DURATION + 120)) python3 -u "$SCRIPT_DIR/arm_controller.py" \
       --observe --out-dir "$CELL_DIR" \
+      --jm-pod "$JM_POD" \
       --warmup "$MEASURE_WARMUP" --window "$MEASURE_WINDOW" \
       --poll-interval "$RECOVERY_INTERVAL" \
+      ${MEASURED_PAR:+--only-parallelism "$MEASURED_PAR"} \
       > "$CELL_DIR/arm-controller.log" 2>&1 &
   CONTROLLER_PID=$!
+
+  # THE CHARACTERISER RIDES ALONG, it does not replace the observer (2026-09-15). The
+  # arm_controller above keeps recording the episode CSV every analysis script reads; the
+  # agent only writes /var/thesis/loads, which LPT consumes at the next rescale. Started
+  # here so it lives exactly as long as the cell's job — an agent outliving its job would
+  # publish loads keyed to vertex ids the next job may not share, and one started by hand
+  # in another terminal is easy to leave running into the following arm.
+  # Only with the RL arm: that is the one that APPLIES the agent's plan. Against any other
+  # arm the agent would be learning from placements it never decided.
+  AGENT_PID=""
+  # THE AGENT MUST FINISH BEFORE THE NEXT RESCALE (2026-09-16). Its declarations only take
+  # effect at the following rescale, so an epoch counts as credited only if they were
+  # published before that epoch began. Given the same warmup and window as the observer,
+  # the agent lands LATE — its own sampling adds to the window — and the driver rescales at
+  # warmup+window+20: measured on the smoke test, one epoch in four was credited. A shorter
+  # window leaves the margin, at the cost of a slightly noisier reward, which is the right
+  # trade for a signal that is only used to rank three actions.
+  AGENT_WINDOW=$(( MEASURE_WINDOW * 4 / 5 ))
+  if [ "${CHARACTERISER:-0}" = "1" ]; then
+      case "$ARM" in
+          RL)
+              timeout $((JOB_DURATION + 120)) python3 -u "$SCRIPT_DIR/characterizer_agent.py" \
+                  --jm-pod "$JM_POD" --out-dir "$CELL_DIR" \
+                  --warmup "$MEASURE_WARMUP" --window "$AGENT_WINDOW" \
+                  ${AGENT_QTABLE:+--qtable "$AGENT_QTABLE"} ${AGENT_FREEZE:+--freeze} \
+                  ${AGENT_LATENCY_WEIGHT:+--latency-weight "$AGENT_LATENCY_WEIGHT"} \
+                  ${AGENT_LOCAL_CREDIT:+--local-credit "$AGENT_LOCAL_CREDIT"} \
+                  ${AGENT_UCB:+--ucb "$AGENT_UCB"} \
+                  ${MEASURED_PAR:+--only-parallelism "$MEASURED_PAR"} \
+                  < /dev/null > "$CELL_DIR/characterizer.log" 2>&1 &
+              AGENT_PID=$!
+              echo "  agente caracterizador activo (pid $AGENT_PID) -> $CELL_DIR/characterizer.log"
+              ;;
+          *) echo "  (CHARACTERISER=1 ignorado: solo el brazo RL aplica el plan del agente)" ;;
+      esac
+  elif [ "$ARM" = RL ]; then
+      # SAY WHOSE POLICY THIS IS (2026-09-21). The multi-arm campaign of that night ran the
+      # RL arm for nine hours without CHARACTERISER=1 — no campaign script exported it — so
+      # no agent ran and the fork applied whatever was left at /var/thesis/assignment: a plan
+      # written three days earlier, BEFORE the Q8 join was fixed. The run was still a valid
+      # evaluation of a frozen policy, and it is in the thesis as one, but nothing in the
+      # output said which policy, and that had to be reconstructed afterwards from the file's
+      # mtime. Announce it instead: a frozen evaluation is a choice, not an accident.
+      PLAN_AGE=$(docker exec minikube stat -c '%y' /var/thesis/assignment 2>/dev/null | cut -c1-16)
+      if [ -n "$PLAN_AGE" ]; then
+          echo "  brazo RL SIN agente: se evalúa la política CONGELADA de $PLAN_AGE"
+          echo "$PLAN_AGE" > "$CELL_DIR/frozen-policy-date.txt"
+          docker exec minikube cat /var/thesis/assignment > "$CELL_DIR/frozen-policy.txt" 2>/dev/null
+      else
+          echo "  ! brazo RL sin agente Y SIN PLAN publicado: el fork caerá a LPT y esta"
+          echo "    celda será una segunda copia de LPT, no una medición de RL."
+      fi
+  fi
   sleep 5
 
   for rep in $(seq 1 "$REPS"); do
@@ -689,24 +1094,76 @@ for ARM in $ARMS; do
           break
       fi
       echo "  --- rep $rep/$REPS"
+      # RANDOM_PINS: variedad de GEOMETRIA a tasa constante, que es el escalado aleatorio que
+      # este cluster admite. Sortear el paralelismo GLOBAL no sirve — con doce slots los unicos
+      # anchos son 4 y 8, y la tasa que satura el 8 deja al 4 con una sola subtarea por fuente,
+      # insostenible (medido el 2026-09-27: el job se atasco y se perdio la noche). Fijar UN
+      # vertice a un ancho menor deja la tasa y el numero de fuentes intactos, y produce slices
+      # con niveles de demanda distintos — la condicion para que dos emplazamientos se puedan
+      # distinguir. Formato: "vertice:ancho" separados por espacios, y "none" para sin fijar.
+      if [ -n "${RANDOM_PINS:-}" ]; then
+          RP_ARR=($RANDOM_PINS)
+          RP_PICK=${RP_ARR[$(( RANDOM % ${#RP_ARR[@]} ))]}
+          if [ "$RP_PICK" = none ]; then
+              PIN_VERTEX=""; PIN_PARALLELISM=""
+              echo "    [rep$rep] geometria sorteada: sin vertice fijado"
+          else
+              PIN_VERTEX="${RP_PICK%%:*}"; PIN_PARALLELISM="${RP_PICK##*:}"
+              echo "    [rep$rep] geometria sorteada: $PIN_VERTEX fijado a $PIN_PARALLELISM"
+          fi
+      fi
       for STEP in $SCHEDULE; do
           case "$STEP" in
-              *\*) TARGET="${STEP%\*}"; HOLD="$NARROW_HOLD"; KIND="measured" ;;
+              *\*) TARGET="${STEP%\*}"; HOLD="$NARROW_HOLD"; KIND="measured"
+                   # Sorteado por repeticion, no por celda: dentro de un job cada rescale es una
+                   # decision nueva, asi que variar aqui da varias geometrias por entrenamiento.
+                   # $RANDOM se evalua en ESTE shell, no dentro de una sustitucion de
+                   # comandos: en un subshell hereda una semilla derivada del padre y del PID,
+                   # y sale sesgado — probado, siete unos de ocho tiradas sobre dos valores.
+                   if [ -n "${RANDOM_TARGETS:-}" ]; then
+                       RT_ARR=($RANDOM_TARGETS)
+                       TARGET=${RT_ARR[$(( RANDOM % ${#RT_ARR[@]} ))]}
+                       echo "    [rep$rep] ancho medido sorteado: paralelismo $TARGET"
+                   fi ;;
               *)   TARGET="$STEP";      HOLD="$WIDE_HOLD";   KIND="transition" ;;
           esac
           set_parallelism "$JOB_ID" "$TARGET" "rep$rep p=$TARGET $KIND" "$DRIVER_LOG"
+          if [ "${RESCALE_MISSES:-0}" -ge "${MAX_RESCALE_MISSES:-3}" ]; then
+              echo "  ! $RESCALE_MISSES reescalados seguidos sin aterrizar — el job no se" \
+                   "recupera solo, se aborta el brazo en la rep $rep de $REPS" | tee -a "$DRIVER_LOG"
+              break 2
+          fi
+          # WHAT WAS PLACED, for the RL arm (2026-09-17). Its placement is keyed by task, and
+          # which STAGE each slice holds only exists in the layout the fork writes on each
+          # decision, overwritten by the next one. Kept per measured step, so a fixed plan can
+          # be checked against what actually ran rather than against what was intended.
+          # FOR EVERY ARM, not just RL (2026-09-21). Two of STOCK's six jobs collapsed to
+          # ~22000 rec/s against ~34000 for the rest, and the campaign could not say why: the
+          # number of slices on `tm-1-slow` did not discriminate — STOCK produced both 37232
+          # and 21293 with four of them there — so the answer has to be WHICH stage landed
+          # where, and that only exists in the layout the fork writes at each decision. It
+          # was being saved for the RL arm alone, so the arm whose failure needed explaining
+          # was the one with no record of what it did.
+          if [ "$KIND" = measured ]; then
+              docker exec minikube cat /var/thesis/slices \
+                  > "$CELL_DIR/slices-rep${rep}.txt" 2>/dev/null || true
+          fi
           sleep "$HOLD"
       done
   done
 
   kill "$CONTROLLER_PID" 2>/dev/null
   wait "$CONTROLLER_PID" 2>/dev/null
+  if [ -n "$AGENT_PID" ]; then
+      kill "$AGENT_PID" 2>/dev/null
+      wait "$AGENT_PID" 2>/dev/null
+  fi
 
   # Read the job graph BEFORE cancelling: once the job is gone the REST API keeps
   # only a stub.
   jm_curl "/jobs/$JOB_ID" > "$CELL_DIR/job-details.json"
   kubectl logs -n "$NAMESPACE" "$JM_POD" --since="$((JOB_DURATION + 200))s" 2>/dev/null |
-      grep -E "THESIS_ASSIGN|THESIS_ARM" > "$CELL_DIR/thesis-assign.log"
+      grep -E "THESIS_ASSIGN|THESIS_ARM|THESIS_PLAN" > "$CELL_DIR/thesis-assign.log"
 
   cleanup_jobs
   echo "  -> $CELL_DIR"
