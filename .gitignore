@@ -21,4 +21,13 @@ scheduler/backups/
 
 # OS
 .DS_Store
-Thumbs.dbscripts/__pycache__/
+Thumbs.db
+
+# Python
+__pycache__/
+*.pyc
+
+# Papers descargados (copyright) y metadatos de Windows
+*.pdf
+*:Zone.Identifier
+
