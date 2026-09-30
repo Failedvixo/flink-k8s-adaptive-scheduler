@@ -232,6 +232,14 @@ DRAIN_DEPLOYMENTS="${DRAIN_DEPLOYMENTS:-flink-taskmanager:$DRAIN_REPLICAS}"
 # Measure the per-vertex weights once on the first arm and hold them for the campaign.
 PUBLISH_LOADS="${PUBLISH_LOADS:-1}"
 LOADS_PUBLISHED=0
+# LPT_ORACLE (2026-09-30): LPT handed the per-vertex costs by DECLARATION, not measurement —
+# what a perfect profiler would give it. Busy time is not reproducible on this cluster, so this
+# is the honest upper bound of load-aware placement in ONE dimension. It is what separates the
+# two things RL knows and unit-weight LPT does not: WHICH operators are expensive (the oracle
+# knows it too) and WHICH MACHINE each resource is short on (only RL does — the oracle still
+# sees one speed per machine and cannot know that medium's disk is capped). Default: the join
+# dominates, the auction stage is the next heaviest, everything else weighs 1.
+ORACLE_LOADS="${ORACLE_LOADS:-new-users-join=10,auction=3}"
 DRAIN_PAR="${DRAIN_PAR:-2}"
 DRAIN_HOLD="${DRAIN_HOLD:-60}"
 RESTORE_HOLD="${RESTORE_HOLD:-60}"
@@ -840,7 +848,12 @@ for ARM in $ARMS; do
   # job's actual vertices and TaskManagers.
   FORK_ARM="$ARM"
   STATIC_PLAN=""
+  ORACLE_ARM=0
   case "$ARM" in
+      LPT_ORACLE)
+          FORK_ARM="LPT"
+          ORACLE_ARM=1
+          ;;
       PLAN_*)
           FORK_ARM="RL"
           STATIC_PLAN="$ROOT_DIR/plans/${ARM#PLAN_}.plan"
@@ -958,7 +971,25 @@ for ARM in $ARMS; do
   #
   # Measured on the first arm rather than before the loop because measuring needs a running
   # job, and the first arm has one. Set PUBLISH_LOADS=0 to keep whatever is already there.
-  if [ "$PUBLISH_LOADS" = "1" ] && [ "$LOADS_PUBLISHED" = "0" ]; then
+  #
+  # The oracle arm declares its vector here, and EVERY other arm run with PUBLISH_LOADS=0 now
+  # publishes a no-match file instead of keeping "whatever is there": the assigner holds its
+  # last good copy, so an oracle arm would otherwise leak its weights into the next LPT arm
+  # — the same leak that made 2026-09-22's "unit" LPT secretly weighted.
+  if [ "$ORACLE_ARM" = "1" ]; then
+      echo "  LPT oráculo: declarando costos '$ORACLE_LOADS'" | tee -a "$DRIVER_LOG"
+      if timeout -k 5 90 "$SCRIPT_DIR/publish-loads.sh" --declare "$ORACLE_LOADS" >>"$DRIVER_LOG" 2>&1; then
+          timeout -k 5 60 "$SCRIPT_DIR/publish-loads.sh" --read 2>/dev/null | sed 's/^/    /'
+      else
+          echo "  ! NO se pudo declarar el vector: esta celda es LPT UNITARIO, no oráculo" \
+              | tee -a "$DRIVER_LOG" | tee "$CELL_DIR/ORACLE_FAILED"
+      fi
+  elif [ "$PUBLISH_LOADS" = "0" ]; then
+      timeout -k 5 60 "$SCRIPT_DIR/publish-loads.sh" --disable >>"$DRIVER_LOG" 2>&1 \
+          || echo "  ! no pude desactivar los pesos: si hubo un brazo oráculo antes, pueden seguir" \
+              | tee -a "$DRIVER_LOG"
+  fi
+  if [ "$PUBLISH_LOADS" = "1" ] && [ "$LOADS_PUBLISHED" = "0" ] && [ "$ORACLE_ARM" = "0" ]; then
       echo "  measuring per-vertex load once for the whole campaign..."
       if "$SCRIPT_DIR/publish-loads.sh" >>"$DRIVER_LOG" 2>&1; then
           LOADS_PUBLISHED=1

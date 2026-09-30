@@ -37,6 +37,15 @@ set -eu
 
 NODE="${THESIS_NODE:-minikube}"
 THESIS_DIR=/var/thesis
+
+# docker exec FIRST, minikube ssh as fallback (2026-09-30), as publish-arm.sh has done since
+# 2026-09-26: minikube ssh hung the driver more than once, and a hang here is worse than in the
+# arm file because the LPT_ORACLE arm cannot run without its vector. docker exec is already
+# root inside the node, so the sudo that minikube ssh needs is stripped for it.
+node_sh() {
+    timeout -k 5 "${NODE_TIMEOUT:-30}" docker exec "$NODE" sh -c "${1//sudo /}" </dev/null 2>/dev/null \
+        || timeout -k 5 "${NODE_TIMEOUT:-30}" minikube ssh -n "$NODE" -- "$1" </dev/null 2>/dev/null
+}
 LOADS_FILE="$THESIS_DIR/loads"
 TMP_FILE="$THESIS_DIR/.loads.tmp"
 NAMESPACE=flink
@@ -48,11 +57,11 @@ jm_curl() {
 
 case "${1:-}" in
     --read)
-        minikube ssh -n "$NODE" -- "sudo cat $LOADS_FILE 2>/dev/null || echo '(nothing published)'" | tr -d '\r'
+        node_sh "sudo cat $LOADS_FILE 2>/dev/null || echo '(nothing published)'" | tr -d '\r'
         exit 0
         ;;
     --clear)
-        minikube ssh -n "$NODE" -- "sudo rm -f $LOADS_FILE" >/dev/null
+        node_sh "sudo rm -f $LOADS_FILE" >/dev/null
         echo "cleared — every slice weighs 1.0 again"
         exit 0
         ;;
@@ -89,7 +98,7 @@ for v in json.load(sys.stdin).get('vertices', []):
     out.append(f\"{v['id']} {cost}\")
 print('\n'.join(out))")
         [ -n "$CONTENT" ] || { echo "ERROR: no se pudo construir el vector" >&2; exit 1; }
-        minikube ssh -n "$NODE" -- "sudo mkdir -p $THESIS_DIR && \
+        node_sh "sudo mkdir -p $THESIS_DIR && \
             printf '%s\n' '$CONTENT' | sudo tee $TMP_FILE >/dev/null && \
             sudo mv -f $TMP_FILE $LOADS_FILE && sudo chmod 644 $LOADS_FILE" >/dev/null
         echo "published (DECLARADO, no medido) -> $LOADS_FILE"
@@ -108,14 +117,14 @@ print('\n'.join(out))")
         # vertex of this job: sliceLoads() then finds no match, returns null, and every
         # slice falls back to weight 1.0. Same effect, no fork change, takes effect on
         # the next read like any other publish.
-        minikube ssh -n "$NODE" -- "sudo mv -f $LOADS_FILE $LOADS_FILE.off 2>/dev/null || true; \
+        node_sh "sudo mv -f $LOADS_FILE $LOADS_FILE.off 2>/dev/null || true; \
             printf '%s\n' '00000000000000000000000000000000 1.0' | sudo tee $LOADS_FILE >/dev/null; \
             sudo chmod 644 $LOADS_FILE" >/dev/null
         echo "disabled — published a no-match file, so every slice weighs 1.0 until --enable"
         exit 0
         ;;
     --enable)
-        minikube ssh -n "$NODE" -- "sudo mv -f $LOADS_FILE.off $LOADS_FILE 2>/dev/null || true" >/dev/null
+        node_sh "sudo mv -f $LOADS_FILE.off $LOADS_FILE 2>/dev/null || true" >/dev/null
         echo "enabled"
         exit 0
         ;;
@@ -269,7 +278,7 @@ if [ -z "$CONTENT" ]; then
     echo "ERROR: measured nothing" >&2; exit 1
 fi
 
-minikube ssh -n "$NODE" -- "sudo mkdir -p $THESIS_DIR && \
+node_sh "sudo mkdir -p $THESIS_DIR && \
     printf '%s' '$CONTENT' | sudo tee $TMP_FILE >/dev/null && \
     sudo mv -f $TMP_FILE $LOADS_FILE && sudo chmod 644 $LOADS_FILE" >/dev/null
 
