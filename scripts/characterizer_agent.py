@@ -362,7 +362,34 @@ class SliceSarsa:
         # are ignored outright — falling back to them is what put the join on the one-core
         # machine. The prior is the fastest machine still free: what an uninformed policy
         # should do, and what LPT would do.
+        #
+        # BUT FIRST, BACK OFF TO THE SLICE'S PROFILE (2026-09-30). The first frozen evaluation
+        # on the disk bench put a join subtask on the disk-capped machine through exactly this
+        # fall-back: that subtask ran at 161 ms/s instead of saturated, so it arrived as
+        # `LOW|disk=Y|free=012`, a row training never visited — and "fastest free" was medium.
+        # The table DID know the answer, just not in that row: every visited `disk=Y` row rates
+        # medium below the alternatives. The free-slot mask is the least general part of the
+        # state, so when the exact row is empty the agent asks what it learned about this
+        # load|disk profile over ALL masks, weighting each row by its visits, and uses that
+        # before the blind prior. That is the generalisation the profile features exist for.
+        pooled = self._pooled(state, allowed)
+        if pooled:
+            return max(pooled, key=lambda a: (pooled[a], -a))
         return min(allowed)
+
+    def _pooled(self, state, allowed):
+        """Visit-weighted mean Q per allowed action over every row sharing this load|disk."""
+        profile = state.rsplit("|free=", 1)[0] + "|free="
+        total, count = {}, {}
+        for row, visits in self.n.items():
+            if not row.startswith(profile):
+                continue
+            for a in allowed:
+                n = visits.get(str(a), 0)
+                if n:
+                    total[a] = total.get(a, 0.0) + n * self.value(row, a)
+                    count[a] = count.get(a, 0) + n
+        return {a: total[a] / count[a] for a in count if count[a] >= self.min_visits}
 
     def _choose_ucb(self, state, allowed):
         """UCB1: value plus a bonus that shrinks as an action is tried.

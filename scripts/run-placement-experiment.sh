@@ -1070,6 +1070,14 @@ for ARM in $ARMS; do
   if [ "${CHARACTERISER:-0}" = "1" ]; then
       case "$ARM" in
           RL)
+              # A LIVE AGENT STARTS FROM NO PLAN (2026-09-30). Vertex ids survive across
+              # submissions, so a plan left by the PREVIOUS job resolves perfectly well against
+              # this one and the fork applies it: in the oracle campaign, passes B-D measured
+              # the plan the agent had computed in the pass before, from another job's metrics.
+              # Without a plan the first rescale falls back to LPT, visibly, and every plan
+              # measured afterwards was computed in this job.
+              timeout -k 5 30 docker exec "${THESIS_NODE:-minikube}" rm -f /var/thesis/assignment \
+                  </dev/null >/dev/null 2>&1 || true
               timeout $((JOB_DURATION + 120)) python3 -u "$SCRIPT_DIR/characterizer_agent.py" \
                   --jm-pod "$JM_POD" --out-dir "$CELL_DIR" \
                   --warmup "$MEASURE_WARMUP" --window "$AGENT_WINDOW" \
@@ -1175,7 +1183,13 @@ for ARM in $ARMS; do
           # where, and that only exists in the layout the fork writes at each decision. It
           # was being saved for the RL arm alone, so the arm whose failure needed explaining
           # was the one with no record of what it did.
-          if [ "$KIND" = measured ]; then
+          #
+          # ONLY THE RL ARM WRITES THAT FILE (found 2026-09-30). STOCK, LPT and LPT_ORACLE never
+          # touch it, so for them this copied whatever the last RL decision left — in the
+          # oracle campaign, a 7-slice layout from the end of a training run, saved into three
+          # 8-slice cells as if they had produced it. For those arms the record is the
+          # [THESIS_ASSIGN] line in thesis-assign.log (slice# -> TaskManager).
+          if [ "$KIND" = measured ] && [ "$FORK_ARM" = RL ]; then
               docker exec minikube cat /var/thesis/slices \
                   > "$CELL_DIR/slices-rep${rep}.txt" 2>/dev/null || true
           fi

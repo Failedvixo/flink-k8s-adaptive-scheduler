@@ -39,7 +39,8 @@ export QUERY="${QUERY:-q8}"
 # and the arms cannot be told apart; at 48000 it is past the cliff — output RETREATS to 20704,
 # below what 32000 delivers. The old 38000 default predates the join fix and is not comparable.
 export RATE="${RATE:-40000}"
-export REPS="${REPS:-1}"
+# Two repetitions whenever RL is among the arms: see the note at the analysis call below.
+case " $ARMS " in *" RL "*) export REPS="${REPS:-2}" ;; *) export REPS="${REPS:-1}" ;; esac
 export SLOT_SHARING="${SLOT_SHARING:-PER_STAGE}"
 export SUBMIT_PAR="${SUBMIT_PAR:-3}"
 export TARGET_PAR="${TARGET_PAR:-2}"
@@ -84,6 +85,8 @@ echo "  -> $OUT"
 # the two rescales (lib_wait_rescale returned in 50-120 s all night), restarting the three
 # TaskManagers, and wiping checkpoints and MinIO's multipart leftovers before the arm.
 PER_ARM=$(( WARMUP + WINDOW + ${STEP_MARGIN:-90} + WIDE_HOLD + 570 ))
+# Each extra repetition is another wide hold, two rescales (~150 s each) and a measured step.
+PER_ARM=$(( PER_ARM + (REPS - 1) * (WARMUP + WINDOW + ${STEP_MARGIN:-90} + WIDE_HOLD + 300) ))
 TOTAL=$(( PER_ARM * NARMS * RUNS ))
 echo "  duración estimada: $(( PER_ARM / 60 )) min por brazo x $NARMS brazos x $RUNS pasadas"
 echo "                     = $(( TOTAL / 3600 ))h $(( (TOTAL % 3600) / 60 ))m  (termina cerca de las $(date -d "+$TOTAL seconds" +%H:%M 2>/dev/null || echo '?'))"
@@ -121,7 +124,15 @@ if [ -z "$DIRS" ]; then
     echo "ERROR: ninguna pasada produjo datos" >&2
     exit 1
 fi
-python3 "$SCRIPT_DIR/analyse_paired_campaign.py" --keep-first \
+# THE FIRST EPISODE OF A JOB IS DROPPED WHEN THERE IS MORE THAN ONE (2026-09-30). With REPS=1
+# the RL arm was never evaluated: the agent publishes its plan AFTER observing a width, so the
+# job's one measured rescale ran whatever plan the PREVIOUS job left (or LPT, when there was
+# none) — the 2026-09-30 oracle campaign measured the previous pass's plan three times out of
+# four. REPS=2 lets the agent observe in repetition 1 and be measured in repetition 2; every
+# arm gets the same two repetitions so their jobs are equally old when measured.
+KEEP_FIRST_FLAG=""
+[ "$REPS" = "1" ] && KEEP_FIRST_FLAG="--keep-first"
+python3 "$SCRIPT_DIR/analyse_paired_campaign.py" $KEEP_FIRST_FLAG \
     ${ANALYSE_SLICES:+--slices $ANALYSE_SLICES} $DIRS | tee "$OUT/summary.txt"
 echo ""
 echo "resultados -> $OUT"
