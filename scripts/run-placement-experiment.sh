@@ -1132,6 +1132,15 @@ for ARM in $ARMS; do
           echo "  ! job is $JOB_STATE at rep $rep — stopping this arm" | tee -a "$DRIVER_LOG"
           break
       fi
+      # A DEAD AGENT STOPS THE ARM (2026-10-02). The agent crashed at its second measured epoch
+      # (a zero baseline) and this loop measured four more repetitions with nobody publishing
+      # plans — an hour and a half of episodes that looked like training and were not. The
+      # traceback is in characterizer.log.
+      if [ -n "$AGENT_PID" ] && ! kill -0 "$AGENT_PID" 2>/dev/null; then
+          echo "  ! el agente (pid $AGENT_PID) murió antes de la rep $rep — se detiene el brazo;" \
+               "ver $CELL_DIR/characterizer.log" | tee -a "$DRIVER_LOG"
+          break
+      fi
       echo "  --- rep $rep/$REPS"
       # RANDOM_PINS: variedad de GEOMETRIA a tasa constante, que es el escalado aleatorio que
       # este cluster admite. Sortear el paralelismo GLOBAL no sirve — con doce slots los unicos

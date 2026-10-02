@@ -714,9 +714,16 @@ def main():
                           for t in stall_end if t in stall_start}
 
             base = baselines.get(width)
-            reward = 0.0 if base is None else rps / base - 1.0
-            baselines[width] = rps if base is None else (
-                args.baseline_decay * base + (1 - args.baseline_decay) * rps)
+            # A ZERO IS AN OBSERVATION, NOT A BASELINE (2026-10-02). On the fast-disk bench the
+            # first measured episode can be a total stall — LPT's fallback put the join on the
+            # capped disk and the job delivered 0 rec/s — and seeding the baseline with it made
+            # the next epoch divide by zero and killed the agent, while the driver went on
+            # measuring four repetitions without one. A stall still counts against the plan that
+            # caused it once a baseline exists (reward -1); it just cannot BE the baseline.
+            reward = 0.0 if not base else rps / base - 1.0
+            if rps > 0:
+                baselines[width] = rps if not base else (
+                    args.baseline_decay * base + (1 - args.baseline_decay) * rps)
 
             # Latency enters the same way as throughput: relative to a running mean kept per
             # width, so the term is dimensionless and a rescale does not look like a
