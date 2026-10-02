@@ -288,6 +288,25 @@ def subtask_loads(base, jid, detail, generator_ids):
     return loads
 
 
+def operator_profile(values):
+    """{(vertex, subtask): x} -> every subtask carries the MAX over its operator's subtasks.
+
+    CHARACTERISE OPERATORS, NOT SUBTASKS (2026-10-01). On the fast-disk bench the frozen agent
+    lost two of four evaluation passes the same way: the two join subtasks measured 864 and 302
+    ms/s in the observation repetition — same operator, same keys, the difference made entirely
+    by where the PREVIOUS placement had put them and how backpressure fell. The 302 one arrived
+    as `LOW|disk=Y`, a row training had barely visited, fell through to "fastest free" and landed
+    on the machine with the capped disk; both passes dropped from ~34k to ~16k rec/s. What a
+    subtask measures is partly a property of its placement; what an operator needs is not. The
+    max is used because the lighter reading is the one distorted by being starved, and because
+    saturation in ANY subtask means the operator's demand reached the ceiling somewhere.
+    """
+    peak = {}
+    for (vertex, _sub), v in values.items():
+        peak[vertex] = max(peak.get(vertex, 0.0), v)
+    return {(vertex, sub): peak[vertex] for (vertex, sub) in values}
+
+
 def slice_loads(layout, loads, saturation_cut=None):
     """[(cost, saturated)] per slice: the sum of its subtasks, and whether any is at its ceiling.
 
@@ -375,14 +394,25 @@ class SliceSarsa:
         pooled = self._pooled(state, allowed)
         if pooled:
             return max(pooled, key=lambda a: (pooled[a], -a))
+        # Second level (2026-10-01): if even load|disk has too little evidence, keep only the
+        # resource the slice is heavy in. "Writes to disk" is what decides the machine on a
+        # bench with a capped disk, and it is far better sampled than any one load|disk pair.
+        pooled = self._pooled(state, allowed, level="disk")
+        if pooled:
+            return max(pooled, key=lambda a: (pooled[a], -a))
         return min(allowed)
 
-    def _pooled(self, state, allowed):
-        """Visit-weighted mean Q per allowed action over every row sharing this load|disk."""
+    def _pooled(self, state, allowed, level="load|disk"):
+        """Visit-weighted mean Q per allowed action over every row sharing this profile —
+        load|disk by default, or only the disk flag with level='disk'."""
         profile = state.rsplit("|free=", 1)[0] + "|free="
+        disk_tag = next((f for f in state.split("|") if f.startswith("disk=")), None)
         total, count = {}, {}
         for row, visits in self.n.items():
-            if not row.startswith(profile):
+            if level == "disk":
+                if disk_tag is None or disk_tag not in row.split("|"):
+                    continue
+            elif not row.startswith(profile):
                 continue
             for a in allowed:
                 n = visits.get(str(a), 0)
@@ -528,6 +558,9 @@ def main():
     ap.add_argument("--min-visits", type=int, default=3,
                     help="an action seen fewer times than this is not consulted when acting "
                          "greedily; 0 restores the old behaviour")
+    ap.add_argument("--profile-by", choices=["operator", "subtask"], default="operator",
+                    help="describe a slice by its operators' peak over their subtasks "
+                         "(default, since 2026-10-01) or by each subtask's own reading")
     ap.add_argument("--ucb", type=float, default=0.0,
                     help="UCB exploration coefficient while training; replaces epsilon-greedy "
                          "and is ignored under --freeze. 0 keeps epsilon-greedy.")
@@ -659,9 +692,19 @@ def main():
             rps = (end_records - start_records) / max(1e-6, end_t - start_t)
             loads = {k: statistics.median(s[k] for s in samples if k in s)
                      for k in samples[-1]}
+            if args.profile_by == "operator":
+                loads = operator_profile(loads)
             per_slice = slice_loads(layout, loads, args.saturation_cut)
             disk_end = disk_bytes(args.rest, jid, detail, disk_ids)
-            per_slice_disk = slice_disk_rates(layout, disk_start, disk_end, end_t - start_t)
+            if args.profile_by == "operator":
+                elapsed = max(1e-6, end_t - start_t)
+                member_rates = operator_profile(
+                    {m: (disk_end[m] - disk_start[m]) / elapsed for m in disk_end
+                     if m in disk_start and disk_end[m] >= disk_start[m]})
+                per_slice_disk = [sum(member_rates.get(m, 0.0) for m in members)
+                                  for members in layout["slices"]]
+            else:
+                per_slice_disk = slice_disk_rates(layout, disk_start, disk_end, end_t - start_t)
             stall_end = disk_bytes(args.rest, jid, detail, stall_ids)
             # Fraction of the window each TASK spent with RocksDB refusing writes, keyed by task
             # rather than by slice index: the trajectory being credited was decided in an
