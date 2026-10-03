@@ -1,0 +1,8 @@
+# La política que el agente v2 (tabla q8-fastdisk-final-20261001.json, perfil por operador)
+# aplicó en LAS SEIS pasadas de la campaña 20261001-214727 — idéntica en todas, y reproducida
+# offline desde las mediciones reales. Como plan fijo permite medir v2 y v3 en la misma sesión
+# (el driver carga una sola tabla por campaña). Disco limitado en fast: los joins van a medium.
+new-users-join: medium medium
+auction-source: medium medium
+person-source: fast fast
+q8-sink: slow slow
