@@ -47,15 +47,21 @@ def main():
         total = 0.0
         for s in info.get("subtasks", []):
             i = s["subtask"]
-            short = v["name"].replace("Source: ", "Source__")
-            names = ["numRecordsOutPerSecond", f"{short}.generatorBusyMsPerSecond",
-                     f"{v['name']}.generatorBusyMsPerSecond"]
+            # Ask which metrics exist instead of guessing the operator prefix: a legacy source
+            # counts its output at OPERATOR scope ("Source__bid-source.numRecordsOutPerSecond"),
+            # and the task-scope counter of the same name reads 0 for it.
+            base = f"/jobs/{jid}/vertices/{v['id']}/subtasks/{i}/metrics"
+            ids = [m["id"] for m in (jm(pod, base) or [])]
+            wanted = [m for m in ids if m.endswith("numRecordsOutPerSecond")
+                      or m.endswith("generatorBusyMsPerSecond")]
             got = {m["id"]: m.get("value") for m in
-                   (jm(pod, f"/jobs/{jid}/vertices/{v['id']}/subtasks/{i}/metrics"
-                            f"?get={','.join(names)}") or [])}
-            out = float(got.get("numRecordsOutPerSecond") or 0)
+                   (jm(pod, f"{base}?get={','.join(wanted)}") if wanted else []) or []}
+            outs = [float(val) for k, val in got.items()
+                    if k.endswith("numRecordsOutPerSecond") and val not in (None, "")]
+            out = max(outs) if outs else 0.0
             total += out
-            busy = next((got[k] for k in names[1:] if got.get(k) is not None), "?")
+            busy = next((val for k, val in got.items()
+                         if k.endswith("generatorBusyMsPerSecond")), "?")
             print(f"  sub {i}  {s.get('taskmanager-id', '?'):14}  out={out:8.0f}/s  "
                   f"generador ocupado={busy} ms/s")
         print(f"  total {total:.0f}/s")
