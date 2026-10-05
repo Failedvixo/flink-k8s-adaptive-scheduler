@@ -7,17 +7,21 @@ import org.apache.beam.sdk.nexmark.model.Person;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.AggregateFunction;
 import org.apache.flink.api.common.functions.JoinFunction;
+import org.apache.flink.api.common.state.ListState;
+import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple3;
+import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
+import org.apache.flink.streaming.api.functions.co.KeyedCoProcessFunction;
 import org.apache.flink.streaming.api.functions.windowing.ProcessWindowFunction;
 import org.apache.flink.streaming.api.functions.sink.legacy.RichSinkFunction;
 import org.apache.flink.streaming.api.windowing.assigners.SlidingEventTimeWindows;
@@ -102,9 +106,11 @@ public class RefNexmarkJob {
             runQ8(env, rate, durationSec, heavyPar, maxEventAgeMs);
         } else if ("q5".equals(query)) {
             runQ5(env, rate, durationSec, heavyPar, maxEventAgeMs);
+        } else if ("q3".equals(query)) {
+            runQ3(env, rate, durationSec, heavyPar, maxEventAgeMs, q3StateTtlSec());
         } else {
             throw new IllegalArgumentException(
-                    "only q5 and q8 are ported to the reference sources so far, got " + query);
+                    "only q3, q5 and q8 are ported to the reference sources so far, got " + query);
         }
 
         env.execute("nexmark-ref-" + query + " rate=" + rate + " par=" + parallelism
@@ -186,6 +192,163 @@ public class RefNexmarkJob {
                 .addSink(new NewUsersSink()).name("q8-sink").uid("q8-sink");
         if (slotSharing != GraphConfig.SlotSharingMode.SHARED) {
             sink.slotSharingGroup("snk");
+        }
+    }
+
+    // ================================================================
+    //   Q3 — Local Item Suggestion
+    //     Sellers from OR, ID or CA joined with their auctions in
+    //     category 10, on person.id == auction.seller. Not windowed:
+    //     a person is kept for maxAuctionsWaitingTime (Beam default
+    //     600 s) waiting for auctions, and an auction that arrives
+    //     before its seller waits for the same time.
+    // ================================================================
+    //
+    // WHY Q3 (2026-10-04). The generalisation test needs an operator whose STATE reaches the
+    // disk, and Q5's incremental count did not: its pilot ran the count on the capped-disk
+    // machine and on the healthy one at the same 60000 rec/s with no difference, because a
+    // counter per auction is rewritten in RocksDB's memtable and almost never flushed. Q3 keeps
+    // whole person records for ten minutes — about 230 bytes each, half of all persons — which
+    // is state that has to be written out. Its operator is still a different one from Q8's:
+    // a keyed two-input process function with expiry timers instead of a windowed join.
+    //
+    // Same graph shape as Q8 under PER_STAGE sharing: persons (source + filter), auctions
+    // (source + filter), join, sink — eight slices at parallelism 2.
+    static final java.util.Set<String> Q3_STATES = java.util.Set.of("OR", "ID", "CA");
+    static final long Q3_CATEGORY = 10L;
+
+    /** Beam's maxAuctionsWaitingTime unless Q3_STATE_TTL_SEC overrides it (seconds). */
+    static long q3StateTtlSec() {
+        final String env = System.getenv("Q3_STATE_TTL_SEC");
+        if (env != null && !env.isEmpty()) {
+            return Long.parseLong(env);
+        }
+        return org.apache.beam.sdk.nexmark.NexmarkConfiguration.DEFAULT.maxAuctionsWaitingTime;
+    }
+
+    private static void runQ3(StreamExecutionEnvironment env, int rate, int durationSec,
+                              int heavyPar, long maxEventAgeMs, long ttlSec) {
+        System.out.println("  q3: estado de cada persona/subasta pendiente expira a los " + ttlSec + " s");
+        // Same canonical 1:3 split as Q8, and for the same reason (see runQ8).
+        final int personRate = Math.max(1, rate / 4);
+        final int auctionRate = 3 * personRate;
+
+        final DataStream<Person> sellers = g(env
+                .addSource(new RefPersonSource(personRate, durationSec, maxEventAgeMs))
+                .name("person-source").uid("person-source"), "person", "person-source")
+                .filter(p -> Q3_STATES.contains(p.state))
+                .name("person-filter").uid("person-filter");
+
+        final DataStream<Auction> category10 = g(env
+                .addSource(new RefAuctionSource(auctionRate, durationSec, maxEventAgeMs))
+                .name("auction-source").uid("auction-source"), "auction", "auction-source")
+                .filter(a -> a.category == Q3_CATEGORY)
+                .name("auction-filter").uid("auction-filter");
+
+        final SingleOutputStreamOperator<Tuple4<String, String, String, Long>> joined = sellers
+                .keyBy((KeySelector<Person, Long>) p -> p.id)
+                .connect(category10.keyBy((KeySelector<Auction, Long>) a -> a.seller))
+                .process(new LocalItemJoin(ttlSec * 1000L))
+                .returns(TypeInformation.of(
+                        new TypeHint<Tuple4<String, String, String, Long>>() {}));
+        g(joined.setParallelism(heavyPar).name("q3-state-join").uid("q3-state-join"),
+                "join", "q3-state-join");
+
+        final DataStreamSink<Tuple4<String, String, String, Long>> sink = joined
+                .addSink(new LocalItemSink()).name("q3-sink").uid("q3-sink");
+        if (slotSharing != GraphConfig.SlotSharingMode.SHARED) {
+            sink.slotSharingGroup("snk");
+        }
+    }
+
+    /**
+     * Beam's Query3 JoinDoFn in Flink terms. Per seller id: the person, once seen, is kept and
+     * every auction of theirs is emitted as it arrives; auctions that come first wait in a list
+     * and are emitted when the person shows up. Both expire after the TTL, measured in
+     * processing time — event time here IS the wall clock (NexmarkEpochs), and processing-time
+     * timers spare the graph two watermark operators Q3 otherwise has no use for.
+     */
+    public static class LocalItemJoin extends KeyedCoProcessFunction<
+            Long, Person, Auction, Tuple4<String, String, String, Long>> {
+        private static final long serialVersionUID = 1L;
+        private final long ttlMs;
+        private transient ValueState<Person> person;
+        private transient ListState<Auction> pending;
+        private transient ValueState<Long> expiry;
+
+        public LocalItemJoin(long ttlMs) {
+            this.ttlMs = ttlMs;
+        }
+
+        @Override
+        public void open(org.apache.flink.api.common.functions.OpenContext ctx) {
+            person = getRuntimeContext().getState(
+                    new ValueStateDescriptor<>("person", TypeInformation.of(Person.class)));
+            pending = getRuntimeContext().getListState(
+                    new ListStateDescriptor<>("pending", TypeInformation.of(Auction.class)));
+            expiry = getRuntimeContext().getState(
+                    new ValueStateDescriptor<>("expiry", TypeInformation.of(Long.class)));
+        }
+
+        private void armExpiry(Context ctx) throws Exception {
+            if (expiry.value() == null) {
+                final long at = ctx.timerService().currentProcessingTime() + ttlMs;
+                ctx.timerService().registerProcessingTimeTimer(at);
+                expiry.update(at);
+            }
+        }
+
+        @Override
+        public void processElement1(Person p, Context ctx,
+                                    Collector<Tuple4<String, String, String, Long>> out)
+                throws Exception {
+            person.update(p);
+            for (Auction a : pending.get()) {
+                out.collect(Tuple4.of(p.name, p.city, p.state, a.id));
+            }
+            pending.clear();
+            armExpiry(ctx);
+        }
+
+        @Override
+        public void processElement2(Auction a, Context ctx,
+                                    Collector<Tuple4<String, String, String, Long>> out)
+                throws Exception {
+            final Person p = person.value();
+            if (p != null) {
+                out.collect(Tuple4.of(p.name, p.city, p.state, a.id));
+            } else {
+                pending.add(a);
+                armExpiry(ctx);
+            }
+        }
+
+        @Override
+        public void onTimer(long ts, OnTimerContext ctx,
+                            Collector<Tuple4<String, String, String, Long>> out) {
+            person.clear();
+            pending.clear();
+            expiry.clear();
+        }
+    }
+
+    /** Counts suggestions, so a Q3 that matches nothing is visible. */
+    public static class LocalItemSink
+            extends RichSinkFunction<Tuple4<String, String, String, Long>> {
+        private static final long serialVersionUID = 1L;
+        private long received = 0;
+        private long lastLog = 0;
+
+        @Override
+        public void invoke(Tuple4<String, String, String, Long> v, Context ctx) {
+            received++;
+            final long now = System.currentTimeMillis();
+            if (now - lastLog > 5000) {
+                lastLog = now;
+                System.out.printf("[Q3-Sink-%d] matches=%,d last=(%s,%s,%s,auction=%d)%n",
+                        getRuntimeContext().getTaskInfo().getIndexOfThisSubtask() + 1,
+                        received, v.f0, v.f1, v.f2, v.f3);
+            }
         }
     }
 

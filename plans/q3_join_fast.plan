@@ -1,0 +1,6 @@
+# Piloto de Q3 en el banco fast:5M — lo que haría el oráculo de costos: el operador con estado
+# (el join de Q3) a la máquina más rápida, que es la del disco limitado. Gemelo de join_fast.plan.
+q3-state-join: fast fast
+auction-source: medium medium
+person-source: medium medium
+q3-sink: slow slow

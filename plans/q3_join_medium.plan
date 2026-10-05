@@ -1,0 +1,7 @@
+# Piloto de Q3 en el banco fast:5M — lo que haría quien caracteriza: el join lejos del disco
+# limitado, las subastas (CPU, sin estado) en fast. Gemelo de join_medium.plan. Si no le gana
+# claramente a q3_join_fast, el estado de Q3 tampoco llega al disco y el banco no sirve.
+auction-source: fast fast
+q3-state-join: medium medium
+person-source: medium medium
+q3-sink: slow slow

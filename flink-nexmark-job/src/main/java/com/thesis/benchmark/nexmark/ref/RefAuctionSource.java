@@ -97,15 +97,18 @@ public class RefAuctionSource extends RichParallelSourceFunction<Auction> {
 
     @Override
     public void run(SourceContext<Auction> ctx) throws Exception {
-        final long startedAt = System.currentTimeMillis();
+        // Monotonic since 2026-10-04, see NexmarkEpochs.Clock: WSL2 steps its wall clock, and
+        // the same defect cost Q5's bid source up to 29% of its events.
+        final NexmarkEpochs.Clock clock = new NexmarkEpochs.Clock();
+        final long startedAt = clock.nowMillis();
         final long deadline = durationSec > 0 ? startedAt + durationSec * 1000L : Long.MAX_VALUE;
         final long total = GeneratorConfig.PROPORTION_DENOMINATOR;
         final int persons = GeneratorConfig.PERSON_PROPORTION;
         final int auctions = GeneratorConfig.AUCTION_PROPORTION;
         long nextEpoch = NexmarkEpochs.alignUp(
                 NexmarkEpochs.epochAt(startedAt, epochsPerSecond), subtasks, index);
-        while (running && System.currentTimeMillis() < deadline) {
-            final long emitStart = System.currentTimeMillis();
+        while (running && clock.nowMillis() < deadline) {
+            final long emitStart = clock.nowMillis();
             final long due = NexmarkEpochs.epochAt(emitStart, epochsPerSecond);
             if (maxEventAgeMs > 0) {
                 final long oldest = NexmarkEpochs.epochAt(emitStart - maxEventAgeMs, epochsPerSecond);
@@ -128,7 +131,7 @@ public class RefAuctionSource extends RichParallelSourceFunction<Auction> {
                 }
                 nextEpoch += subtasks;
             }
-            final long elapsed = System.currentTimeMillis() - emitStart;
+            final long elapsed = clock.nowMillis() - emitStart;
             lastGeneratorBusyMs = Math.min(elapsed, 1000L);
             if (elapsed < 1000) {
                 Thread.sleep(1000 - elapsed);

@@ -97,14 +97,17 @@ public class RefPersonSource extends RichParallelSourceFunction<Person> {
 
     @Override
     public void run(SourceContext<Person> ctx) throws Exception {
-        final long startedAt = System.currentTimeMillis();
+        // Monotonic since 2026-10-04, see NexmarkEpochs.Clock: WSL2 steps its wall clock, and
+        // the same defect cost Q5's bid source up to 29% of its events.
+        final NexmarkEpochs.Clock clock = new NexmarkEpochs.Clock();
+        final long startedAt = clock.nowMillis();
         final long deadline = durationSec > 0 ? startedAt + durationSec * 1000L : Long.MAX_VALUE;
         final long total = GeneratorConfig.PROPORTION_DENOMINATOR;
         final int persons = GeneratorConfig.PERSON_PROPORTION;
         long nextEpoch = NexmarkEpochs.alignUp(
                 NexmarkEpochs.epochAt(startedAt, epochsPerSecond), subtasks, index);
-        while (running && System.currentTimeMillis() < deadline) {
-            final long emitStart = System.currentTimeMillis();
+        while (running && clock.nowMillis() < deadline) {
+            final long emitStart = clock.nowMillis();
             final long due = NexmarkEpochs.epochAt(emitStart, epochsPerSecond);
             // Behind by more than the allowed age: jump to where the clock is. Both sources
             // compute the same epoch from the same clock, so this cannot desynchronise them.
@@ -125,7 +128,7 @@ public class RefPersonSource extends RichParallelSourceFunction<Person> {
                 }
                 nextEpoch += subtasks;
             }
-            final long elapsed = System.currentTimeMillis() - emitStart;
+            final long elapsed = clock.nowMillis() - emitStart;
             lastGeneratorBusyMs = Math.min(elapsed, 1000L);
             if (elapsed < 1000) {
                 Thread.sleep(1000 - elapsed);
