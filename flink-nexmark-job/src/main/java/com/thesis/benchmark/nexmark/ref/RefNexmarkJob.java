@@ -2,17 +2,28 @@ package com.thesis.benchmark.nexmark.ref;
 
 import com.thesis.benchmark.GraphConfig;
 import org.apache.beam.sdk.nexmark.model.Auction;
+import org.apache.beam.sdk.nexmark.model.Bid;
 import org.apache.beam.sdk.nexmark.model.Person;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
+import org.apache.flink.api.common.functions.AggregateFunction;
 import org.apache.flink.api.common.functions.JoinFunction;
+import org.apache.flink.api.common.state.ValueState;
+import org.apache.flink.api.common.state.ValueStateDescriptor;
+import org.apache.flink.api.common.typeinfo.TypeHint;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
+import org.apache.flink.streaming.api.functions.windowing.ProcessWindowFunction;
 import org.apache.flink.streaming.api.functions.sink.legacy.RichSinkFunction;
+import org.apache.flink.streaming.api.windowing.assigners.SlidingEventTimeWindows;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
+import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
+import org.apache.flink.util.Collector;
 
 import java.time.Duration;
 
@@ -89,9 +100,11 @@ public class RefNexmarkJob {
 
         if ("q8".equals(query)) {
             runQ8(env, rate, durationSec, heavyPar, maxEventAgeMs);
+        } else if ("q5".equals(query)) {
+            runQ5(env, rate, durationSec, heavyPar, maxEventAgeMs);
         } else {
             throw new IllegalArgumentException(
-                    "only q8 is ported to the reference sources so far, got " + query);
+                    "only q5 and q8 are ported to the reference sources so far, got " + query);
         }
 
         env.execute("nexmark-ref-" + query + " rate=" + rate + " par=" + parallelism
@@ -173,6 +186,140 @@ public class RefNexmarkJob {
                 .addSink(new NewUsersSink()).name("q8-sink").uid("q8-sink");
         if (slotSharing != GraphConfig.SlotSharingMode.SHARED) {
             sink.slotSharingGroup("snk");
+        }
+    }
+
+    // ================================================================
+    //   Q5 — Hot Items
+    //     Which auctions received the most bids in the last 10 seconds,
+    //     re-evaluated every 5 seconds (Beam's NexmarkConfiguration
+    //     defaults: windowSizeSec=10, windowPeriodSec=5).
+    // ================================================================
+    //
+    // WHY Q5 (2026-10-04). It is the generalisation test for the placement agent: keyed window
+    // state like Q8's join, but held by a DIFFERENT operator — a one-input sliding-window
+    // aggregation instead of a two-input join. The agent never sees operator names, only
+    // load/disk profiles, so a table trained on Q8 and frozen should place this operator by
+    // what it does. Whether it writes enough to disk for a capped disk to matter is an
+    // empirical question the pilot answers before any campaign.
+    //
+    // The graph has the same shape as Q8's under PER_STAGE sharing — four stages (bids,
+    // count, max, sink), eight slices at parallelism 2 — so the cluster's 12 slots and the
+    // agent's state encoding carry over unchanged.
+    static final Duration Q5_WINDOW = Duration.ofSeconds(10);
+    static final Duration Q5_SLIDE = Duration.ofSeconds(5);
+
+    private static void runQ5(StreamExecutionEnvironment env, int rate, int durationSec,
+                              int heavyPar, long maxEventAgeMs) {
+        // Q5 consumes only bids, so the whole rate is bids.
+        final DataStream<Bid> bids = g(env
+                .addSource(new RefBidSource(rate, durationSec, maxEventAgeMs))
+                .name("bid-source").uid("bid-source"), "bid", "bid-source")
+                .assignTimestampsAndWatermarks(
+                        WatermarkStrategy.<Bid>forBoundedOutOfOrderness(Duration.ofSeconds(2))
+                                .withTimestampAssigner((b, ts) -> b.dateTime.getMillis()))
+                .name("bid-watermarks").uid("bid-watermarks");
+
+        // Incremental COUNT per auction and window — the canonical formulation: one small
+        // accumulator per (auction, window) in RocksDB rather than every bid buffered.
+        final SingleOutputStreamOperator<Tuple3<Long, Long, Long>> counts = bids
+                .keyBy((KeySelector<Bid, Long>) b -> b.auction)
+                .window(SlidingEventTimeWindows.of(Q5_WINDOW, Q5_SLIDE))
+                .aggregate(new CountBids(), new WithWindowEnd(),
+                        TypeInformation.of(Long.class), TypeInformation.of(Long.class),
+                        TypeInformation.of(new TypeHint<Tuple3<Long, Long, Long>>() {}));
+        g(counts.setParallelism(heavyPar).name("hot-items-count").uid("hot-items-count"),
+                "count", "hot-items-count");
+
+        // The auction with the most bids per window, keyed by window end so it stays parallel.
+        final SingleOutputStreamOperator<Tuple3<Long, Long, Long>> hottest = counts
+                .keyBy((KeySelector<Tuple3<Long, Long, Long>, Long>) t -> t.f2)
+                .process(new MaxPerWindow())
+                .returns(TypeInformation.of(new TypeHint<Tuple3<Long, Long, Long>>() {}));
+        g(hottest.name("hot-items-max").uid("hot-items-max"), "max", "hot-items-max");
+
+        final DataStreamSink<Tuple3<Long, Long, Long>> sink = hottest
+                .addSink(new HotItemsSink()).name("q5-sink").uid("q5-sink");
+        if (slotSharing != GraphConfig.SlotSharingMode.SHARED) {
+            sink.slotSharingGroup("snk");
+        }
+    }
+
+    /** Bids per (auction, window), one long per key: Q5's incremental aggregate. */
+    public static class CountBids implements AggregateFunction<Bid, Long, Long> {
+        private static final long serialVersionUID = 1L;
+        @Override public Long createAccumulator() { return 0L; }
+        @Override public Long add(Bid b, Long acc) { return acc + 1; }
+        @Override public Long getResult(Long acc) { return acc; }
+        @Override public Long merge(Long a, Long b) { return a + b; }
+    }
+
+    /** Attaches the window end, the key of the next stage: (auction, count, windowEnd). */
+    public static class WithWindowEnd
+            extends ProcessWindowFunction<Long, Tuple3<Long, Long, Long>, Long, TimeWindow> {
+        private static final long serialVersionUID = 1L;
+        @Override
+        public void process(Long auction, Context ctx, Iterable<Long> counts,
+                            Collector<Tuple3<Long, Long, Long>> out) {
+            out.collect(Tuple3.of(auction, counts.iterator().next(), ctx.window().getEnd()));
+        }
+    }
+
+    /**
+     * Keeps the highest count seen for one window end and emits it when the watermark passes
+     * that end — by then every count for the window has arrived, since they are all emitted
+     * when the same window fires upstream.
+     */
+    public static class MaxPerWindow extends KeyedProcessFunction<
+            Long, Tuple3<Long, Long, Long>, Tuple3<Long, Long, Long>> {
+        private static final long serialVersionUID = 1L;
+        private transient ValueState<Tuple3<Long, Long, Long>> best;
+
+        @Override
+        public void open(org.apache.flink.api.common.functions.OpenContext ctx) {
+            best = getRuntimeContext().getState(new ValueStateDescriptor<>(
+                    "best", TypeInformation.of(new TypeHint<Tuple3<Long, Long, Long>>() {})));
+        }
+
+        @Override
+        public void processElement(Tuple3<Long, Long, Long> v, Context ctx,
+                                   Collector<Tuple3<Long, Long, Long>> out) throws Exception {
+            final Tuple3<Long, Long, Long> current = best.value();
+            if (current == null) {
+                ctx.timerService().registerEventTimeTimer(v.f2);
+            }
+            if (current == null || v.f1 > current.f1) {
+                best.update(v);
+            }
+        }
+
+        @Override
+        public void onTimer(long ts, OnTimerContext ctx,
+                            Collector<Tuple3<Long, Long, Long>> out) throws Exception {
+            final Tuple3<Long, Long, Long> winner = best.value();
+            if (winner != null) {
+                out.collect(winner);
+            }
+            best.clear();
+        }
+    }
+
+    /** Reports the hottest auction per window, so a Q5 that emits nothing is visible. */
+    public static class HotItemsSink extends RichSinkFunction<Tuple3<Long, Long, Long>> {
+        private static final long serialVersionUID = 1L;
+        private long received = 0;
+        private long lastLog = 0;
+
+        @Override
+        public void invoke(Tuple3<Long, Long, Long> v, Context ctx) {
+            received++;
+            final long now = System.currentTimeMillis();
+            if (now - lastLog > 5000) {
+                lastLog = now;
+                System.out.printf("[Q5-Sink-%d] windows=%,d last=(auction=%d,bids=%d,end=%d)%n",
+                        getRuntimeContext().getTaskInfo().getIndexOfThisSubtask() + 1,
+                        received, v.f0, v.f1, v.f2);
+            }
         }
     }
 

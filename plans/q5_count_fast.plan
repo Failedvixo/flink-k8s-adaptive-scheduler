@@ -1,0 +1,7 @@
+# Piloto de Q5 en el banco fast:5M — lo que haría el oráculo de costos: el operador más caro
+# (el conteo con ventana, que tiene el estado) a la máquina más rápida, que es la del disco
+# limitado. Gemelo de join_fast.plan para Q8.
+hot-items-count: fast fast
+bid-source: medium medium
+hot-items-max: medium medium
+q5-sink: slow slow

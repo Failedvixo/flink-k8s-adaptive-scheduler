@@ -1,0 +1,8 @@
+# Piloto de Q5 en el banco fast:5M — lo que haría quien caracteriza: el conteo (estado en
+# RocksDB) lejos del disco limitado, las pujas (CPU, sin estado) en fast. Gemelo de
+# join_medium.plan. Si este no le gana claramente a q5_count_fast, el conteo de Q5 no escribe
+# lo bastante a disco para que el banco ponga a prueba la caracterización.
+bid-source: fast fast
+hot-items-count: medium medium
+hot-items-max: medium medium
+q5-sink: slow slow
