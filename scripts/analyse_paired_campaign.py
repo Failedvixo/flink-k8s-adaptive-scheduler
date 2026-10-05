@@ -44,12 +44,16 @@ random.seed(0)
 # collapse drag the whole number down, and consecutive windows of the SAME job and placement
 # differed by a median of 7% (up to 16%). The median of the 10-second bins ignores a short
 # collapse without discarding anything by hand. Shown only when every episode carries it.
-OPTIONAL_METRICS = [("rps_median", "reg/s MEDIANA de la ventana", False)]
+# e2e is OPTIONAL since 2026-10-05: it is measured from the sink's event-time watermark, and Q3
+# has no watermarks at all (an unwindowed join on processing-time timers) — every Q3 episode
+# carried an empty e2e and the whole first Q3 campaign was dropped as "sin episodios utilizables".
+OPTIONAL_METRICS = [("e2e_delay_ms", "e2e ms", True),
+                    ("rps_median", "reg/s MEDIANA de la ventana", False)]
 KEEP_FIRST = False
 WANT_SLICES = None
 METRICS = [("source_out_rps", "reg/s", False),
            ("backpressure_mean_ms_s", "bp ms/s", True),
-           ("e2e_delay_ms", "e2e ms", True)]
+           ("sink_in_rps", "resultados/s (sink)", False)]
 
 
 def permutation_p(a, b, iterations=20000):
