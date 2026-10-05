@@ -47,6 +47,32 @@ final class NexmarkEpochs {
         return epoch * 1000L / epochsPerSecond;
     }
 
+    /**
+     * Wall-clock milliseconds that never go backwards and never jump: the wall clock read ONCE,
+     * then advanced by {@link System#nanoTime()}.
+     *
+     * <p>WHY (2026-10-04). WSL2 corrects its clock in steps. Q5's bid source was measured with a
+     * generator "busy" time of -10243 ms: the wall clock went back ten seconds inside one pass of
+     * the emission loop, the loop then slept 1000 - (-10243) ms = eleven seconds, and because the
+     * sequence is anchored to the wall clock it had to re-live those ten seconds emitting nothing.
+     * Forward steps did the opposite and tripped the stale-event skip. The source delivered
+     * between 71% and 90% of the requested rate with every operator downstream idle, varying
+     * from job to job with the corrections.
+     *
+     * <p>Anchoring once keeps what the wall clock is needed for — every source of a job opens
+     * within milliseconds of the others on the same host, so they still agree on the epoch —
+     * and takes the steps out of everything after. A restart re-anchors, as all sources restart
+     * together.
+     */
+    static final class Clock {
+        private final long wallAtStart = System.currentTimeMillis();
+        private final long nanoAtStart = System.nanoTime();
+
+        long nowMillis() {
+            return wallAtStart + (System.nanoTime() - nanoAtStart) / 1_000_000L;
+        }
+    }
+
     /** The first epoch at or after {@code epoch} that belongs to subtask {@code index}. */
     static long alignUp(long epoch, int subtasks, int index) {
         final long remainder = Math.floorMod(epoch, (long) subtasks);

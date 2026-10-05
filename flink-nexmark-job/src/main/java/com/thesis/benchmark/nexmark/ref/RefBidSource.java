@@ -83,7 +83,10 @@ public class RefBidSource extends RichParallelSourceFunction<Bid> {
 
     @Override
     public void run(SourceContext<Bid> ctx) throws Exception {
-        final long startedAt = System.currentTimeMillis();
+        // Monotonic, see NexmarkEpochs.Clock: the wall clock steps on WSL2 and cost this source
+        // up to 29% of its events.
+        final NexmarkEpochs.Clock clock = new NexmarkEpochs.Clock();
+        final long startedAt = clock.nowMillis();
         final long deadline = durationSec > 0 ? startedAt + durationSec * 1000L : Long.MAX_VALUE;
         final long total = GeneratorConfig.PROPORTION_DENOMINATOR;
         final int firstBid = GeneratorConfig.PERSON_PROPORTION + GeneratorConfig.AUCTION_PROPORTION;
@@ -91,8 +94,8 @@ public class RefBidSource extends RichParallelSourceFunction<Bid> {
         long nextEpoch = NexmarkEpochs.alignUp(
                 NexmarkEpochs.epochAt(startedAt, epochsPerSecond), subtasks, index);
         long previousStart = -1;
-        while (running && System.currentTimeMillis() < deadline) {
-            final long emitStart = System.currentTimeMillis();
+        while (running && clock.nowMillis() < deadline) {
+            final long emitStart = clock.nowMillis();
             if (previousStart > 0) {
                 maxGapMs = Math.max(maxGapMs, emitStart - previousStart);
             }
@@ -118,7 +121,7 @@ public class RefBidSource extends RichParallelSourceFunction<Bid> {
                 emitted.inc(bids);
                 nextEpoch += subtasks;
             }
-            final long elapsed = System.currentTimeMillis() - emitStart;
+            final long elapsed = clock.nowMillis() - emitStart;
             lastGeneratorBusyMs = Math.min(elapsed, 1000L);
             if (elapsed < 1000) {
                 Thread.sleep(1000 - elapsed);

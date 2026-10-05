@@ -67,6 +67,17 @@ jobs = [j for j in json.load(sys.stdin).get('jobs', []) if j.get('state') == 'RU
 print(jobs[0]['jid'] if jobs else '')" 2>/dev/null
 }
 
+# UPLOAD THE LOCAL JAR EVERY TIME (2026-10-04). This script used whatever /tmp/nexmark.jar the
+# JobManager already had — a rebuilt jar with new diagnostics silently never ran, and the
+# measurement came from the previous build. calibrate-rate.sh and the placement driver upload.
+LOCAL_JAR="${LOCAL_JAR:-$(cd "$(dirname "$0")/.." && pwd)/flink-nexmark-job/target/flink-nexmark-job-1.0.0.jar}"
+if [ -f "$LOCAL_JAR" ]; then
+    kubectl cp "$LOCAL_JAR" "$NAMESPACE/$JM_POD:$JAR" >/dev/null 2>&1 \
+        || echo "! no pude subir $LOCAL_JAR; se usa el jar que ya tenga el JobManager" >&2
+else
+    echo "! no existe $LOCAL_JAR; se usa el jar que ya tenga el JobManager" >&2
+fi
+
 OLD=$(running_job)
 if [ -n "$OLD" ]; then
     echo "! ya hay un job corriendo ($OLD); se cancela para no medir dos a la vez"
