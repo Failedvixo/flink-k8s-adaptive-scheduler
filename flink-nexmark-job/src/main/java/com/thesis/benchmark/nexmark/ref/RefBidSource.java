@@ -8,6 +8,7 @@ import org.apache.beam.sdk.nexmark.NexmarkConfiguration;
 import org.apache.beam.sdk.nexmark.model.Bid;
 import org.apache.beam.sdk.nexmark.sources.generator.GeneratorConfig;
 import org.apache.beam.sdk.nexmark.sources.generator.model.BidGenerator;
+import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.streaming.api.functions.source.legacy.RichParallelSourceFunction;
 
@@ -41,6 +42,18 @@ public class RefBidSource extends RichParallelSourceFunction<Bid> {
     private transient long epochsPerSecond;
     private transient int subtasks;
     private transient int index;
+    /**
+     * DIAGNOSTICS (2026-10-04). In the cluster this source emitted ~90% of what it was asked
+     * for — and as little as 71% — with its generator busy 3 ms per second and every operator
+     * downstream idle, while the same loop delivers 100% when simulated offline and Q8's sources
+     * deliver 100% on the same cluster. These three say where the difference is: our own count
+     * of what was handed to collect() (against Flink's numRecordsOut), how far behind the
+     * wall-clock sequence the loop starts each pass, and the longest gap between passes.
+     */
+    private transient Counter emitted;
+    private transient volatile long lastLagEpochs;
+    private transient volatile long maxGapMs;
+    private transient volatile long skippedEpochs;
 
     public RefBidSource(int totalRate, int durationSec, long maxEventAgeMs) {
         this.totalRate = totalRate;
@@ -60,9 +73,12 @@ public class RefBidSource extends RichParallelSourceFunction<Bid> {
         this.index = getRuntimeContext().getTaskInfo().getIndexOfThisSubtask();
         this.config = new GeneratorConfig(NexmarkConfiguration.DEFAULT, 0L, 0L, 0L, 0L);
         this.epochsPerSecond = Math.max(1L, (long) totalRate / Math.max(1, bidsPerEpoch()));
-        getRuntimeContext()
-                .getMetricGroup()
-                .gauge("generatorBusyMsPerSecond", (Gauge<Long>) () -> lastGeneratorBusyMs);
+        final org.apache.flink.metrics.MetricGroup group = getRuntimeContext().getMetricGroup();
+        group.gauge("generatorBusyMsPerSecond", (Gauge<Long>) () -> lastGeneratorBusyMs);
+        this.emitted = group.counter("bidsHandedToCollect");
+        group.gauge("loopLagEpochs", (Gauge<Long>) () -> lastLagEpochs);
+        group.gauge("loopMaxGapMs", (Gauge<Long>) () -> maxGapMs);
+        group.gauge("skippedEpochs", (Gauge<Long>) () -> skippedEpochs);
     }
 
     @Override
@@ -74,13 +90,21 @@ public class RefBidSource extends RichParallelSourceFunction<Bid> {
         final int bids = bidsPerEpoch();
         long nextEpoch = NexmarkEpochs.alignUp(
                 NexmarkEpochs.epochAt(startedAt, epochsPerSecond), subtasks, index);
+        long previousStart = -1;
         while (running && System.currentTimeMillis() < deadline) {
             final long emitStart = System.currentTimeMillis();
+            if (previousStart > 0) {
+                maxGapMs = Math.max(maxGapMs, emitStart - previousStart);
+            }
+            previousStart = emitStart;
             final long due = NexmarkEpochs.epochAt(emitStart, epochsPerSecond);
+            lastLagEpochs = due - nextEpoch;
             if (maxEventAgeMs > 0) {
                 final long oldest = NexmarkEpochs.epochAt(emitStart - maxEventAgeMs, epochsPerSecond);
                 if (nextEpoch < oldest) {
-                    nextEpoch = NexmarkEpochs.alignUp(oldest, subtasks, index);
+                    final long jumped = NexmarkEpochs.alignUp(oldest, subtasks, index);
+                    skippedEpochs += (jumped - nextEpoch) / subtasks;
+                    nextEpoch = jumped;
                 }
             }
             while (running && nextEpoch <= due) {
@@ -91,6 +115,7 @@ public class RefBidSource extends RichParallelSourceFunction<Bid> {
                     ctx.collect(BidGenerator.nextBid(
                             eventId, new Random(eventId), timestamp, config));
                 }
+                emitted.inc(bids);
                 nextEpoch += subtasks;
             }
             final long elapsed = System.currentTimeMillis() - emitStart;

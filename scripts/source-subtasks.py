@@ -52,8 +52,11 @@ def main():
             # and the task-scope counter of the same name reads 0 for it.
             base = f"/jobs/{jid}/vertices/{v['id']}/subtasks/{i}/metrics"
             ids = [m["id"] for m in (jm(pod, base) or [])]
+            extras = ("bidsHandedToCollect", "loopLagEpochs", "loopMaxGapMs", "skippedEpochs",
+                      "numRecordsOut")
             wanted = [m for m in ids if m.endswith("numRecordsOutPerSecond")
-                      or m.endswith("generatorBusyMsPerSecond")]
+                      or m.endswith("generatorBusyMsPerSecond")
+                      or m.split(".")[-1] in extras]
             got = {m["id"]: m.get("value") for m in
                    (jm(pod, f"{base}?get={','.join(wanted)}") if wanted else []) or []}
             outs = [float(val) for k, val in got.items()
@@ -64,6 +67,10 @@ def main():
                          if k.endswith("generatorBusyMsPerSecond")), "?")
             print(f"  sub {i}  {s.get('taskmanager-id', '?'):14}  out={out:8.0f}/s  "
                   f"generador ocupado={busy} ms/s")
+            diag = {k.split(".")[-1]: val for k, val in got.items()
+                    if k.split(".")[-1] in extras}
+            if diag:
+                print("         " + "  ".join(f"{k}={val}" for k, val in sorted(diag.items())))
         print(f"  total {total:.0f}/s")
     return 0
 
