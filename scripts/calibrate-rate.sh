@@ -183,12 +183,17 @@ for RATE in $RATES; do
     # cancel_all above must have taken effect before these are removed, since deleting a
     # multipart directory under a live upload is what raises NoSuchUpload and fails a
     # checkpoint; `flink cancel` returns on acceptance, hence the wait.
+    # docker exec first, bounded, no stdin (2026-10-04) — the same treatment the placement
+    # driver got on 2026-09-26, when an unbounded `minikube ssh` with sudo hung it for good.
     if [ "${CLEAN_CHECKPOINTS:-1}" = "1" ]; then
-        minikube ssh -n "${THESIS_NODE:-minikube}" -- \
-            "sudo rm -rf /var/thesis/minio/flink-checkpoints/checkpoints/* \
-                         /var/thesis/minio/.minio.sys/multipart/* \
-                         /var/thesis/minio/.minio.sys/tmp/* 2>/dev/null; \
-             sync; echo 3 | sudo tee /proc/sys/vm/drop_caches >/dev/null" >/dev/null 2>&1 \
+        CLEAN="rm -rf /var/thesis/minio/flink-checkpoints/checkpoints/* \
+                      /var/thesis/minio/.minio.sys/multipart/* \
+                      /var/thesis/minio/.minio.sys/tmp/* 2>/dev/null; \
+               sync; echo 3 > /proc/sys/vm/drop_caches"
+        timeout -k 10 180 docker exec "${THESIS_NODE:-minikube}" sh -c "$CLEAN" \
+                </dev/null >/dev/null 2>&1 \
+            || timeout -k 10 180 minikube ssh -n "${THESIS_NODE:-minikube}" -- \
+                "sudo sh -c '$CLEAN'" </dev/null >/dev/null 2>&1 \
             || echo "  ! no se pudieron limpiar los checkpoints antes de $RATE" >&2
     fi
 
