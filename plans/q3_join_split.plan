@@ -1,0 +1,11 @@
+# ¿Importa la memoria en Q3? (2026-10-06). Gemelo de join_split.plan para Q8, donde la respuesta
+# fue NO: el join con ventana recorre cada ventana una vez y no reutiliza bloques, así que
+# triplicar la caché casi no cambió los fallos (30.9% vs 27.5%). Q3 es distinto: cada subasta
+# BUSCA a su vendedor entre ~10 minutos de personas guardadas, una lectura puntual que una caché
+# más grande sí puede ahorrar. Subtarea 0 del join en fast (96 MB por slot), subtarea 1 en slow
+# (32 MB por slot); el reparto por clave hace simétrico el trabajo, así que la diferencia en la
+# tasa de fallos de caché es efecto de la memoria. Correr SIN disco limitado.
+q3-state-join: fast slow
+auction-source: medium medium
+person-source: medium medium
+q3-sink: slow slow
