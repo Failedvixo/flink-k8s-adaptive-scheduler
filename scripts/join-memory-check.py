@@ -106,7 +106,7 @@ def main():
         print("  más memoria aunque tenga menos CPU. La segunda dimensión existe.")
     else:
         print("  LA MEMORIA NO MUERDE: el conjunto caliente cabe incluso en el presupuesto")
-        print("  pequeño, y los 92 MB de estado total no llegan a ser una restricción.")
+        print("  pequeño, aunque el estado total no quepa en él.")
         print("  Hay que buscar la segunda dimensión en otro recurso.")
     return 0
 
