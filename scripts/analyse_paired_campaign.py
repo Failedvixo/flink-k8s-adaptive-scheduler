@@ -47,7 +47,11 @@ random.seed(0)
 # e2e is OPTIONAL since 2026-10-05: it is measured from the sink's event-time watermark, and Q3
 # has no watermarks at all (an unwindowed join on processing-time timers) — every Q3 episode
 # carried an empty e2e and the whole first Q3 campaign was dropped as "sin episodios utilizables".
-OPTIONAL_METRICS = [("e2e_delay_ms", "e2e ms", True),
+# The per-record latency (LatencyMeter in the reference sinks, 2026-10-08) is what the thesis calls
+# latency; the watermark lag stays only for comparison with campaigns recorded before it.
+OPTIONAL_METRICS = [("latency_p50_ms", "latencia por registro p50 ms", True),
+                    ("latency_p99_ms", "latencia por registro p99 ms", True),
+                    ("e2e_delay_ms", "atraso del sink (watermark) ms", True),
                     ("rps_median", "reg/s MEDIANA de la ventana", False)]
 KEEP_FIRST = False
 WANT_SLICES = None

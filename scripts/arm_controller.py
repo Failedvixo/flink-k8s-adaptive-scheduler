@@ -382,6 +382,33 @@ def subtask_metrics(base, jid, vid, index):
     return values
 
 
+# Per-record latency (2026-10-08): gauges the reference sinks register through LatencyMeter.
+# They live at OPERATOR scope, so their ids carry the operator's name as a prefix
+# ("Sink__q8-sink.latencyP50Ms"); the ids are discovered once per subtask and cached.
+LATENCY_GAUGES = ("latencyP50Ms", "latencyP99Ms", "latencyMeanMs", "latencySamples")
+_latency_ids = {}
+
+
+def sink_latency(base, jid, vid, index):
+    """{gauge: value} for one sink subtask, or {} when the job has no LatencyMeter."""
+    key = (jid, vid, index)
+    if key not in _latency_ids:
+        listing = rest(base, f"/jobs/{jid}/vertices/{vid}/subtasks/{index}/metrics") or []
+        ids = [m["id"] for m in listing if m.get("id", "").split(".")[-1] in LATENCY_GAUGES]
+        if not ids:
+            return {}           # not cached: the gauges appear only once the sink has opened
+        _latency_ids[key] = ids
+    payload = rest(base, f"/jobs/{jid}/vertices/{vid}/subtasks/{index}/metrics"
+                         f"?get={','.join(_latency_ids[key])}") or []
+    out = {}
+    for entry in payload:
+        try:
+            out[entry["id"].split(".")[-1]] = float(entry["value"])
+        except (KeyError, TypeError, ValueError):
+            continue
+    return out
+
+
 # ---------------------------------------------------------------------------
 # measurement
 # ---------------------------------------------------------------------------
@@ -417,6 +444,16 @@ def sample_once(base, jid, all_taskmanagers):
         (vid, index): (subtask_metrics, (base, jid, vid, index))
         for vid, _name, parallelism in vertices
         for index in range(parallelism)})
+
+    sink_vids = [vid for position, (vid, _n, _p) in enumerate(vertices)
+                 if ((vid in sink_ids) if sink_ids else (position == len(vertices) - 1))]
+    latencies = fetch_parallel({
+        (vid, index): (sink_latency, (base, jid, vid, index))
+        for vid, _name, parallelism in vertices if vid in sink_vids
+        for index in range(parallelism)})
+    # A subtask reports -1 when its last minute holds no result; only real readings count.
+    lat_rows = [v for v in latencies.values()
+                if v and v.get("latencySamples", 0) > 0 and v.get("latencyP50Ms", -1) >= 0]
 
     for position, (vid, _name, parallelism) in enumerate(vertices):
         placement = placements.get(vid) or {}
@@ -458,6 +495,12 @@ def sample_once(base, jid, all_taskmanagers):
         "busy_per_tm": busy_per_tm,
         "hosting": hosting,
         "e2e_delay_ms": e2e_delay,
+        # Per-record latency across sink subtasks: p50 of the slowest subtask (the median
+        # result of the worst sink), p99 of the worst, and the mean weighted by results.
+        "latency_p50_ms": max(r["latencyP50Ms"] for r in lat_rows) if lat_rows else None,
+        "latency_p99_ms": max(r["latencyP99Ms"] for r in lat_rows) if lat_rows else None,
+        "latency_mean_ms": (sum(r["latencyMeanMs"] * r["latencySamples"] for r in lat_rows)
+                            / sum(r["latencySamples"] for r in lat_rows)) if lat_rows else None,
         "e2e_delay_spread_ms": e2e_delay_spread,
         "slices": max(p for _v, _n, p in vertices),
         "busy_mean": statistics.fmean(subtask_busy),
@@ -628,6 +671,9 @@ def measure(base, jid, all_taskmanagers, window, interval, verbose=False,
         "series": [(s["t"], s["source_out_rps"], s["backpressure_mean"], s["busy_mean"])
                    for s in samples],
         "e2e_delay_ms": mean_where_present("e2e_delay_ms"),
+        "latency_p50_ms": mean_where_present("latency_p50_ms"),
+        "latency_p99_ms": mean_where_present("latency_p99_ms"),
+        "latency_mean_ms": mean_where_present("latency_mean_ms"),
         "e2e_delay_spread_ms": mean_where_present("e2e_delay_spread_ms"),
         "busy_per_tm": busy_per_tm,
         "tms_total": len(taskmanagers),
@@ -1066,6 +1112,7 @@ CSV_FIELDS = [
     "util_per_tm", "cv_cpu_util", "cpu_util_per_tm", "backpressure_mean_ms_s",
     "idle_mean_ms_s", "source_out_rps", "sink_in_rps", "throughput_per_slot",
     "e2e_delay_ms", "e2e_delay_spread_ms",
+    "latency_p50_ms", "latency_p99_ms", "latency_mean_ms",
     "state", "reward", "creditable", "credit_note", "q_before", "q_after",
     "arm_next", "exploring", "samples",
     # What the rescale itself cost, sampled during the warmup instead of slept through.
@@ -1384,6 +1431,8 @@ def main():
                                  else round(measurement["e2e_delay_ms"], 1)),
                 "e2e_delay_spread_ms": ("" if measurement["e2e_delay_spread_ms"] is None
                                         else round(measurement["e2e_delay_spread_ms"], 1)),
+                **{k: ("" if measurement.get(k) is None else round(measurement[k], 1))
+                   for k in ("latency_p50_ms", "latency_p99_ms", "latency_mean_ms")},
                 "source_out_rps": round(measurement["source_out_rps"], 2),
                 "sink_in_rps": round(measurement["sink_in_rps"], 2),
                 "throughput_per_slot": round(measurement["source_out_rps"] / slots, 2),

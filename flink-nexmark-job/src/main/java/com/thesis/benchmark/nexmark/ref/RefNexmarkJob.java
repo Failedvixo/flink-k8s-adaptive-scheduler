@@ -16,6 +16,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple4;
+import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
@@ -168,18 +169,21 @@ public class RefNexmarkJob {
         // runtime object is a SingleOutputStreamOperator<T>; the cast is what recovers
         // setParallelism/name/uid. The TypeInformation goes inside apply() because the
         // lambda erases the generic and a trailing .returns() will not compile.
+        // The fourth field is when the pair could first exist — the later of the two inputs'
+        // generation times — so the sink can measure per-record latency (see LatencyMeter).
         @SuppressWarnings("unchecked")
-        final SingleOutputStreamOperator<Tuple3<Long, String, Long>> newUsers =
-                (SingleOutputStreamOperator<Tuple3<Long, String, Long>>) persons
+        final SingleOutputStreamOperator<Tuple4<Long, String, Long, Long>> newUsers =
+                (SingleOutputStreamOperator<Tuple4<Long, String, Long, Long>>) persons
                         .join(auctions)
                         .where((KeySelector<Person, Long>) p -> p.id)
                         .equalTo((KeySelector<Auction, Long>) a -> a.seller)
                         .window(TumblingEventTimeWindows.of(Duration.ofSeconds(10)))
-                        .apply((JoinFunction<Person, Auction, Tuple3<Long, String, Long>>)
-                                        (p, a) -> Tuple3.of(p.id, p.name, a.reserve),
+                        .apply((JoinFunction<Person, Auction, Tuple4<Long, String, Long, Long>>)
+                                        (p, a) -> Tuple4.of(p.id, p.name, a.reserve,
+                                                Math.max(p.dateTime.getMillis(), a.dateTime.getMillis())),
                                 org.apache.flink.api.common.typeinfo.TypeInformation.of(
                                         new org.apache.flink.api.common.typeinfo.TypeHint<
-                                                Tuple3<Long, String, Long>>() {}));
+                                                Tuple4<Long, String, Long, Long>>() {}));
 
         // The operator the whole exercise is about: state- and memory-bound rather than
         // CPU-bound, so the machine that suits it is not the one a scalar load model
@@ -188,7 +192,7 @@ public class RefNexmarkJob {
         g(newUsers.setParallelism(heavyPar).name("new-users-join").uid("new-users-join"),
                 "join", "new-users-join");
 
-        final DataStreamSink<Tuple3<Long, String, Long>> sink = newUsers
+        final DataStreamSink<Tuple4<Long, String, Long, Long>> sink = newUsers
                 .addSink(new NewUsersSink()).name("q8-sink").uid("q8-sink");
         if (slotSharing != GraphConfig.SlotSharingMode.SHARED) {
             sink.slotSharingGroup("snk");
@@ -245,16 +249,16 @@ public class RefNexmarkJob {
                 .filter(a -> a.category == Q3_CATEGORY)
                 .name("auction-filter").uid("auction-filter");
 
-        final SingleOutputStreamOperator<Tuple4<String, String, String, Long>> joined = sellers
+        final SingleOutputStreamOperator<Tuple5<String, String, String, Long, Long>> joined = sellers
                 .keyBy((KeySelector<Person, Long>) p -> p.id)
                 .connect(category10.keyBy((KeySelector<Auction, Long>) a -> a.seller))
                 .process(new LocalItemJoin(ttlSec * 1000L))
                 .returns(TypeInformation.of(
-                        new TypeHint<Tuple4<String, String, String, Long>>() {}));
+                        new TypeHint<Tuple5<String, String, String, Long, Long>>() {}));
         g(joined.setParallelism(heavyPar).name("q3-state-join").uid("q3-state-join"),
                 "join", "q3-state-join");
 
-        final DataStreamSink<Tuple4<String, String, String, Long>> sink = joined
+        final DataStreamSink<Tuple5<String, String, String, Long, Long>> sink = joined
                 .addSink(new LocalItemSink()).name("q3-sink").uid("q3-sink");
         if (slotSharing != GraphConfig.SlotSharingMode.SHARED) {
             sink.slotSharingGroup("snk");
@@ -269,7 +273,7 @@ public class RefNexmarkJob {
      * timers spare the graph two watermark operators Q3 otherwise has no use for.
      */
     public static class LocalItemJoin extends KeyedCoProcessFunction<
-            Long, Person, Auction, Tuple4<String, String, String, Long>> {
+            Long, Person, Auction, Tuple5<String, String, String, Long, Long>> {
         private static final long serialVersionUID = 1L;
         private final long ttlMs;
         private transient ValueState<Person> person;
@@ -300,11 +304,13 @@ public class RefNexmarkJob {
 
         @Override
         public void processElement1(Person p, Context ctx,
-                                    Collector<Tuple4<String, String, String, Long>> out)
+                                    Collector<Tuple5<String, String, String, Long, Long>> out)
                 throws Exception {
             person.update(p);
+            // Fifth field: when the pair could first exist (the later input), for LatencyMeter.
             for (Auction a : pending.get()) {
-                out.collect(Tuple4.of(p.name, p.city, p.state, a.id));
+                out.collect(Tuple5.of(p.name, p.city, p.state, a.id,
+                        Math.max(p.dateTime.getMillis(), a.dateTime.getMillis())));
             }
             pending.clear();
             armExpiry(ctx);
@@ -312,11 +318,12 @@ public class RefNexmarkJob {
 
         @Override
         public void processElement2(Auction a, Context ctx,
-                                    Collector<Tuple4<String, String, String, Long>> out)
+                                    Collector<Tuple5<String, String, String, Long, Long>> out)
                 throws Exception {
             final Person p = person.value();
             if (p != null) {
-                out.collect(Tuple4.of(p.name, p.city, p.state, a.id));
+                out.collect(Tuple5.of(p.name, p.city, p.state, a.id,
+                        Math.max(p.dateTime.getMillis(), a.dateTime.getMillis())));
             } else {
                 pending.add(a);
                 armExpiry(ctx);
@@ -325,7 +332,7 @@ public class RefNexmarkJob {
 
         @Override
         public void onTimer(long ts, OnTimerContext ctx,
-                            Collector<Tuple4<String, String, String, Long>> out) {
+                            Collector<Tuple5<String, String, String, Long, Long>> out) {
             person.clear();
             pending.clear();
             expiry.clear();
@@ -334,14 +341,21 @@ public class RefNexmarkJob {
 
     /** Counts suggestions, so a Q3 that matches nothing is visible. */
     public static class LocalItemSink
-            extends RichSinkFunction<Tuple4<String, String, String, Long>> {
+            extends RichSinkFunction<Tuple5<String, String, String, Long, Long>> {
         private static final long serialVersionUID = 1L;
         private long received = 0;
         private long lastLog = 0;
+        private transient LatencyMeter latency;
 
         @Override
-        public void invoke(Tuple4<String, String, String, Long> v, Context ctx) {
+        public void open(org.apache.flink.api.common.functions.OpenContext ctx) {
+            latency = new LatencyMeter(getRuntimeContext().getMetricGroup());
+        }
+
+        @Override
+        public void invoke(Tuple5<String, String, String, Long, Long> v, Context ctx) {
             received++;
+            latency.record(v.f4);
             final long now = System.currentTimeMillis();
             if (now - lastLog > 5000) {
                 lastLog = now;
@@ -472,10 +486,17 @@ public class RefNexmarkJob {
         private static final long serialVersionUID = 1L;
         private long received = 0;
         private long lastLog = 0;
+        private transient LatencyMeter latency;
+
+        @Override
+        public void open(org.apache.flink.api.common.functions.OpenContext ctx) {
+            latency = new LatencyMeter(getRuntimeContext().getMetricGroup());
+        }
 
         @Override
         public void invoke(Tuple3<Long, Long, Long> v, Context ctx) {
             received++;
+            latency.record(v.f2);   // the window's end: when its count could first be final
             final long now = System.currentTimeMillis();
             if (now - lastLog > 5000) {
                 lastLog = now;
@@ -492,14 +513,21 @@ public class RefNexmarkJob {
      * sellers independently at random, so the join produced zero rows in every
      * campaign; this sink is the check that the reference sources fixed it.
      */
-    public static class NewUsersSink extends RichSinkFunction<Tuple3<Long, String, Long>> {
+    public static class NewUsersSink extends RichSinkFunction<Tuple4<Long, String, Long, Long>> {
         private static final long serialVersionUID = 1L;
         private long received = 0;
         private long lastLog = 0;
+        private transient LatencyMeter latency;
 
         @Override
-        public void invoke(Tuple3<Long, String, Long> v, Context ctx) {
+        public void open(org.apache.flink.api.common.functions.OpenContext ctx) {
+            latency = new LatencyMeter(getRuntimeContext().getMetricGroup());
+        }
+
+        @Override
+        public void invoke(Tuple4<Long, String, Long, Long> v, Context ctx) {
             received++;
+            latency.record(v.f3);
             final long now = System.currentTimeMillis();
             if (now - lastLog > 5000) {
                 lastLog = now;
