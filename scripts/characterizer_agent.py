@@ -604,6 +604,12 @@ def main():
     ap.add_argument("--disk-suffix", default=DISK_SUFFIX,
                     help="RocksDB counter that defines 'writes to disk' (default: logical bytes "
                          "written; v4 uses the compaction writes that actually reach the disk)")
+    ap.add_argument("--disk-floor", type=float, default=100_000.0,
+                    help="bytes/s below which a slice never counts as writing to disk, whatever "
+                         "the rest of the job writes. v4 uses 1e6 with compaction writes: measured "
+                         "2026-10-08, Q3's join rewrites 6.99 MB/s on disk and Q5's counters 0.16 — "
+                         "a relative cut alone calls Q5's counters disk-bound, since in each query "
+                         "the stateful operator is also the job's heaviest writer")
     ap.add_argument("--latency-source", choices=["record", "watermark"], default="record",
                     help="latency term of the reward: per-record latency from the sinks when "
                          "they expose it (falls back to the watermark lag), or the watermark lag")
@@ -800,7 +806,8 @@ def main():
             epsilon = 0.0 if args.freeze else max(
                 args.epsilon_min, args.epsilon * args.epsilon_decay ** epoch)
             plan, decisions = decide(agent, per_slice, capacity, epsilon, args.busy_cut,
-                                     disk=per_slice_disk, machine_load=args.machine_load)
+                                     disk=per_slice_disk, machine_load=args.machine_load,
+                                     disk_floor=args.disk_floor)
             # (state, action, the tasks that decision placed) — the tasks are what make it
             # possible to find this decision's own outcome in a later epoch.
             trajectory = [(st, ac_, frozenset(layout["slices"][idx])) for st, ac_, idx in decisions]
