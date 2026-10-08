@@ -40,7 +40,9 @@ export QUERY="${QUERY:-q8}"
 # below what 32000 delivers. The old 38000 default predates the join fix and is not comparable.
 export RATE="${RATE:-40000}"
 # Two repetitions whenever RL is among the arms: see the note at the analysis call below.
-case " $ARMS " in *" RL "*) export REPS="${REPS:-2}" ;; *) export REPS="${REPS:-1}" ;; esac
+# RL_V3, RL_V4 ... are RL arms too (2026-10-08): with only " RL " matched, a campaign of two
+# agent versions would have fallen back to one repetition and measured the previous job's plan.
+case " $ARMS " in *" RL "*|*" RL_"*) export REPS="${REPS:-2}" ;; *) export REPS="${REPS:-1}" ;; esac
 export SLOT_SHARING="${SLOT_SHARING:-PER_STAGE}"
 export SUBMIT_PAR="${SUBMIT_PAR:-3}"
 export TARGET_PAR="${TARGET_PAR:-2}"

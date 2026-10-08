@@ -158,6 +158,26 @@ def publish_plan(sections, node):
 # ---------------------------------------------------------------------------
 # observation
 # ---------------------------------------------------------------------------
+def sink_record_latency_ms(base, jid, detail):
+    """Per-record latency at the sinks (p50 of the slowest sink subtask), in ms, or None.
+
+    2026-10-08: the reference sinks measure, for every result, the time from when its input
+    entered the graph to when it leaves (LatencyMeter.java). That is what the thesis calls
+    latency; the watermark lag below is how far the sink trails in event time, which is a
+    different quantity and does not exist for Q3. None when the job's sinks have no meter.
+    """
+    _sources, sinks = ac.graph_roles(detail)
+    readings = []
+    for vertex in detail.get("vertices", []):
+        if vertex["id"] not in sinks:
+            continue
+        for index in range(int(vertex.get("parallelism", 0))):
+            got = ac.sink_latency(base, jid, vertex["id"], index)
+            if got.get("latencySamples", 0) > 0 and got.get("latencyP50Ms", -1) >= 0:
+                readings.append(got["latencyP50Ms"])
+    return max(readings) if readings else None
+
+
 def sink_delay_ms(base, jid, detail):
     """How far the sinks' event time trails the wall clock, in ms, or None.
 
@@ -391,28 +411,37 @@ class SliceSarsa:
         # state, so when the exact row is empty the agent asks what it learned about this
         # load|disk profile over ALL masks, weighting each row by its visits, and uses that
         # before the blind prior. That is the generalisation the profile features exist for.
+        # With machine load in the state (v4) the first step back drops only the free mask and
+        # keeps load|disk|heavy, so "this profile on a machine that already carries two heavy
+        # slices" is still answered from experience about exactly that before it is pooled away.
+        if "|heavy=" in state:
+            pooled = self._pooled(state, allowed, keep=("load", "disk", "heavy"))
+            if pooled:
+                return max(pooled, key=lambda a: (pooled[a], -a))
         pooled = self._pooled(state, allowed)
         if pooled:
             return max(pooled, key=lambda a: (pooled[a], -a))
         # Second level (2026-10-01): if even load|disk has too little evidence, keep only the
         # resource the slice is heavy in. "Writes to disk" is what decides the machine on a
         # bench with a capped disk, and it is far better sampled than any one load|disk pair.
-        pooled = self._pooled(state, allowed, level="disk")
+        pooled = self._pooled(state, allowed, keep=("disk",))
         if pooled:
             return max(pooled, key=lambda a: (pooled[a], -a))
         return min(allowed)
 
-    def _pooled(self, state, allowed, level="load|disk"):
-        """Visit-weighted mean Q per allowed action over every row sharing this profile —
-        load|disk by default, or only the disk flag with level='disk'."""
-        profile = state.rsplit("|free=", 1)[0] + "|free="
-        disk_tag = next((f for f in state.split("|") if f.startswith("disk=")), None)
+    @staticmethod
+    def _tags(state):
+        return dict(part.split("=", 1) for part in state.split("|") if "=" in part)
+
+    def _pooled(self, state, allowed, keep=("load", "disk")):
+        """Visit-weighted mean Q per allowed action over every row that agrees with this state
+        on the tags in `keep` (load|disk by default; ("disk",) for the second level)."""
+        mine = self._tags(state)
+        want = {k: mine[k] for k in keep if k in mine}
         total, count = {}, {}
         for row, visits in self.n.items():
-            if level == "disk":
-                if disk_tag is None or disk_tag not in row.split("|"):
-                    continue
-            elif not row.startswith(profile):
+            tags = self._tags(row)
+            if any(tags.get(k) != v for k, v in want.items()):
                 continue
             for a in allowed:
                 n = visits.get(str(a), 0)
@@ -485,7 +514,7 @@ def room_bucket(free, capacity):
 
 
 def decide(agent, slices, capacity, epsilon, busy_cut, disk=None, disk_cut=0.5,
-           disk_floor=100_000.0):
+           disk_floor=100_000.0, machine_load=False):
     """Place every slice, most demanding first. `slices` is [(cost, saturated)].
 
     `disk` is each slice's RocksDB write rate in bytes/s. It enters the STATE, not the order:
@@ -501,6 +530,13 @@ def decide(agent, slices, capacity, epsilon, busy_cut, disk=None, disk_cut=0.5,
     # rate; the absolute floor keeps a job in which nothing writes from labelling noise as disk.
     disk_peak = max(disk) if disk else 0.0
     room = list(capacity)
+    # MACHINE LOAD (2026-10-08, v4). The state knew how much ROOM each machine had and nothing
+    # about what it already carried: "medium with two free slots" read the same with two joins
+    # on it as with two sinks. In Q3 at 30 000 ev/s that cost a pass — the agent put a saturated
+    # auction source and a saturated person source on medium beside both joins, four heavy
+    # slices on two cores, 81% against 100% in the pass that kept medium for the joins. Each
+    # machine now also reports how many HEAVY slices this plan has already given it (0, 1, 2+).
+    heavy_on = [0] * len(capacity)
     plan, trajectory = {}, []
     # Saturated slices go first regardless of their sums, then by cost. See slice_loads.
     for index in sorted(range(len(slices)),
@@ -511,10 +547,14 @@ def decide(agent, slices, capacity, epsilon, busy_cut, disk=None, disk_cut=0.5,
         heavy = slices[index][1] or costs[index] / peak >= busy_cut
         writes = disk_peak > disk_floor and disk[index] / disk_peak >= disk_cut
         state = f"load={'HIGH' if heavy else 'LOW'}|disk={'Y' if writes else 'N'}|free={mask}"
+        if machine_load:
+            state += "|heavy=" + "".join(str(min(2, h)) for h in heavy_on)
         action = agent.choose(state, allowed, epsilon)
         if action is None:
             return None, []
         room[action] -= 1
+        if heavy:
+            heavy_on[action] += 1
         plan[index] = action
         # The slice index travels with the decision so its OWN outcome can be credited to it —
         # see the local-credit block in main().
@@ -558,6 +598,15 @@ def main():
     ap.add_argument("--min-visits", type=int, default=3,
                     help="an action seen fewer times than this is not consulted when acting "
                          "greedily; 0 restores the old behaviour")
+    ap.add_argument("--machine-load", action="store_true",
+                    help="v4: add to the state how many heavy slices each machine already "
+                         "carries in the plan being built (off: the v3 state, unchanged)")
+    ap.add_argument("--disk-suffix", default=DISK_SUFFIX,
+                    help="RocksDB counter that defines 'writes to disk' (default: logical bytes "
+                         "written; v4 uses the compaction writes that actually reach the disk)")
+    ap.add_argument("--latency-source", choices=["record", "watermark"], default="record",
+                    help="latency term of the reward: per-record latency from the sinks when "
+                         "they expose it (falls back to the watermark lag), or the watermark lag")
     ap.add_argument("--profile-by", choices=["operator", "subtask"], default="operator",
                     help="describe a slice by its operators' peak over their subtasks "
                          "(default, since 2026-10-01) or by each subtask's own reading")
@@ -672,7 +721,7 @@ def main():
             width = len(layout["slices"])
             generator_ids = generator_metric_ids(args.rest, jid, detail)
 
-            disk_ids = disk_metric_ids(args.rest, jid, detail)
+            disk_ids = disk_metric_ids(args.rest, jid, detail, args.disk_suffix)
             disk_start = disk_bytes(args.rest, jid, detail, disk_ids)
             stall_ids = (disk_metric_ids(args.rest, jid, detail, STALL_SUFFIX)
                          if args.local_credit else {})
@@ -729,7 +778,12 @@ def main():
             # width, so the term is dimensionless and a rescale does not look like a
             # regression. Off by default (weight 0) — turning it on changes what the agent
             # optimises, which is a decision to declare, not a default to inherit.
-            delay = sink_delay_ms(args.rest, jid, detail) if args.latency_weight else None
+            delay = None
+            if args.latency_weight:
+                if args.latency_source == "record":
+                    delay = sink_record_latency_ms(args.rest, jid, detail)
+                if delay is None:
+                    delay = sink_delay_ms(args.rest, jid, detail)
             if delay is not None:
                 dbase = delay_baselines.get(width)
                 if dbase:
@@ -746,7 +800,7 @@ def main():
             epsilon = 0.0 if args.freeze else max(
                 args.epsilon_min, args.epsilon * args.epsilon_decay ** epoch)
             plan, decisions = decide(agent, per_slice, capacity, epsilon, args.busy_cut,
-                                     disk=per_slice_disk)
+                                     disk=per_slice_disk, machine_load=args.machine_load)
             # (state, action, the tasks that decision placed) — the tasks are what make it
             # possible to find this decision's own outcome in a later epoch.
             trajectory = [(st, ac_, frozenset(layout["slices"][idx])) for st, ac_, idx in decisions]

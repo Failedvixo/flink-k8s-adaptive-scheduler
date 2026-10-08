@@ -854,6 +854,14 @@ for ARM in $ARMS; do
           FORK_ARM="LPT"
           ORACLE_ARM=1
           ;;
+      RL_*)
+          # Several agents in one campaign (2026-10-08): RL_V3, RL_V4 ... are each the RL arm of
+          # the fork driven by their OWN table and flags, AGENT_QTABLE_<ARM> and
+          # AGENT_ARGS_<ARM> (e.g. AGENT_QTABLE_RL_V4=..., AGENT_ARGS_RL_V4="--machine-load").
+          # Measuring two versions side by side is what separates "the improvement helped" from
+          # "the session differed".
+          FORK_ARM="RL"
+          ;;
       PLAN_*)
           FORK_ARM="RL"
           STATIC_PLAN="$ROOT_DIR/plans/${ARM#PLAN_}.plan"
@@ -1069,7 +1077,15 @@ for ARM in $ARMS; do
   AGENT_WINDOW=$(( MEASURE_WINDOW * 4 / 5 ))
   if [ "${CHARACTERISER:-0}" = "1" ]; then
       case "$ARM" in
-          RL)
+          RL|RL_*)
+              ARM_QTABLE_VAR="AGENT_QTABLE_${ARM}"; ARM_ARGS_VAR="AGENT_ARGS_${ARM}"
+              ARM_QTABLE="${!ARM_QTABLE_VAR:-${AGENT_QTABLE:-}}"
+              ARM_ARGS="${!ARM_ARGS_VAR:-}"
+              if [ "$ARM" != RL ] && [ -z "${!ARM_QTABLE_VAR:-}" ]; then
+                  echo "  ! $ARM sin $ARM_QTABLE_VAR: usaría la tabla común y no sería otra versión" \
+                      | tee -a "$DRIVER_LOG"
+              fi
+              echo "  agente de $ARM: tabla ${ARM_QTABLE:-nueva} ${ARM_ARGS:+args: $ARM_ARGS}" | tee -a "$DRIVER_LOG"
               # A LIVE AGENT STARTS FROM NO PLAN (2026-09-30). Vertex ids survive across
               # submissions, so a plan left by the PREVIOUS job resolves perfectly well against
               # this one and the fork applies it: in the oracle campaign, passes B-D measured
@@ -1081,18 +1097,19 @@ for ARM in $ARMS; do
               timeout $((JOB_DURATION + 120)) python3 -u "$SCRIPT_DIR/characterizer_agent.py" \
                   --jm-pod "$JM_POD" --out-dir "$CELL_DIR" \
                   --warmup "$MEASURE_WARMUP" --window "$AGENT_WINDOW" \
-                  ${AGENT_QTABLE:+--qtable "$AGENT_QTABLE"} ${AGENT_FREEZE:+--freeze} \
+                  ${ARM_QTABLE:+--qtable "$ARM_QTABLE"} ${AGENT_FREEZE:+--freeze} \
                   ${AGENT_LATENCY_WEIGHT:+--latency-weight "$AGENT_LATENCY_WEIGHT"} \
                   ${AGENT_LOCAL_CREDIT:+--local-credit "$AGENT_LOCAL_CREDIT"} \
                   ${AGENT_UCB:+--ucb "$AGENT_UCB"} \
                   ${MEASURED_PAR:+--only-parallelism "$MEASURED_PAR"} \
+                  $ARM_ARGS \
                   < /dev/null > "$CELL_DIR/characterizer.log" 2>&1 &
               AGENT_PID=$!
               echo "  agente caracterizador activo (pid $AGENT_PID) -> $CELL_DIR/characterizer.log"
               ;;
           *) echo "  (CHARACTERISER=1 ignorado: solo el brazo RL aplica el plan del agente)" ;;
       esac
-  elif [ "$ARM" = RL ]; then
+  elif [ "$ARM" = RL ] || [[ "$ARM" == RL_* ]]; then
       # SAY WHOSE POLICY THIS IS (2026-09-21). The multi-arm campaign of that night ran the
       # RL arm for nine hours without CHARACTERISER=1 — no campaign script exported it — so
       # no agent ran and the fork applied whatever was left at /var/thesis/assignment: a plan
