@@ -90,7 +90,15 @@ for component in $COMPONENTS; do
         echo "ERROR: flink-$component has no FLINK_PROPERTIES" >&2; exit 1
     fi
 
-    KEY="$KEY" VALUE="$VALUE" COMPONENT="$component" PROPS="$CURRENT" \
+    # The patch names the container to merge into. The flink-tm-{fast,medium,slow} deployments
+    # call theirs "taskmanager", not "tm-fast": naming it after the component made Kubernetes
+    # read the patch as a SECOND container with no image and reject the whole deployment
+    # (2026-10-08). Read the real name instead of assuming it.
+    CONTAINER=$(kubectl get deploy "flink-$component" -n "$NAMESPACE" \
+        -o jsonpath='{.spec.template.spec.containers[0].name}')
+    [ -n "$CONTAINER" ] || { echo "ERROR: flink-$component has no container" >&2; exit 1; }
+
+    KEY="$KEY" VALUE="$VALUE" COMPONENT="$CONTAINER" PROPS="$CURRENT" \
         python3 - > "$WORK/$component.json" <<'PY'
 import json, os
 
