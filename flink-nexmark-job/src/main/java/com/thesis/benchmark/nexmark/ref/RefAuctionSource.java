@@ -101,6 +101,8 @@ public class RefAuctionSource extends RichParallelSourceFunction<Auction> {
         // the same defect cost Q5's bid source up to 29% of its events.
         final NexmarkEpochs.Clock clock = new NexmarkEpochs.Clock();
         final long startedAt = clock.nowMillis();
+        long secondStart = startedAt;
+        long busyThisSecond = 0;
         final long deadline = durationSec > 0 ? startedAt + durationSec * 1000L : Long.MAX_VALUE;
         final long total = GeneratorConfig.PROPORTION_DENOMINATOR;
         final int persons = GeneratorConfig.PERSON_PROPORTION;
@@ -132,9 +134,15 @@ public class RefAuctionSource extends RichParallelSourceFunction<Auction> {
                 nextEpoch += subtasks;
             }
             final long elapsed = clock.nowMillis() - emitStart;
-            lastGeneratorBusyMs = Math.min(elapsed, 1000L);
-            if (elapsed < 1000) {
-                Thread.sleep(1000 - elapsed);
+            // Busy time stays a per-SECOND figure, summed over the passes of the last second.
+            busyThisSecond += elapsed;
+            if (emitStart - secondStart >= 1000L) {
+                lastGeneratorBusyMs = Math.min(busyThisSecond, 1000L);
+                busyThisSecond = 0;
+                secondStart = emitStart;
+            }
+            if (elapsed < NexmarkEpochs.EMIT_PERIOD_MS) {
+                Thread.sleep(NexmarkEpochs.EMIT_PERIOD_MS - elapsed);
             }
         }
     }

@@ -37,6 +37,15 @@ final class NexmarkEpochs {
 
     private NexmarkEpochs() {}
 
+    /**
+     * How often a source wakes up to emit what is due (2026-10-08). It was once a second, so every
+     * event waited on average half a second inside its source before entering the graph — about
+     * 0.5 of Q3's measured 0.75 s of per-record latency — and the load arrived as one burst per
+     * second. A tenth of a second keeps the generator's cost negligible (a few ms per second) and
+     * lets latency differences of a few hundred milliseconds show.
+     */
+    static final long EMIT_PERIOD_MS = 100L;
+
     /** The epoch the wall clock is in at {@code millis}. */
     static long epochAt(long millis, long epochsPerSecond) {
         return millis * epochsPerSecond / 1000L;
