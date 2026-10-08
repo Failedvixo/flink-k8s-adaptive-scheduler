@@ -65,14 +65,19 @@ if [ "${1:-}" = "--show" ]; then
     exit 0
 fi
 
-TARGET="${1:?usage: patch-flink-property.sh <jobmanager|taskmanager|both> <key> <value>}"
+TARGET="${1:?usage: patch-flink-property.sh <jobmanager|taskmanager|both|tm-classes|tm-fast|tm-medium|tm-slow> <key> <value>}"
 KEY="${2:?missing key}"
 VALUE="${3:?missing value}"
 
+# The heterogeneous bench runs three TaskManager deployments, flink-tm-{fast,medium,slow}, while
+# flink-taskmanager sits at zero replicas: "taskmanager" alone patched a deployment that runs
+# nothing. "tm-classes" patches the three; "tm-fast" etc. patch one (2026-10-08).
 case "$TARGET" in
-    jobmanager|taskmanager) COMPONENTS="$TARGET" ;;
-    both)                   COMPONENTS="jobmanager taskmanager" ;;
-    *) echo "ERROR: target must be jobmanager, taskmanager or both" >&2; exit 1 ;;
+    jobmanager|taskmanager)      COMPONENTS="$TARGET" ;;
+    both)                        COMPONENTS="jobmanager taskmanager" ;;
+    tm-classes)                  COMPONENTS="tm-fast tm-medium tm-slow" ;;
+    tm-fast|tm-medium|tm-slow)   COMPONENTS="$TARGET" ;;
+    *) echo "ERROR: target must be jobmanager, taskmanager, both, tm-classes or tm-{fast,medium,slow}" >&2; exit 1 ;;
 esac
 
 WORK=$(mktemp -d)

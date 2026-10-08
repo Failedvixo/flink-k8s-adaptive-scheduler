@@ -140,7 +140,10 @@ process_for() {
 # difference two samples to get a rate. Histogram-based native metrics are not enabled:
 # those do carry a measurable overhead, and the ratios above are enough.
 ROCKSDB_METRICS="${ROCKSDB_METRICS:-1}"
-ROCKSDB_METRIC_KEYS="bytes-read bytes-written iter-bytes-read block-cache-hit block-cache-miss stall-micros"
+# compaction-write-bytes (2026-10-08): what RocksDB actually rewrites on DISK. bytes-written counts
+# every put, including the ones that never leave the memtable — Q5's counters write 15 MB/s of it
+# and almost nothing to disk — so the agent took a memory-bound operator for a disk-bound one.
+ROCKSDB_METRIC_KEYS="bytes-read bytes-written iter-bytes-read block-cache-hit block-cache-miss stall-micros compaction-write-bytes"
 # Optional, and probably needed. Flink splits the process size into framework heap,
 # task heap, managed, network, metaspace and overhead; the current 1024m fits only
 # because managed is 16m. Taking 256m for RocksDB comes out of the task heap, and if
