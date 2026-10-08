@@ -50,9 +50,13 @@ def main():
             found = True
             got = {m["id"].split(".")[-1]: m.get("value")
                    for m in (jm(pod, f"{base}?get={','.join(ids)}") or [])}
+            n = int(float(got.get("latencySamples") or 0))
+            # The meter keeps at most 50 000 results (LatencyMeter.CAPACITY): at Q8's rate that is
+            # less than a minute, and the figures then cover only the most recent results.
+            span = ("último minuto" if n < 50000
+                    else "últimos 50 000 resultados (menos de un minuto: búfer lleno)")
             print(f"  sub {i}: p50={got.get('latencyP50Ms')} ms  p99={got.get('latencyP99Ms')} ms  "
-                  f"media={got.get('latencyMeanMs')} ms  resultados en el último minuto="
-                  f"{got.get('latencySamples')}")
+                  f"media={got.get('latencyMeanMs')} ms  ({span})")
     return 0 if found else 1
 
 
