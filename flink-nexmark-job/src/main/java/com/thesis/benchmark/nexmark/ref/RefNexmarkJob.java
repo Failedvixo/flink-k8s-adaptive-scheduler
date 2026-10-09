@@ -106,7 +106,7 @@ public class RefNexmarkJob {
         if ("q8".equals(query)) {
             runQ8(env, rate, durationSec, heavyPar, maxEventAgeMs);
         } else if ("q5".equals(query)) {
-            runQ5(env, rate, durationSec, heavyPar, maxEventAgeMs);
+            runQ5(env, rate, durationSec, heavyPar, maxEventAgeMs, q5Window(args[3]));
         } else if ("q3".equals(query)) {
             runQ3(env, rate, durationSec, heavyPar, maxEventAgeMs, q3StateTtlSec());
         } else {
@@ -383,11 +383,33 @@ public class RefNexmarkJob {
     // The graph has the same shape as Q8's under PER_STAGE sharing — four stages (bids,
     // count, max, sink), eight slices at parallelism 2 — so the cluster's 12 slots and the
     // agent's state encoding carry over unchanged.
-    static final Duration Q5_WINDOW = Duration.ofSeconds(10);
-    static final Duration Q5_SLIDE = Duration.ofSeconds(5);
+    //
+    // WINDOW AND SLIDE ARE ARGUMENT 3 (2026-10-09), "size" or "size:slide" in seconds. The harness
+    // already passes JOB_WINDOW there (default "10"), which this job ignored. "10" — or anything
+    // without a slide — keeps Beam's proportion, slide = size/2, so every earlier Q5 campaign is
+    // reproduced as is. "60:1" keeps the ORIGINAL NEXMark proportion that CAPSys uses
+    // (Query5.java: timeWindow(60 min, 1 min), "RANGE 60 MINUTE SLIDE 1 MINUTE") at a scale a
+    // campaign can measure; "3600:60" is CAPSys exactly. size/slide is how many windows each bid
+    // falls into at once: 2 with Beam's values, 60 with the original — and so how many counters
+    // per auction the state holds, which is what decides whether the state reaches the disk.
+    static Duration[] q5Window(String arg) {
+        long size = 10, slide = 5;
+        if (arg != null && !arg.isEmpty()) {
+            final String[] parts = arg.split(":");
+            size = Long.parseLong(parts[0].trim());
+            slide = parts.length > 1 ? Long.parseLong(parts[1].trim()) : Math.max(1, size / 2);
+        }
+        if (slide <= 0 || slide > size) {
+            throw new IllegalArgumentException("Q5 window needs 0 < slide <= size, got " + arg);
+        }
+        return new Duration[] {Duration.ofSeconds(size), Duration.ofSeconds(slide)};
+    }
 
     private static void runQ5(StreamExecutionEnvironment env, int rate, int durationSec,
-                              int heavyPar, long maxEventAgeMs) {
+                              int heavyPar, long maxEventAgeMs, Duration[] window) {
+        System.out.println("  q5: ventana " + window[0].getSeconds() + " s, paso "
+                + window[1].getSeconds() + " s (" + window[0].getSeconds() / window[1].getSeconds()
+                + " ventanas abiertas por puja)");
         // Q5 consumes only bids, so the whole rate is bids.
         final DataStream<Bid> bids = g(env
                 .addSource(new RefBidSource(rate, durationSec, maxEventAgeMs))
@@ -401,7 +423,7 @@ public class RefNexmarkJob {
         // accumulator per (auction, window) in RocksDB rather than every bid buffered.
         final SingleOutputStreamOperator<Tuple3<Long, Long, Long>> counts = bids
                 .keyBy((KeySelector<Bid, Long>) b -> b.auction)
-                .window(SlidingEventTimeWindows.of(Q5_WINDOW, Q5_SLIDE))
+                .window(SlidingEventTimeWindows.of(window[0], window[1]))
                 .aggregate(new CountBids(), new WithWindowEnd(),
                         TypeInformation.of(Long.class), TypeInformation.of(Long.class),
                         TypeInformation.of(new TypeHint<Tuple3<Long, Long, Long>>() {}));

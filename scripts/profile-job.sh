@@ -89,7 +89,7 @@ echo "=========================================="
 echo "  Perfilado — $QUERY a $RATE rec/s, $SUBMIT_PAR -> $TARGET_PAR ($SLOT_SHARING)"
 echo "=========================================="
 kubectl exec -n "$NAMESPACE" "$JM_POD" -- flink run -d -c "$JOB_CLASS" "$JAR" \
-    "$RATE" "$DURATION" "$SUBMIT_PAR" 10 0 CONSTANT "$SUBMIT_PAR" "$MAX_EVENT_AGE" \
+    "$RATE" "$DURATION" "$SUBMIT_PAR" "${JOB_WINDOW:-10}" 0 CONSTANT "$SUBMIT_PAR" "$MAX_EVENT_AGE" \
     "$QUERY" 0 0 "$SLOT_SHARING" >/dev/null 2>&1
 
 for _ in $(seq 1 24); do
