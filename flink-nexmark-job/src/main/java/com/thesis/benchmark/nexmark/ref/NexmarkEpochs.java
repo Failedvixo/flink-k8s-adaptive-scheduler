@@ -105,22 +105,26 @@ final class NexmarkEpochs {
         private final long stepMs;
         private final long[] permille;     // null = constant rate
         private final long periodIntegral; // integral of one full cycle, permille-ms
+        private final long[] prefix;       // prefix[k] = integral of steps 0..k-1, permille-ms
 
         private Schedule(long epochsPerSecond, long stepMs, long[] permille) {
             this.epochsPerSecond = epochsPerSecond;
             this.stepMs = stepMs;
             this.permille = permille;
             long sum = 0;
+            this.prefix = permille == null ? null : new long[permille.length + 1];
             if (permille != null) {
-                for (long p : permille) {
-                    sum += p * stepMs;
+                for (int k = 0; k < permille.length; k++) {
+                    prefix[k] = sum;
+                    sum += permille[k] * stepMs;
                 }
+                prefix[permille.length] = sum;
             }
             this.periodIntegral = sum;
         }
 
         /**
-         * @param dist     CONSTANT or STEPS:seconds:rate,rate,...
+         * @param dist     CONSTANT, STEPS:seconds:rate,rate,... or SINE:periodSeconds:min,max
          * @param baseRate the query's total rate that {@code epochsPerSecond} corresponds to
          */
         static Schedule parse(String dist, long baseRate, long epochsPerSecond) {
@@ -128,9 +132,12 @@ final class NexmarkEpochs {
                 return new Schedule(epochsPerSecond, 0, null);
             }
             final String[] parts = dist.split(":");
+            if (parts.length == 3 && "SINE".equalsIgnoreCase(parts[0])) {
+                return sine(dist, parts, baseRate, epochsPerSecond);
+            }
             if (parts.length != 3 || !"STEPS".equalsIgnoreCase(parts[0])) {
-                throw new IllegalArgumentException(
-                        "dist must be CONSTANT or STEPS:<seconds>:<rate>,<rate>,..., got " + dist);
+                throw new IllegalArgumentException("dist must be CONSTANT, STEPS:<seconds>:<rate>,"
+                        + "<rate>,... or SINE:<period seconds>:<min>,<max>, got " + dist);
             }
             final long step = Long.parseLong(parts[1].trim()) * 1000L;
             final String[] rates = parts[2].split(",");
@@ -142,6 +149,29 @@ final class NexmarkEpochs {
                 throw new IllegalArgumentException("bad STEPS profile: " + dist);
             }
             return new Schedule(epochsPerSecond, step, pm);
+        }
+
+        /**
+         * SINE:period:min,max (2026-10-11) — a smooth cycle between two total rates, starting at
+         * the midpoint and rising, aligned to the fixed origin. Built as one-second steps holding
+         * the sine's value at the middle of each second, so it reuses the STEPS integral exactly
+         * and agent_v5_loop.offered_multiplier can mirror it second by second.
+         */
+        private static Schedule sine(String dist, String[] parts, long baseRate, long epochsPerSecond) {
+            final int period = Integer.parseInt(parts[1].trim());
+            final String[] range = parts[2].split(",");
+            if (period <= 1 || range.length != 2) {
+                throw new IllegalArgumentException("bad SINE profile: " + dist);
+            }
+            final double min = Double.parseDouble(range[0].trim());
+            final double max = Double.parseDouble(range[1].trim());
+            final double mid = (min + max) / 2.0, amp = (max - min) / 2.0;
+            final long[] pm = new long[period];
+            for (int k = 0; k < period; k++) {
+                final double rate = mid + amp * Math.sin(2.0 * Math.PI * (k + 0.5) / period);
+                pm[k] = Math.round(1000.0 * rate / Math.max(1, baseRate));
+            }
+            return new Schedule(epochsPerSecond, 1000L, pm);
         }
 
         boolean isConstant() {
@@ -161,14 +191,11 @@ final class NexmarkEpochs {
         private long integral(long millis) {
             final long t = Math.max(0, millis - ORIGIN_MS);
             final long period = stepMs * permille.length;
-            long acc = (t / period) * periodIntegral;
-            long rem = t % period;
-            int k = 0;
-            while (rem >= stepMs) {
-                acc += permille[k++] * stepMs;
-                rem -= stepMs;
-            }
-            return acc + permille[k] * rem;
+            final long rem = t % period;
+            // Prefix sums, not a walk: a SINE cycle has one step per second, and timeOf calls
+            // this ~40 times per epoch emitted.
+            final int k = (int) (rem / stepMs);
+            return (t / period) * periodIntegral + prefix[k] + permille[k] * (rem - k * stepMs);
         }
 
         long epochAt(long millis) {

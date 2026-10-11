@@ -81,7 +81,8 @@ public class RefNexmarkJob {
                 ? GraphConfig.SlotSharingMode.valueOf(args[11].toUpperCase())
                 : GraphConfig.SlotSharingMode.SHARED;
 
-        // CONSTANT or STEPS:<seconds>:<rate>,... (2026-10-11, see NexmarkEpochs.Schedule). Anything
+        // CONSTANT, STEPS:<seconds>:<rate>,... or SINE:<period s>:<min>,<max> (2026-10-11, see
+        // NexmarkEpochs.Schedule). Anything
         // else is still refused rather than run as a constant load under a label that says
         // otherwise: every campaign records the distribution it asked for.
         NexmarkEpochs.Schedule.parse(dist, rate, 1);

@@ -33,6 +33,7 @@ Usage (from the driver, later): python3 scripts/agent_v5_loop.py --jm-pod <pod> 
 import argparse
 import csv
 import json
+import math
 import statistics
 import sys
 import time
@@ -51,8 +52,16 @@ def offered_multiplier(dist, rate, t0, t1):
     """Mean of (offered rate / RATE) over [t0, t1] (epoch seconds), mirroring the sources."""
     if not dist or dist.upper() == "CONSTANT":
         return 1.0
-    _kind, step_s, rates = dist.split(":")
-    step_ms, levels = int(step_s) * 1000, [int(r) for r in rates.split(",")]
+    kind, step_s, rates = dist.split(":")
+    if kind.upper() == "SINE":
+        # Same construction as NexmarkEpochs.Schedule.sine: one-second steps at the mid-second value.
+        lo, hi = (float(r) for r in rates.split(","))
+        n = int(step_s)
+        step_ms = 1000
+        levels = [(lo + hi) / 2 + (hi - lo) / 2 * math.sin(2 * math.pi * (k + 0.5) / n)
+                  for k in range(n)]
+    else:
+        step_ms, levels = int(step_s) * 1000, [int(r) for r in rates.split(",")]
     samples = []
     t = t0
     while t <= t1:
