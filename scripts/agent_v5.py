@@ -50,35 +50,36 @@ import numpy as np
 
 FEATURES = [
     "bias",
-    "cpu_util",        # (CPU already planned on the machine + this slice) / machine cores
+    "cpu_util",        # CPU the plan puts on the machine / its cores
     "cpu_over",        # max(0, cpu_util - 1): demand the machine cannot serve
-    "disk_util",       # (disk rewrite already planned + this slice) / machine disk bandwidth
+    "disk_util",       # disk rewrite the plan puts on the machine / its disk bandwidth
     "disk_over",       # max(0, disk_util - 1)
-    "sat_per_core",    # 1/cores if the slice is saturated: its true demand is unknown and above 1
-    "sat_util",        # saturated slices on the machine / its cores: a saturated slice measures
-                       # at most one core while needing more, so its measured CPU under-counts
-    "slot_util",       # slots used on the machine / its slots
+    "sat_util",        # saturated slices on the machine / its cores: their measured CPU
+                       # under-counts what they need
+    "slot_util",       # slots used / slots
 ]
+# ONE TERM PER MACHINE, NOT PER SLICE (2026-10-11). Summing a value per SLICE made an overloaded
+# machine count once for every slice on it, light ones included: in the simulated Q5 the optimal
+# plan put a sink beside an overloaded source on the one-core machine and paid twice, while the
+# agent's plan overloaded medium with exactly two slices and paid twice too — and won. What limits
+# the job is the MACHINE, so a plan's value is the sum of one estimate per machine it uses.
 UNLIMITED_DISK_MBPS = 200.0     # a machine without a cap: its disk is never the constraint here
 
 
-def pair_features(slice_, machine, others):
-    """Features of `slice_` on `machine`, where `others` is what ELSE the plan puts there
-    ({'cpu', 'disk', 'slots', 'sat'}). Whole-plan totals, so the order of decision is irrelevant."""
+def machine_features(load, machine):
+    """Features of a machine carrying `load` = {'cpu', 'disk', 'slots', 'sat'} from one plan."""
     cores = machine["cores"]
     disk = machine.get("disk_mbps") or UNLIMITED_DISK_MBPS
-    cpu_util = (others["cpu"] + slice_["cpu"]) / cores
-    disk_util = (others["disk"] + slice_["disk"]) / disk
-    sat = others["sat"] + (1 if slice_["saturated"] else 0)
+    cpu_util = load["cpu"] / cores
+    disk_util = load["disk"] / disk
     return np.array([
         1.0,
         cpu_util,
         max(0.0, cpu_util - 1.0),
         disk_util,
         max(0.0, disk_util - 1.0),
-        (1.0 / cores) if slice_["saturated"] else 0.0,
-        sat / cores,
-        (others["slots"] + 1) / machine["slots"],
+        load["sat"] / cores,
+        load["slots"] / machine["slots"],
     ])
 
 
@@ -175,21 +176,15 @@ class LinUCBPlacer:
 
 
 def plan_features(slices, machines, plan):
-    """[(features, slice index)] for a complete plan {slice index: machine index}."""
-    totals = [{"cpu": 0.0, "disk": 0.0, "slots": 0, "sat": 0} for _ in machines]
+    """[(features, machine index)] for every machine the plan {slice: machine} uses."""
+    loads = [{"cpu": 0.0, "disk": 0.0, "slots": 0, "sat": 0} for _ in machines]
     for i, m in plan.items():
-        totals[m]["cpu"] += slices[i]["cpu"]
-        totals[m]["disk"] += slices[i]["disk"]
-        totals[m]["slots"] += 1
-        totals[m]["sat"] += 1 if slices[i]["saturated"] else 0
-    out = []
-    for i, m in plan.items():
-        others = {"cpu": totals[m]["cpu"] - slices[i]["cpu"],
-                  "disk": totals[m]["disk"] - slices[i]["disk"],
-                  "slots": totals[m]["slots"] - 1,
-                  "sat": totals[m]["sat"] - (1 if slices[i]["saturated"] else 0)}
-        out.append((pair_features(slices[i], machines[m], others), i))
-    return out
+        loads[m]["cpu"] += slices[i]["cpu"]
+        loads[m]["disk"] += slices[i]["disk"]
+        loads[m]["slots"] += 1
+        loads[m]["sat"] += 1 if slices[i]["saturated"] else 0
+    return [(machine_features(loads[m], machines[m]), m)
+            for m in range(len(machines)) if loads[m]["slots"] > 0]
 
 
 def feasible_plans(slices, machines, limit=200_000):
@@ -216,7 +211,7 @@ def decide(agent, slices, machines, explore=False):
     Scoring every complete assignment (6561 at most for 8 slices on 3 machines, milliseconds)
     makes each slice's features describe its machine as the WHOLE plan leaves it.
 
-    Returns (plan, trajectory [(features, slice index)]) or (None, []) if nothing fits.
+    Returns (plan, trajectory [(features, machine index)]) or (None, []) if nothing fits.
     """
     plans = feasible_plans(slices, machines)
     if not plans:
@@ -226,7 +221,7 @@ def decide(agent, slices, machines, explore=False):
     a_inv = np.linalg.inv(agent.A) if (explore and agent.alpha > 0) else None
     best, best_value = None, -math.inf
     for plan in plans:
-        X = np.array([x for x, _i in plan_features(slices, machines, plan)])
+        X = np.array([x for x, _m in plan_features(slices, machines, plan)])
         value = float((X @ theta).sum())
         if a_inv is not None:
             value += agent.alpha * float(np.sqrt(np.einsum("ij,jk,ik->i", X, a_inv, X)).sum())
@@ -320,7 +315,26 @@ def best_plan(slices):
     return best
 
 
-def selftest(episodes=300, seed=1, credit="local", load_range=(1.0, 1.0), learn_machines=False):
+def observed_slices(slices, plan, estimate_saturated):
+    """What the agent would MEASURE for each slice after running `plan`: a saturated slice shows
+    at most what its machine gave it. With estimate_saturated, its demand is reconstructed as
+    measured x (offered / delivered), as agent_v5_loop.py does on the cluster."""
+    ratio = simulated_throughput(slices, plan)
+    out = []
+    for s in slices:
+        seen = dict(s)
+        if s["saturated"]:
+            # Its true demand is 1.25x nominal (as in simulated_throughput); it shows only the
+            # share the bottleneck let through.
+            seen["cpu"] = s["cpu"] * 1.25 * ratio
+            if estimate_saturated and ratio > 0:
+                seen["cpu"] /= ratio
+        out.append(seen)
+    return out
+
+
+def selftest(episodes=300, seed=1, credit="local", load_range=(1.0, 1.0), learn_machines=False,
+             estimate_saturated=False):
     """credit='global': every decision gets the episode's throughput; 'local': each also gets
     how the machine it chose coped (half and half), as the cluster can measure per TaskManager."""
     random.seed(seed)
@@ -346,8 +360,8 @@ def selftest(episodes=300, seed=1, credit="local", load_range=(1.0, 1.0), learn_
             for mm, t in zip(MACHINES, simulated_telemetry(noisy, plan)):
                 model.observe(mm["id"], t["cpu_used"], t["cpu_contended"],
                               t["disk_written"], t["disk_stalled"])
-        for x, i in traj:
-            r = reward if credit == "global" else 0.5 * reward + 0.5 * machine_factor(noisy, plan, plan[i])
+        for x, m in traj:
+            r = reward if credit == "global" else 0.5 * reward + 0.5 * machine_factor(noisy, plan, m)
             agent.update(x, r)
     if model is not None:
         print("capacidades APRENDIDAS (verdad: fast 4 núcleos / 5 MB/s, medium 2 / sin límite, slow 1 / sin límite):")
@@ -361,7 +375,11 @@ def selftest(episodes=300, seed=1, credit="local", load_range=(1.0, 1.0), learn_
         print(f"   {name:13} {w:+.3f}")
     print()
     for name, slices in SCENARIOS.items():
-        plan, _ = decide(agent, slices, machines_seen(), explore=False)
+        # Decide from what would be MEASURED in the query, as on the cluster: run a first plan
+        # (the fallback), measure, then decide.
+        first, _ = decide(agent, slices, machines_seen(), explore=False)
+        measured = observed_slices(slices, first, estimate_saturated)
+        plan, _ = decide(agent, measured, machines_seen(), explore=False)
         got = simulated_throughput(slices, plan)
         opt, opt_plan = best_plan(slices)
         where = {}
@@ -375,6 +393,8 @@ if __name__ == "__main__":
     ap.add_argument("--selftest", action="store_true")
     ap.add_argument("--episodes", type=int, default=300)
     ap.add_argument("--credit", choices=["global", "local"], default="local")
+    ap.add_argument("--estimate-saturated", action="store_true",
+                    help="reconstruct a saturated slice's demand as measured x offered/delivered")
     ap.add_argument("--learn-machines", action="store_true",
                     help="estimate machine capacities from simulated telemetry instead of declaring them")
     ap.add_argument("--load-range", default="1.0,1.0",
@@ -383,4 +403,4 @@ if __name__ == "__main__":
     if args.selftest:
         lo, hi = (float(v) for v in args.load_range.split(","))
         selftest(args.episodes, credit=args.credit, load_range=(lo, hi),
-                 learn_machines=args.learn_machines)
+                 learn_machines=args.learn_machines, estimate_saturated=args.estimate_saturated)
