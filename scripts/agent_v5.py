@@ -334,13 +334,13 @@ def observed_slices(slices, plan, estimate_saturated):
 
 
 def selftest(episodes=300, seed=1, credit="local", load_range=(1.0, 1.0), learn_machines=False,
-             estimate_saturated=False):
+             estimate_saturated=False, train_on="Q8"):
     """credit='global': every decision gets the episode's throughput; 'local': each also gets
     how the machine it chose coped (half and half), as the cluster can measure per TaskManager."""
     random.seed(seed)
     np.random.seed(seed)
     agent = LinUCBPlacer(alpha=0.5)
-    train = SCENARIOS["Q8"]
+    train = SCENARIOS[train_on]
     model = MachineModel() if learn_machines else None
 
     def machines_seen():
@@ -370,7 +370,7 @@ def selftest(episodes=300, seed=1, credit="local", load_range=(1.0, 1.0), learn_
             e = model.m[mm["id"]]
             print(f"   {mm['id']:7} núcleos {v['cores']:.2f} (visto hasta {e['cpu_lo']:.2f})   "
                   f"disco {('%.2f MB/s' % v['disk_mbps']) if v['disk_mbps'] else 'sin límite visto'}")
-    print(f"pesos aprendidos (entrenado SOLO en Q8, crédito {credit}):")
+    print(f"pesos aprendidos (entrenado SOLO en {train_on}, crédito {credit}):")
     for name, w in zip(FEATURES, agent.theta()):
         print(f"   {name:13} {w:+.3f}")
     print()
@@ -393,6 +393,7 @@ if __name__ == "__main__":
     ap.add_argument("--selftest", action="store_true")
     ap.add_argument("--episodes", type=int, default=300)
     ap.add_argument("--credit", choices=["global", "local"], default="local")
+    ap.add_argument("--train-on", default="Q8", choices=list(SCENARIOS))
     ap.add_argument("--estimate-saturated", action="store_true",
                     help="reconstruct a saturated slice's demand as measured x offered/delivered")
     ap.add_argument("--learn-machines", action="store_true",
@@ -403,4 +404,5 @@ if __name__ == "__main__":
     if args.selftest:
         lo, hi = (float(v) for v in args.load_range.split(","))
         selftest(args.episodes, credit=args.credit, load_range=(lo, hi),
-                 learn_machines=args.learn_machines, estimate_saturated=args.estimate_saturated)
+                 learn_machines=args.learn_machines, estimate_saturated=args.estimate_saturated,
+                 train_on=args.train_on)
