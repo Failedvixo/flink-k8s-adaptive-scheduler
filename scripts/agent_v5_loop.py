@@ -243,7 +243,9 @@ def main():
                 # subtask its operator's peak and counted the join's 9.7 MB/s on two machines.
                 disk_w = sum(comp_task.get(k, 0.0) for k in tasks)
                 stalled = max((stall.get(k, 0.0) for k in tasks), default=0.0)
-                contended = contention > args.contention_cut
+                # Busy time includes waiting on RocksDB: a machine stalled on its disk looks
+                # CPU-contended without being so, and fast was learned as 1.7 cores (it has 4).
+                contended = contention > args.contention_cut and stalled <= args.stall_cut
                 machines.observe(tm, cpu_used, contended, disk_w, stalled > args.stall_cut)
                 local[tm] = -min(1.0, stalled + max(0.0, contention - args.contention_cut))
                 tm_state[tm] = {"cpu": round(cpu_used, 2), "contention": round(contention, 2),

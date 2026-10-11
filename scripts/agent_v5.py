@@ -66,6 +66,21 @@ FEATURES = [
 UNLIMITED_DISK_MBPS = 200.0     # a machine without a cap: its disk is never the constraint here
 
 
+def _bounded(over):
+    """Overload capped at 1 (= twice the capacity).
+
+    BOUNDED, BECAUSE THE REWARD IS (2026-10-11, training on the cluster). The reward cannot go
+    below -1, but a raw overload term can: a join's 15 MB/s on fast's learned 0.75 MB/s disk is
+    disk_over = 19. A linear model cannot fit both "a bit over hurts" and "19x over hurts no more
+    than 3x over", and LinUCB's bonus grows with the size of the feature vector, so the more
+    absurd the plan the more optimistic it was about it: every other epoch the agent sent both
+    joins to fast (20-53% delivered) while its greedy choice, medium, was right all along.
+    A cap rather than x/(1+x): on the simulator at 30 episodes (8 seeds) the cap kept Q3 at its
+    optimum 8/8 and found Q5-60's optimum 3/8; x/(1+x) lost Q3 in 5/8.
+    """
+    return min(1.0, over)
+
+
 def machine_features(load, machine):
     """Features of a machine carrying `load` = {'cpu', 'disk', 'slots', 'sat'} from one plan."""
     cores = machine["cores"]
@@ -75,9 +90,9 @@ def machine_features(load, machine):
     return np.array([
         1.0,
         cpu_util,
-        max(0.0, cpu_util - 1.0),
+        _bounded(max(0.0, cpu_util - 1.0)),
         disk_util,
-        max(0.0, disk_util - 1.0),
+        _bounded(max(0.0, disk_util - 1.0)),
         load["sat"] / cores,
         load["slots"] / machine["slots"],
     ])
