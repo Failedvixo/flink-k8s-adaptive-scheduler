@@ -114,9 +114,13 @@ class MachineModel:
 
     def observe(self, mid, cpu_used, cpu_contended, disk_written, disk_stalled):
         e = self._entry(mid)
+        e["cpu_lo"] = max(e["cpu_lo"], cpu_used)
         if cpu_contended:
             e["cpu_hi"] = cpu_used if e["cpu_hi"] is None else 0.7 * e["cpu_hi"] + 0.3 * cpu_used
-        e["cpu_lo"] = max(e["cpu_lo"], cpu_used)
+        if e["cpu_hi"] is not None:
+            # A machine seen using X cores has at least X: a low "contended" reading (blocked
+            # rather than computing) must not cap it below what it has already delivered.
+            e["cpu_hi"] = max(e["cpu_hi"], e["cpu_lo"])
         if disk_stalled and disk_written > 0:
             e["disk_hi"] = disk_written if e["disk_hi"] is None else min(e["disk_hi"], disk_written)
         elif not disk_stalled:

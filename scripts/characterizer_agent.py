@@ -212,12 +212,12 @@ def sink_delay_ms(base, jid, detail):
     return max(0.0, time.time() * 1000.0 - min(watermarks))
 
 
-def generator_metric_ids(base, jid, detail):
+def generator_metric_ids(base, jid, detail, suffix=GENERATOR_SUFFIX):
     sources, _ = ac.graph_roles(detail)
     ids = {}
     for vid in sources:
         listing = ac.rest(base, f"/jobs/{jid}/vertices/{vid}/subtasks/0/metrics") or []
-        match = [m["id"] for m in listing if m.get("id", "").endswith(GENERATOR_SUFFIX)]
+        match = [m["id"] for m in listing if m.get("id", "").endswith(suffix)]
         if match:
             ids[vid] = match[0]
     return ids

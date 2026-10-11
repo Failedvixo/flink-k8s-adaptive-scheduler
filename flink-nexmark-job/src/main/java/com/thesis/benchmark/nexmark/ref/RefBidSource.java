@@ -42,6 +42,14 @@ public class RefBidSource extends RichParallelSourceFunction<Bid> {
     private transient GeneratorConfig config;
     /** This source's own busy time; Flink reports NaN for a legacy source (see RefAuctionSource). */
     private transient volatile long lastGeneratorBusyMs;
+    /**
+     * CPU the source thread actually burned, ms per second (2026-10-11). generatorBusyMsPerSecond
+     * is wall time inside the emit loop, and ctx.collect() BLOCKS under backpressure, so a source
+     * held back by a slow join reads 1000 ms/s while using almost no CPU: the v5 test saw the
+     * auction sources at "1000" on a machine that gave them 0.1 cores. Thread CPU time counts only
+     * cycles, and covers the operators chained behind the source, which run on this thread.
+     */
+    private transient volatile long lastGeneratorCpuMs;
     private transient long epochsPerSecond;
     private transient int subtasks;
     private transient int index;
@@ -89,6 +97,8 @@ public class RefBidSource extends RichParallelSourceFunction<Bid> {
         this.schedule = NexmarkEpochs.Schedule.parse(dist, baseRate, epochsPerSecond);
         final org.apache.flink.metrics.MetricGroup group = getRuntimeContext().getMetricGroup();
         group.gauge("generatorBusyMsPerSecond", (Gauge<Long>) () -> lastGeneratorBusyMs);
+        getRuntimeContext().getMetricGroup()
+                .gauge("generatorCpuMsPerSecond", (Gauge<Long>) () -> lastGeneratorCpuMs);
         this.emitted = group.counter("bidsHandedToCollect");
         group.gauge("loopLagEpochs", (Gauge<Long>) () -> lastLagEpochs);
         group.gauge("loopMaxGapMs", (Gauge<Long>) () -> maxGapMs);
@@ -103,6 +113,9 @@ public class RefBidSource extends RichParallelSourceFunction<Bid> {
         final long startedAt = clock.nowMillis();
         long secondStart = startedAt;
         long busyThisSecond = 0;
+        final java.lang.management.ThreadMXBean threads =
+                java.lang.management.ManagementFactory.getThreadMXBean();
+        long cpuAtSecondStart = threads.getCurrentThreadCpuTime();
         final long deadline = durationSec > 0 ? startedAt + durationSec * 1000L : Long.MAX_VALUE;
         final long total = GeneratorConfig.PROPORTION_DENOMINATOR;
         final int firstBid = GeneratorConfig.PERSON_PROPORTION + GeneratorConfig.AUCTION_PROPORTION;
@@ -142,6 +155,10 @@ public class RefBidSource extends RichParallelSourceFunction<Bid> {
             busyThisSecond += elapsed;
             if (emitStart - secondStart >= 1000L) {
                 lastGeneratorBusyMs = Math.min(busyThisSecond, 1000L);
+                final long cpuNow = threads.getCurrentThreadCpuTime();
+                lastGeneratorCpuMs = (cpuNow - cpuAtSecondStart) / 1_000_000L
+                        * 1000L / Math.max(1L, emitStart - secondStart);
+                cpuAtSecondStart = cpuNow;
                 busyThisSecond = 0;
                 secondStart = emitStart;
             }

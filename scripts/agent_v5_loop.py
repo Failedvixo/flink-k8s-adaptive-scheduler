@@ -62,6 +62,9 @@ def offered_multiplier(dist, rate, t0, t1):
     return statistics.fmean(samples) if samples else 1.0
 
 
+GENERATOR_CPU_SUFFIX = "generatorCpuMsPerSecond"
+
+
 def task_counters(base, jid, detail, suffix):
     """{(vertexId, subtask): cumulative value} for the operator-scope RocksDB counter `suffix`."""
     return ca.disk_bytes(base, jid, detail, ca.disk_metric_ids(base, jid, detail, suffix))
@@ -171,7 +174,11 @@ def main():
                 print("  (sin layout o sin detalle — epoca descartada)", flush=True)
                 continue
             tms = [tm for tm, _free in layout["tms"]]
-            gen_ids = ca.generator_metric_ids(args.rest, jid, detail)
+            # Sources: the CPU their thread burned, not the wall time of their emit loop, which
+            # reads 1000 ms/s whenever backpressure blocks collect() (2026-10-11 test: auction
+            # sources "saturated" on a machine giving them 0.1 cores). Older jars lack the gauge.
+            gen_ids = (ca.generator_metric_ids(args.rest, jid, detail, GENERATOR_CPU_SUFFIX)
+                       or ca.generator_metric_ids(args.rest, jid, detail))
             comp0 = task_counters(args.rest, jid, detail, ".rocksdb_compact_write_bytes")
             stall0 = task_counters(args.rest, jid, detail, ca.STALL_SUFFIX)
             cpu0 = ac.taskmanager_cpu_seconds(args.rest, tms)
@@ -196,8 +203,8 @@ def main():
             # Per task: busy (ms/s), compaction (MB/s), stall share, and the machine it ran on.
             busy = {k: statistics.median(s[k] for s in samples if k in s) for k in samples[-1]}
             busy_op = ca.operator_profile(busy)
-            comp = ca.operator_profile({k: max(0.0, comp1[k] - comp0[k]) / dt / 1e6
-                                        for k in comp1 if k in comp0})
+            comp_task = {k: max(0.0, comp1[k] - comp0[k]) / dt / 1e6 for k in comp1 if k in comp0}
+            comp = ca.operator_profile(comp_task)
             stall = {k: max(0.0, stall1[k] - stall0[k]) / 1e6 / dt for k in stall1 if k in stall0}
             where = {}
             for v in detail.get("vertices", []):
@@ -223,7 +230,9 @@ def main():
                 tasks = [k for k, t in where.items() if t == tm]
                 busy_sum = sum(busy.get(k, 0.0) for k in tasks) / 1000.0
                 contention = busy_sum / cpu_used if cpu_used > 0.05 else 0.0
-                disk_w = sum(comp.get(k, 0.0) for k in tasks)
+                # What THIS machine wrote: per task, not the operator profile, which gives every
+                # subtask its operator's peak and counted the join's 9.7 MB/s on two machines.
+                disk_w = sum(comp_task.get(k, 0.0) for k in tasks)
                 stalled = max((stall.get(k, 0.0) for k in tasks), default=0.0)
                 contended = contention > args.contention_cut
                 machines.observe(tm, cpu_used, contended, disk_w, stalled > args.stall_cut)

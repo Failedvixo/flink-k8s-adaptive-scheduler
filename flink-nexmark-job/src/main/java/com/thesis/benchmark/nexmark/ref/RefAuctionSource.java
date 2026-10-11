@@ -72,6 +72,14 @@ public class RefAuctionSource extends RichParallelSourceFunction<Auction> {
      * cluster sustains, where that term is close to zero.
      */
     private transient volatile long lastGeneratorBusyMs;
+    /**
+     * CPU the source thread actually burned, ms per second (2026-10-11). generatorBusyMsPerSecond
+     * is wall time inside the emit loop, and ctx.collect() BLOCKS under backpressure, so a source
+     * held back by a slow join reads 1000 ms/s while using almost no CPU: the v5 test saw the
+     * auction sources at "1000" on a machine that gave them 0.1 cores. Thread CPU time counts only
+     * cycles, and covers the operators chained behind the source, which run on this thread.
+     */
+    private transient volatile long lastGeneratorCpuMs;
     private transient long epochsPerSecond;
     private transient int subtasks;
     private transient int index;
@@ -107,6 +115,8 @@ public class RefAuctionSource extends RichParallelSourceFunction<Auction> {
         getRuntimeContext()
                 .getMetricGroup()
                 .gauge("generatorBusyMsPerSecond", (Gauge<Long>) () -> lastGeneratorBusyMs);
+        getRuntimeContext().getMetricGroup()
+                .gauge("generatorCpuMsPerSecond", (Gauge<Long>) () -> lastGeneratorCpuMs);
     }
 
     @Override
@@ -117,6 +127,9 @@ public class RefAuctionSource extends RichParallelSourceFunction<Auction> {
         final long startedAt = clock.nowMillis();
         long secondStart = startedAt;
         long busyThisSecond = 0;
+        final java.lang.management.ThreadMXBean threads =
+                java.lang.management.ManagementFactory.getThreadMXBean();
+        long cpuAtSecondStart = threads.getCurrentThreadCpuTime();
         final long deadline = durationSec > 0 ? startedAt + durationSec * 1000L : Long.MAX_VALUE;
         final long total = GeneratorConfig.PROPORTION_DENOMINATOR;
         final int persons = GeneratorConfig.PERSON_PROPORTION;
@@ -152,6 +165,10 @@ public class RefAuctionSource extends RichParallelSourceFunction<Auction> {
             busyThisSecond += elapsed;
             if (emitStart - secondStart >= 1000L) {
                 lastGeneratorBusyMs = Math.min(busyThisSecond, 1000L);
+                final long cpuNow = threads.getCurrentThreadCpuTime();
+                lastGeneratorCpuMs = (cpuNow - cpuAtSecondStart) / 1_000_000L
+                        * 1000L / Math.max(1L, emitStart - secondStart);
+                cpuAtSecondStart = cpuNow;
                 busyThisSecond = 0;
                 secondStart = emitStart;
             }
