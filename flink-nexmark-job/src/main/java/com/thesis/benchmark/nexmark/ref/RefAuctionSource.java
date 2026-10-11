@@ -49,6 +49,9 @@ public class RefAuctionSource extends RichParallelSourceFunction<Auction> {
      * rate is the capacity of the placement under test.
      */
     private final long maxEventAgeMs;
+    private final String dist;
+    private final int baseRate;
+    private transient NexmarkEpochs.Schedule schedule;
     private volatile boolean running = true;
     private transient GeneratorConfig config;
     private transient long eventsCountSoFar;
@@ -73,10 +76,20 @@ public class RefAuctionSource extends RichParallelSourceFunction<Auction> {
     private transient int subtasks;
     private transient int index;
 
-    public RefAuctionSource(int totalRate, int durationSec, long maxEventAgeMs) {
+        public RefAuctionSource(int totalRate, int durationSec, long maxEventAgeMs) {
+        this(totalRate, durationSec, maxEventAgeMs, "CONSTANT", totalRate);
+    }
+
+    /**
+     * @param dist     rate profile of the whole query (see NexmarkEpochs.Schedule)
+     * @param baseRate the query's total rate, which {@code totalRate} is a share of
+     */
+    public RefAuctionSource(int totalRate, int durationSec, long maxEventAgeMs, String dist, int baseRate) {
         this.totalRate = totalRate;
         this.durationSec = durationSec;
         this.maxEventAgeMs = maxEventAgeMs;
+        this.dist = dist;
+        this.baseRate = baseRate;
     }
 
     @Override
@@ -89,6 +102,7 @@ public class RefAuctionSource extends RichParallelSourceFunction<Auction> {
         // persons repeat ~50 times and auctions outrun persons until the join matched nothing.
         this.config = new GeneratorConfig(NexmarkConfiguration.DEFAULT, 0L, 0L, 0L, 0L);
         this.epochsPerSecond = Math.max(1L, (long) totalRate / Math.max(1, GeneratorConfig.AUCTION_PROPORTION));
+        this.schedule = NexmarkEpochs.Schedule.parse(dist, baseRate, epochsPerSecond);
         this.eventsCountSoFar = 0;
         getRuntimeContext()
                 .getMetricGroup()
@@ -108,18 +122,18 @@ public class RefAuctionSource extends RichParallelSourceFunction<Auction> {
         final int persons = GeneratorConfig.PERSON_PROPORTION;
         final int auctions = GeneratorConfig.AUCTION_PROPORTION;
         long nextEpoch = NexmarkEpochs.alignUp(
-                NexmarkEpochs.epochAt(startedAt, epochsPerSecond), subtasks, index);
+                schedule.epochAt(startedAt), subtasks, index);
         while (running && clock.nowMillis() < deadline) {
             final long emitStart = clock.nowMillis();
-            final long due = NexmarkEpochs.epochAt(emitStart, epochsPerSecond);
+            final long due = schedule.epochAt(emitStart);
             if (maxEventAgeMs > 0) {
-                final long oldest = NexmarkEpochs.epochAt(emitStart - maxEventAgeMs, epochsPerSecond);
+                final long oldest = schedule.epochAt(emitStart - maxEventAgeMs);
                 if (nextEpoch < oldest) {
                     nextEpoch = NexmarkEpochs.alignUp(oldest, subtasks, index);
                 }
             }
             while (running && nextEpoch <= due) {
-                final long timestamp = NexmarkEpochs.timeOf(nextEpoch, epochsPerSecond);
+                final long timestamp = schedule.timeOf(nextEpoch);
                 for (int slot = 0; slot < auctions; slot++) {
                     // Only the auction slots: numbers persons .. persons+auctions-1, so the
                     // seller each one names is a person the other source emits in the same epoch

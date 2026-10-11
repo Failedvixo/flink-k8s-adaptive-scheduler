@@ -60,6 +60,8 @@ import java.time.Duration;
 public class RefNexmarkJob {
 
     private static GraphConfig.SlotSharingMode slotSharing = GraphConfig.SlotSharingMode.SHARED;
+    /** The rate profile every source of the query follows (CONSTANT unless DIST says otherwise). */
+    private static String querySchedule = "CONSTANT";
 
     public static void main(String[] args) throws Exception {
         if (args.length < 9) {
@@ -79,13 +81,11 @@ public class RefNexmarkJob {
                 ? GraphConfig.SlotSharingMode.valueOf(args[11].toUpperCase())
                 : GraphConfig.SlotSharingMode.SHARED;
 
-        if (!"CONSTANT".equalsIgnoreCase(dist)) {
-            // Beam's generator emits at a fixed rate. Accepting SINE or STEP here would
-            // silently run a constant load under a label that says otherwise, which is
-            // worse than refusing: every campaign records the distribution it asked for.
-            throw new IllegalArgumentException(
-                    "the reference generator only produces a constant rate; got dist=" + dist);
-        }
+        // CONSTANT or STEPS:<seconds>:<rate>,... (2026-10-11, see NexmarkEpochs.Schedule). Anything
+        // else is still refused rather than run as a constant load under a label that says
+        // otherwise: every campaign records the distribution it asked for.
+        NexmarkEpochs.Schedule.parse(dist, rate, 1);
+        querySchedule = dist;
 
         System.out.println("==========================================");
         System.out.println("  NEXMARK (reference generator) — query=" + query);
@@ -150,7 +150,7 @@ public class RefNexmarkJob {
         final int auctionRate = 3 * personRate;
 
         final DataStream<Person> persons = g(env
-                .addSource(new RefPersonSource(personRate, durationSec, maxEventAgeMs))
+                .addSource(new RefPersonSource(personRate, durationSec, maxEventAgeMs, querySchedule, rate))
                 .name("person-source").uid("person-source"), "person", "person-source")
                 .assignTimestampsAndWatermarks(
                         WatermarkStrategy.<Person>forBoundedOutOfOrderness(Duration.ofSeconds(2))
@@ -158,7 +158,7 @@ public class RefNexmarkJob {
                 .name("person-watermarks").uid("person-watermarks");
 
         final DataStream<Auction> auctions = g(env
-                .addSource(new RefAuctionSource(auctionRate, durationSec, maxEventAgeMs))
+                .addSource(new RefAuctionSource(auctionRate, durationSec, maxEventAgeMs, querySchedule, rate))
                 .name("auction-source").uid("auction-source"), "auction", "auction-source")
                 .assignTimestampsAndWatermarks(
                         WatermarkStrategy.<Auction>forBoundedOutOfOrderness(Duration.ofSeconds(2))
@@ -238,13 +238,13 @@ public class RefNexmarkJob {
         final int auctionRate = 3 * personRate;
 
         final DataStream<Person> sellers = g(env
-                .addSource(new RefPersonSource(personRate, durationSec, maxEventAgeMs))
+                .addSource(new RefPersonSource(personRate, durationSec, maxEventAgeMs, querySchedule, rate))
                 .name("person-source").uid("person-source"), "person", "person-source")
                 .filter(p -> Q3_STATES.contains(p.state))
                 .name("person-filter").uid("person-filter");
 
         final DataStream<Auction> category10 = g(env
-                .addSource(new RefAuctionSource(auctionRate, durationSec, maxEventAgeMs))
+                .addSource(new RefAuctionSource(auctionRate, durationSec, maxEventAgeMs, querySchedule, rate))
                 .name("auction-source").uid("auction-source"), "auction", "auction-source")
                 .filter(a -> a.category == Q3_CATEGORY)
                 .name("auction-filter").uid("auction-filter");
@@ -412,7 +412,7 @@ public class RefNexmarkJob {
                 + " ventanas abiertas por puja)");
         // Q5 consumes only bids, so the whole rate is bids.
         final DataStream<Bid> bids = g(env
-                .addSource(new RefBidSource(rate, durationSec, maxEventAgeMs))
+                .addSource(new RefBidSource(rate, durationSec, maxEventAgeMs, querySchedule, rate))
                 .name("bid-source").uid("bid-source"), "bid", "bid-source")
                 .assignTimestampsAndWatermarks(
                         WatermarkStrategy.<Bid>forBoundedOutOfOrderness(Duration.ofSeconds(2))

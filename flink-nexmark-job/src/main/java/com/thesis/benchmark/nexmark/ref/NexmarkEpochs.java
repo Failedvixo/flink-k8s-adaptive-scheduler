@@ -82,6 +82,122 @@ final class NexmarkEpochs {
         }
     }
 
+    /**
+     * Where in the sequence the wall clock is, for a constant OR a time-varying rate.
+     *
+     * <p>WHY (2026-10-11). Training an agent that has to tell USING a resource from EXCEEDING it
+     * needs the same cluster at several loads, and a scheduler that moves operators at run time
+     * needs the load to change while the job runs. With a varying rate the epoch is the INTEGRAL
+     * of the rate over time rather than time x rate. Every source computes that integral from the
+     * same fixed origin with the same profile, so persons, auctions and bids stay on the same
+     * epoch at every instant — the property Q8 and Q3 need to join — whenever each one opened.
+     *
+     * <p>Profiles: {@code CONSTANT}, or {@code STEPS:<seconds>:<rate>,<rate>,...} — total rates of
+     * the query, held for {@code seconds} each, cycling. E.g. {@code STEPS:600:20000,45000} is ten
+     * minutes at 20 000 ev/s and ten at 45 000, over and over, aligned to the fixed origin.
+     */
+    static final class Schedule implements java.io.Serializable {
+        private static final long serialVersionUID = 1L;
+        /** Fixed origin of the profile (2026-01-01T00:00Z): the same for every source. */
+        static final long ORIGIN_MS = 1_767_225_600_000L;
+
+        private final long epochsPerSecond;
+        private final long stepMs;
+        private final long[] permille;     // null = constant rate
+        private final long periodIntegral; // integral of one full cycle, permille-ms
+
+        private Schedule(long epochsPerSecond, long stepMs, long[] permille) {
+            this.epochsPerSecond = epochsPerSecond;
+            this.stepMs = stepMs;
+            this.permille = permille;
+            long sum = 0;
+            if (permille != null) {
+                for (long p : permille) {
+                    sum += p * stepMs;
+                }
+            }
+            this.periodIntegral = sum;
+        }
+
+        /**
+         * @param dist     CONSTANT or STEPS:seconds:rate,rate,...
+         * @param baseRate the query's total rate that {@code epochsPerSecond} corresponds to
+         */
+        static Schedule parse(String dist, long baseRate, long epochsPerSecond) {
+            if (dist == null || dist.isEmpty() || "CONSTANT".equalsIgnoreCase(dist)) {
+                return new Schedule(epochsPerSecond, 0, null);
+            }
+            final String[] parts = dist.split(":");
+            if (parts.length != 3 || !"STEPS".equalsIgnoreCase(parts[0])) {
+                throw new IllegalArgumentException(
+                        "dist must be CONSTANT or STEPS:<seconds>:<rate>,<rate>,..., got " + dist);
+            }
+            final long step = Long.parseLong(parts[1].trim()) * 1000L;
+            final String[] rates = parts[2].split(",");
+            final long[] pm = new long[rates.length];
+            for (int i = 0; i < rates.length; i++) {
+                pm[i] = Math.round(1000.0 * Long.parseLong(rates[i].trim()) / Math.max(1, baseRate));
+            }
+            if (step <= 0 || rates.length == 0) {
+                throw new IllegalArgumentException("bad STEPS profile: " + dist);
+            }
+            return new Schedule(epochsPerSecond, step, pm);
+        }
+
+        boolean isConstant() {
+            return permille == null;
+        }
+
+        /** Rate multiplier (x1000) in force at {@code millis}. */
+        long permilleAt(long millis) {
+            if (permille == null) {
+                return 1000;
+            }
+            final long t = Math.max(0, millis - ORIGIN_MS);
+            return permille[(int) ((t / stepMs) % permille.length)];
+        }
+
+        /** Integral of the multiplier from the origin to {@code millis}, in permille x ms. */
+        private long integral(long millis) {
+            final long t = Math.max(0, millis - ORIGIN_MS);
+            final long period = stepMs * permille.length;
+            long acc = (t / period) * periodIntegral;
+            long rem = t % period;
+            int k = 0;
+            while (rem >= stepMs) {
+                acc += permille[k++] * stepMs;
+                rem -= stepMs;
+            }
+            return acc + permille[k] * rem;
+        }
+
+        long epochAt(long millis) {
+            if (permille == null) {
+                return NexmarkEpochs.epochAt(millis, epochsPerSecond);
+            }
+            // integral/1000 is "effective milliseconds at the base rate"; the rest is as before.
+            return (integral(millis) / 1000L) * epochsPerSecond / 1000L;
+        }
+
+        long timeOf(long epoch) {
+            if (permille == null) {
+                return NexmarkEpochs.timeOf(epoch, epochsPerSecond);
+            }
+            // The earliest millisecond at which the sequence reaches `epoch` (epochAt is
+            // non-decreasing). A step at rate 0 makes it flat, which the search handles.
+            long lo = ORIGIN_MS, hi = ORIGIN_MS + 4_000_000_000_000L;
+            while (lo < hi) {
+                final long mid = lo + (hi - lo) / 2;
+                if (epochAt(mid) >= epoch) {
+                    hi = mid;
+                } else {
+                    lo = mid + 1;
+                }
+            }
+            return lo;
+        }
+    }
+
     /** The first epoch at or after {@code epoch} that belongs to subtask {@code index}. */
     static long alignUp(long epoch, int subtasks, int index) {
         final long remainder = Math.floorMod(epoch, (long) subtasks);

@@ -35,6 +35,9 @@ public class RefBidSource extends RichParallelSourceFunction<Bid> {
     private final int durationSec;
     /** See {@link RefAuctionSource}: how far behind schedule before events are skipped. */
     private final long maxEventAgeMs;
+    private final String dist;
+    private final int baseRate;
+    private transient NexmarkEpochs.Schedule schedule;
     private volatile boolean running = true;
     private transient GeneratorConfig config;
     /** This source's own busy time; Flink reports NaN for a legacy source (see RefAuctionSource). */
@@ -55,10 +58,20 @@ public class RefBidSource extends RichParallelSourceFunction<Bid> {
     private transient volatile long maxGapMs;
     private transient volatile long skippedEpochs;
 
-    public RefBidSource(int totalRate, int durationSec, long maxEventAgeMs) {
+        public RefBidSource(int totalRate, int durationSec, long maxEventAgeMs) {
+        this(totalRate, durationSec, maxEventAgeMs, "CONSTANT", totalRate);
+    }
+
+    /**
+     * @param dist     rate profile of the whole query (see NexmarkEpochs.Schedule)
+     * @param baseRate the query's total rate, which {@code totalRate} is a share of
+     */
+    public RefBidSource(int totalRate, int durationSec, long maxEventAgeMs, String dist, int baseRate) {
         this.totalRate = totalRate;
         this.durationSec = durationSec;
         this.maxEventAgeMs = maxEventAgeMs;
+        this.dist = dist;
+        this.baseRate = baseRate;
     }
 
     /** Bids per epoch: what is left of Beam's 50 after one person and three auctions. */
@@ -73,6 +86,7 @@ public class RefBidSource extends RichParallelSourceFunction<Bid> {
         this.index = getRuntimeContext().getTaskInfo().getIndexOfThisSubtask();
         this.config = new GeneratorConfig(NexmarkConfiguration.DEFAULT, 0L, 0L, 0L, 0L);
         this.epochsPerSecond = Math.max(1L, (long) totalRate / Math.max(1, bidsPerEpoch()));
+        this.schedule = NexmarkEpochs.Schedule.parse(dist, baseRate, epochsPerSecond);
         final org.apache.flink.metrics.MetricGroup group = getRuntimeContext().getMetricGroup();
         group.gauge("generatorBusyMsPerSecond", (Gauge<Long>) () -> lastGeneratorBusyMs);
         this.emitted = group.counter("bidsHandedToCollect");
@@ -94,7 +108,7 @@ public class RefBidSource extends RichParallelSourceFunction<Bid> {
         final int firstBid = GeneratorConfig.PERSON_PROPORTION + GeneratorConfig.AUCTION_PROPORTION;
         final int bids = bidsPerEpoch();
         long nextEpoch = NexmarkEpochs.alignUp(
-                NexmarkEpochs.epochAt(startedAt, epochsPerSecond), subtasks, index);
+                schedule.epochAt(startedAt), subtasks, index);
         long previousStart = -1;
         while (running && clock.nowMillis() < deadline) {
             final long emitStart = clock.nowMillis();
@@ -102,10 +116,10 @@ public class RefBidSource extends RichParallelSourceFunction<Bid> {
                 maxGapMs = Math.max(maxGapMs, emitStart - previousStart);
             }
             previousStart = emitStart;
-            final long due = NexmarkEpochs.epochAt(emitStart, epochsPerSecond);
+            final long due = schedule.epochAt(emitStart);
             lastLagEpochs = due - nextEpoch;
             if (maxEventAgeMs > 0) {
-                final long oldest = NexmarkEpochs.epochAt(emitStart - maxEventAgeMs, epochsPerSecond);
+                final long oldest = schedule.epochAt(emitStart - maxEventAgeMs);
                 if (nextEpoch < oldest) {
                     final long jumped = NexmarkEpochs.alignUp(oldest, subtasks, index);
                     skippedEpochs += (jumped - nextEpoch) / subtasks;
@@ -113,7 +127,7 @@ public class RefBidSource extends RichParallelSourceFunction<Bid> {
                 }
             }
             while (running && nextEpoch <= due) {
-                final long timestamp = NexmarkEpochs.timeOf(nextEpoch, epochsPerSecond);
+                final long timestamp = schedule.timeOf(nextEpoch);
                 for (int slot = 0; slot < bids; slot++) {
                     final long eventId = total * nextEpoch + firstBid + slot;
                     // nextBid takes the raw millisecond timestamp, like nextAuction.
