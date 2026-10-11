@@ -469,11 +469,11 @@ assert_taskmanagers_registered() {
 # placement applied at each rescale was whichever process wrote last, and the new agent was
 # crediting ITS trajectory for a reward the OLD plan produced. Mis-attributed episodes do not
 # merely waste a night, they poison the table. Silent corruption is worth refusing to start for.
-STALE=$(pgrep -f "scripts/(arm_controller|characterizer_agent)\.py" 2>/dev/null | tr '\n' ' ')
+STALE=$(pgrep -f "scripts/(arm_controller|characterizer_agent|agent_v5_loop)\.py" 2>/dev/null | tr '\n' ' ')
 if [ -n "${STALE// /}" ]; then
     echo "ERROR: ya hay un observador o un agente corriendo (pids: $STALE)." >&2
     echo "       Dos agentes escriben el mismo /var/thesis/assignment y se pisan el plan." >&2
-    echo "       Termínalos antes de empezar:  pkill -f 'scripts/(arm_controller|characterizer_agent).py'" >&2
+    echo "       Termínalos antes de empezar:  pkill -f 'scripts/(arm_controller|characterizer_agent|agent_v5_loop).py'" >&2
     [ "${ALLOW_STALE_OBSERVERS:-0}" = "1" ] || exit 1
     echo "       ALLOW_STALE_OBSERVERS=1 — se continúa bajo tu responsabilidad." >&2
 fi
@@ -1094,6 +1094,24 @@ for ARM in $ARMS; do
               # measured afterwards was computed in this job.
               timeout -k 5 30 docker exec "${THESIS_NODE:-minikube}" rm -f /var/thesis/assignment \
                   </dev/null >/dev/null 2>&1 || true
+              if [[ "$ARM" == RL_V5* ]]; then
+                  # v5 (2026-10-11): LinUCB over per-machine features, with the machines'
+                  # capacities learned from telemetry. Its "table" is a JSON model, and it needs
+                  # the job's RATE and DIST to know what was asked of the sources.
+                  if [ -z "$ARM_QTABLE" ]; then
+                      echo "  ! $ARM necesita $ARM_QTABLE_VAR (el JSON del modelo)" | tee -a "$DRIVER_LOG"
+                      exit 1
+                  fi
+                  timeout $((JOB_DURATION + 120)) python3 -u "$SCRIPT_DIR/agent_v5_loop.py" \
+                      --jm-pod "$JM_POD" --out-dir "$CELL_DIR" \
+                      --warmup "$MEASURE_WARMUP" --window "$AGENT_WINDOW" \
+                      --rate "$RATE" --dist "$DIST" --model "$ARM_QTABLE" \
+                      ${AGENT_FREEZE:+--freeze} \
+                      ${AGENT_LATENCY_WEIGHT:+--latency-weight "$AGENT_LATENCY_WEIGHT"} \
+                      ${MEASURED_PAR:+--only-parallelism "$MEASURED_PAR"} \
+                      $ARM_ARGS \
+                      < /dev/null > "$CELL_DIR/characterizer.log" 2>&1 &
+              else
               timeout $((JOB_DURATION + 120)) python3 -u "$SCRIPT_DIR/characterizer_agent.py" \
                   --jm-pod "$JM_POD" --out-dir "$CELL_DIR" \
                   --warmup "$MEASURE_WARMUP" --window "$AGENT_WINDOW" \
@@ -1104,6 +1122,7 @@ for ARM in $ARMS; do
                   ${MEASURED_PAR:+--only-parallelism "$MEASURED_PAR"} \
                   $ARM_ARGS \
                   < /dev/null > "$CELL_DIR/characterizer.log" 2>&1 &
+              fi
               AGENT_PID=$!
               echo "  agente caracterizador activo (pid $AGENT_PID) -> $CELL_DIR/characterizer.log"
               ;;
