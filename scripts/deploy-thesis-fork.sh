@@ -178,6 +178,17 @@ patched = {
     str(f.relative_to(class_dir)): f
     for f in sorted((class_dir / package).rglob("*.class"))
 }
+# THE REPLAN TRIGGER LIVES ONE PACKAGE UP (2026-10-12). Patching only the allocator package
+# shipped a JobManager without it, silently: Executing (which polls /var/thesis/replan) and
+# ThesisReplanTrigger are in scheduler/adaptive. Only the classes the fork CHANGED there are
+# substituted — the rest of that package is upstream's and stays as flink-dist has it.
+parent = class_dir / pathlib.Path(package).parent
+for pattern in ("Executing.class", "Executing$*.class", "ThesisReplanTrigger*.class"):
+    for f in sorted(parent.glob(pattern)):
+        patched[str(f.relative_to(class_dir))] = f
+if not any("ThesisReplanTrigger" in name for name in patched):
+    print("0")
+    sys.exit(1)
 if not patched:
     print("0")
     sys.exit(1)
@@ -194,7 +205,7 @@ shutil.move(tmp, jar)
 print(len(patched))
 PY
 )
-[ -n "$CLASS_COUNT" ] && [ "$CLASS_COUNT" -gt 0 ] || { log_error "No allocator classes were patched into the jar"; exit 1; }
+[ -n "$CLASS_COUNT" ] && [ "$CLASS_COUNT" -gt 0 ] || { log_error "No allocator / replan-trigger classes were patched into the jar"; exit 1; }
 log_info "      Patched $CLASS_COUNT allocator classes into the jar"
 
 # ============================================
