@@ -100,13 +100,19 @@ def main():
             for v in detail.get("vertices", []):
                 for sub, tm in ac.subtask_taskmanagers(args.rest, jid, v["id"]).items():
                     where[(v["id"], sub)] = tm
+            # Rules apply to WHOLE SLICES (2026-10-12): Q5's bid-source and bid-watermarks are two
+            # operators in one slice, and moving only the one the rule named split the slice — the
+            # first run asked medium for 5 slots. A rule matches a slice if it names any of its
+            # operators; ":N" picks the slice of subtask N.
             target = dict(where)
             for op, sub, tm in rules:
-                hits = [k for k in target if op in names[k[0]] and (sub is None or k[1] == sub)]
+                hits = [m for m in layout["slices"]
+                        if any(op in names[v] for v, _ in m) and (sub is None or m[0][1] == sub)]
                 if not hits:
                     sys.exit(f"ERROR: '{op}' no coincide con ningún operador")
-                for k in hits:
-                    target[k] = tm
+                for members in hits:
+                    for k in members:
+                        target[k] = tm
             free = dict(layout["tms"])
             # Slots are per slice (slot sharing), so count slices, not subtasks.
             per_tm = {}
