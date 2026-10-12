@@ -137,13 +137,22 @@ def observe(args, jid, detail, layout):
     key0 = ac.epoch_key(base, jid)
     disk0, stall0 = ca.disk_bytes(base, jid, detail, disk_ids), ca.disk_bytes(base, jid, detail, stall_ids)
     cg0 = v5loop.cgroup_cpu(args.node, args.namespace, tms)
-    rec0, t0 = ac.source_records(base, jid), time.time()
+    # THE SOURCE COUNTER MOVES IN STEPS OF ~10 s (the REST metric refresh), so the rate is taken
+    # between the first and last time it CHANGED inside the window, polled every 2 s; start-to-end
+    # differences over 45 s would be off by up to a fifth.
+    changes, t0 = [], time.time()
     samples = []
+    step = args.window / max(1, args.samples)
     for _ in range(max(1, args.samples)):
         samples.append(ca.subtask_loads(base, jid, detail, gen_ids))
-        time.sleep(args.window / max(1, args.samples))
-    rec1, t1 = ac.source_records(base, jid), time.time()
-    if ac.epoch_key(base, jid) != key0 or None in (rec0, rec1) or rec1 < rec0:
+        until = time.time() + step
+        while time.time() < until:
+            rec = ac.source_records(base, jid)
+            if rec is not None and (not changes or rec != changes[-1][1]):
+                changes.append((time.time(), rec))
+            time.sleep(2.0)
+    t1 = time.time()
+    if ac.epoch_key(base, jid) != key0 or len(changes) < 3 or changes[-1][1] < changes[1][1]:
         return None
     dt = max(1e-6, t1 - t0)
     disk1, stall1 = ca.disk_bytes(base, jid, detail, disk_ids), ca.disk_bytes(base, jid, detail, stall_ids)
@@ -169,8 +178,10 @@ def observe(args, jid, detail, layout):
             throttled = (cg1[tm][2] - cg0[tm][2]) / (cg1[tm][1] - cg0[tm][1])
         machines[tm] = {"throttled": throttled,
                         "stall": max((stall_task.get(k, 0.0) for k in tasks), default=0.0)}
-    rps = (rec1 - rec0) / dt
-    offered = args.rate * v5loop.offered_multiplier(args.dist, args.rate, t0, t1)
+    # changes[0] may be a stale value read just before the first refresh: start at changes[1].
+    rps = (changes[-1][1] - changes[1][1]) / max(1e-6, changes[-1][0] - changes[1][0])
+    offered = args.rate * v5loop.offered_multiplier(args.dist, args.rate,
+                                                     changes[1][0], changes[-1][0])
     return {"rps": rps, "offered": offered, "ratio": min(1.0, rps / offered) if offered else 0.0,
             "per_slice": per_slice, "per_slice_disk": per_slice_disk, "where": where,
             "machines": machines, "t": t1}
