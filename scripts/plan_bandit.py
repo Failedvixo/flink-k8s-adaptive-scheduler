@@ -151,8 +151,19 @@ def main():
     stats = model.setdefault("contexts", {})
     agent = ca.SliceSarsa(0.0, 0.0, Path(args.qtable), 3, ucb=0.0)
 
+    # STEPS: ONE CONTEXT PER LEVEL (2026-10-12, first run on the cluster). With a sine the rate
+    # moves inside a context, and the bandit credited the plan with what the rate did: it measured
+    # the best placement at ~5900 ev/s and v4's at ~5100 on the way down, and ranked v4's higher —
+    # the opposite of what fixed placements at equal rate show. On a step profile the rate is
+    # constant within a level, so placements in one context are compared on equal terms; a window
+    # whose offered rate is not within 5% of a level straddles a step and is discarded.
+    step_levels = []
+    if args.dist.upper().startswith("STEPS"):
+        step_levels = sorted({float(x) for x in args.dist.split(":")[2].split(",")})
     if args.levels:
         cuts = [float(x) for x in args.levels.split(",")]
+    elif step_levels:
+        cuts = []
     elif args.dist.upper().startswith(("SINE", "STEPS")):
         _kind, _period, rng = args.dist.split(":")
         values = [float(x) for x in rng.split(",")]
@@ -161,8 +172,13 @@ def main():
     else:
         cuts = []
     level_names = ["baja", "media", "alta"][:len(cuts) + 1] if cuts else ["única"]
+    if step_levels:
+        level_names = [f"{lv:.0f}" for lv in step_levels]
 
     def context(offered):
+        if step_levels:
+            nearest = min(step_levels, key=lambda lv: abs(lv - offered))
+            return f"{nearest:.0f}" if abs(nearest - offered) <= 0.05 * nearest else None
         return level_names[sum(offered >= c for c in cuts)]
 
     print("=" * 66)
@@ -176,6 +192,7 @@ def main():
     csv_path = out / f"bandit-{time.strftime('%Y%m%d-%H%M%S')}.csv"
     started = time.time()
     last_key, settle_until, moves = None, 0.0, 0
+    last_ctx = None
     with csv_path.open("w", newline="") as handle:
         writer = csv.DictWriter(handle, fieldnames=fields)
         writer.writeheader()
@@ -207,6 +224,18 @@ def main():
                 continue
             capacity = dict(layout["tms"])
             ctx = context(obs["offered"])
+            if ctx is None:
+                print(f"  [{time.strftime('%H:%M:%S')}] pedido {obs['offered']:.0f}: la ventana cruza "
+                      f"un cambio de escalón — se descarta", flush=True)
+                last_ctx = None
+                continue
+            if ctx != last_ctx:
+                # The first window at a new level still carries the previous level's queue (latency
+                # of 8.9 s at 4500 right after 6000, against ~2.6 s settled): measure, don't learn.
+                print(f"  [{time.strftime('%H:%M:%S')}] contexto nuevo {ctx}: esta ventana arrastra el "
+                      f"anterior — se descarta", flush=True)
+                last_ctx = ctx
+                continue
             here = signature(kinds, running)
             reward = score(obs, latency, args.latency_weight)
 
