@@ -79,6 +79,46 @@ def task_counters(base, jid, detail, suffix):
     return ca.disk_bytes(base, jid, detail, ca.disk_metric_ids(base, jid, detail, suffix))
 
 
+def cgroup_cpu(node, namespace, tms):
+    """{tm id: (cpu usage s, cfs periods, throttled periods)} from each TaskManager pod's cgroup.
+
+    THE KERNEL SAYS WHEN A MACHINE IS OUT OF CPU (2026-10-12). busy/CPU-time ("contention") cannot
+    tell a task computing from one waiting on RocksDB's reads, so medium (2 cores) was learned as
+    1.2: its joins were busy on I/O, not short of cores. cpu.stat counts the scheduler periods in
+    which the container hit its quota and was throttled — slow 55% of them, medium 6%, fast ~0 on
+    the same campaign. That is CPU contention by definition, and usage_usec is the CPU the whole
+    pod used. Pods are matched to TaskManager ids by their speed-class label, which the ids end in.
+    Returns {} when anything is missing; the caller falls back to the busy-time estimate.
+    """
+    try:
+        import subprocess
+        pods = json.loads(subprocess.run(
+            ["kubectl", "get", "pods", "-n", namespace, "-l", "component=taskmanager", "-o", "json"],
+            capture_output=True, text=True, timeout=30).stdout or "{}").get("items", [])
+        uid = {}
+        for pod in pods:
+            cls = pod["metadata"].get("labels", {}).get("speed-class")
+            match = [tm for tm in tms if cls and tm.endswith(cls)]
+            if len(match) == 1 and pod.get("status", {}).get("phase") == "Running":
+                uid[match[0]] = pod["metadata"]["uid"].replace("-", "_")
+        if not uid:
+            return {}
+        script = "; ".join(
+            f"d=$(find /sys/fs/cgroup/kubepods.slice -maxdepth 3 -type d -name '*pod{u}.slice' | head -1);"
+            f" echo {tm} $(grep -E '^(usage_usec|nr_periods|nr_throttled) ' $d/cpu.stat | awk '{{print $2}}')"
+            for tm, u in uid.items())
+        text = subprocess.run(["docker", "exec", node, "sh", "-c", script],
+                              capture_output=True, text=True, timeout=30).stdout
+        out = {}
+        for line in text.splitlines():
+            parts = line.split()
+            if len(parts) == 4:
+                out[parts[0]] = (int(parts[1]) / 1e6, int(parts[2]), int(parts[3]))
+        return out
+    except Exception:                                               # noqa: BLE001
+        return {}
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--rest", default=ac.DEFAULT_REST)
@@ -103,6 +143,8 @@ def main():
     ap.add_argument("--contention-cut", type=float, default=1.2,
                     help="tasks' busy time over the CPU their machine gave them, above which the "
                          "machine counts as CPU-contended")
+    ap.add_argument("--throttle-cut", type=float, default=0.10,
+                    help="share of CFS periods throttled above which a machine counts as out of CPU")
     ap.add_argument("--stall-cut", type=float, default=0.05,
                     help="share of the window stalled on RocksDB above which a machine's disk "
                          "counts as saturated")
@@ -193,6 +235,7 @@ def main():
             comp0 = task_counters(args.rest, jid, detail, ".rocksdb_compact_write_bytes")
             stall0 = task_counters(args.rest, jid, detail, ca.STALL_SUFFIX)
             cpu0 = ac.taskmanager_cpu_seconds(args.rest, tms)
+            cg0 = cgroup_cpu(args.node, args.namespace, tms)
             rec0, t0 = ac.source_records(args.rest, jid), time.time()
             samples = []
             for _ in range(max(1, args.samples)):
@@ -206,6 +249,7 @@ def main():
             comp1 = task_counters(args.rest, jid, detail, ".rocksdb_compact_write_bytes")
             stall1 = task_counters(args.rest, jid, detail, ca.STALL_SUFFIX)
             cpu1 = ac.taskmanager_cpu_seconds(args.rest, tms)
+            cg1 = cgroup_cpu(args.node, args.namespace, tms)
 
             rps = (rec1 - rec0) / dt
             offered = args.rate * offered_multiplier(args.dist, args.rate, t0, t1)
@@ -258,10 +302,18 @@ def main():
                 # Busy time includes waiting on RocksDB: a machine stalled on its disk looks
                 # CPU-contended without being so, and fast was learned as 1.7 cores (it has 4).
                 contended = contention > args.contention_cut and stalled <= args.stall_cut
+                throttled = None
+                if tm in cg0 and tm in cg1 and cg1[tm][1] > cg0[tm][1]:
+                    # The kernel's word replaces the estimate (see cgroup_cpu).
+                    cpu_used = max(0.0, cg1[tm][0] - cg0[tm][0]) / dt
+                    throttled = (cg1[tm][2] - cg0[tm][2]) / (cg1[tm][1] - cg0[tm][1])
+                    contended = throttled > args.throttle_cut
                 machines.observe(tm, cpu_used, contended, disk_w, stalled > args.stall_cut)
                 local[tm] = -min(1.0, stalled + max(0.0, contention - args.contention_cut))
                 tm_state[tm] = {"cpu": round(cpu_used, 2), "contention": round(contention, 2),
                                 "disk": round(disk_w, 2), "stall": round(stalled, 3)}
+                if throttled is not None:
+                    tm_state[tm]["throttled"] = round(throttled, 3)
 
             latency = ca.sink_record_latency_ms(args.rest, jid, detail)
             reward = ratio - 1.0

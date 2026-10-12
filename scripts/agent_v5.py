@@ -145,6 +145,11 @@ class MachineModel:
             e["disk_hi"] = disk_written if e["disk_hi"] is None else min(e["disk_hi"], disk_written)
         elif not disk_stalled:
             e["disk_lo"] = max(e["disk_lo"], disk_written)
+        if e["disk_hi"] is not None:
+            # Same rule as the CPU: a disk seen absorbing X MB/s without stalling can take X. A
+            # single stall at low throughput (a compaction burst, the host's disk busy with
+            # another machine) had capped medium at 1.85 MB/s after it had written 13 cleanly.
+            e["disk_hi"] = max(e["disk_hi"], e["disk_lo"])
 
     def view(self, mid, slots):
         """The machine as the features see it: estimated cores and disk, plus its slots."""

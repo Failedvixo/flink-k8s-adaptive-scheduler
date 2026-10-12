@@ -60,6 +60,9 @@ def main():
     ap.add_argument("--local-weight", type=float, default=0.5)
     ap.add_argument("--contention-cut", type=float, default=1.2)
     ap.add_argument("--stall-cut", type=float, default=0.05)
+    ap.add_argument("--throttle-cut", type=float, default=0.10)
+    ap.add_argument("--contention-fallback", action="store_true",
+                    help="for epochs without throttling data, judge CPU contention by busy/CPU")
     args = ap.parse_args()
 
     data = [e for cell in args.cells for e in epochs(cell)]
@@ -82,7 +85,15 @@ def main():
         for tm in tms:
             s = telemetry[tm]
             stalled = s["stall"] > args.stall_cut
-            contended = s["contention"] > args.contention_cut and not stalled
+            if "throttled" in s:             # logged since 2026-10-12: the kernel's CPU signal
+                contended = s["throttled"] > args.throttle_cut
+            elif args.contention_fallback:
+                contended = s["contention"] > args.contention_cut and not stalled
+            else:
+                # Before throttling was logged, busy/CPU is the only CPU signal, and it misreads
+                # I/O waits as contention (medium learned as 1.2 cores). Off by default: an
+                # unknown capacity stays optimistic until the kernel reports throttling.
+                contended = False
             machines.observe(tm, s["cpu"], contended, s["disk"], stalled)
             local[tm] = -min(1.0, s["stall"] + max(0.0, s["contention"] - args.contention_cut))
         seen = [machines.view(tm, slots[tm]) for tm in tms]
