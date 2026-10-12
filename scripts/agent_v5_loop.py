@@ -283,9 +283,6 @@ def main():
             names = {v["id"]: v.get("name", "") for v in detail.get("vertices", [])}
             keys = [", ".join(sorted({names.get(vid, vid[:8]) for vid, _ in members}))
                     for members in layout["slices"]]
-            for key, s in zip(keys, slices):
-                operators.observe(key, s["cpu"], s["disk"], offered)
-            planned = [dict(s, **operators.demand(key, offered, s)) for key, s in zip(keys, slices)]
 
             # What each machine went through in the window: telemetry for the machine model and
             # the local term of the reward.
@@ -309,11 +306,23 @@ def main():
                     throttled = (cg1[tm][2] - cg0[tm][2]) / (cg1[tm][1] - cg0[tm][1])
                     contended = throttled > args.throttle_cut
                 machines.observe(tm, cpu_used, contended, disk_w, stalled > args.stall_cut)
-                local[tm] = -min(1.0, stalled + max(0.0, contention - args.contention_cut))
+                # The machine's own share of the reward: stalled on disk or out of CPU — the
+                # kernel's throttling when available, not busy/CPU (which counts I/O waits).
+                cpu_pain = (throttled if throttled is not None
+                            else max(0.0, contention - args.contention_cut))
+                local[tm] = -min(1.0, stalled + cpu_pain)
                 tm_state[tm] = {"cpu": round(cpu_used, 2), "contention": round(contention, 2),
                                 "disk": round(disk_w, 2), "stall": round(stalled, 3)}
                 if throttled is not None:
                     tm_state[tm]["throttled"] = round(throttled, 3)
+
+            # Profile each operator from this epoch, skipping what a starved machine measured.
+            starved_tm = {tm for tm in tms
+                          if tm_state[tm]["stall"] > args.stall_cut
+                          or tm_state[tm].get("throttled", 0.0) > args.throttle_cut}
+            for key, s, tm in zip(keys, slices, slice_tm):
+                operators.observe(key, s["cpu"], s["disk"], offered, starved=tm in starved_tm)
+            planned = [dict(s, **operators.demand(key, offered, s)) for key, s in zip(keys, slices)]
 
             latency = ca.sink_record_latency_ms(args.rest, jid, detail)
             reward = ratio - 1.0

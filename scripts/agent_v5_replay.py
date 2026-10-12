@@ -61,6 +61,9 @@ def main():
     ap.add_argument("--contention-cut", type=float, default=1.2)
     ap.add_argument("--stall-cut", type=float, default=0.05)
     ap.add_argument("--throttle-cut", type=float, default=0.10)
+    ap.add_argument("--hindsight", action="store_true",
+                    help="compute every epoch's features with the machine capacities learned from "
+                         "ALL epochs (capacities are static); the saved model is the same either way")
     ap.add_argument("--contention-fallback", action="store_true",
                     help="for epochs without throttling data, judge CPU contention by busy/CPU")
     args = ap.parse_args()
@@ -74,29 +77,51 @@ def main():
     slots = {tm: {"slow": 6, "medium": 4, "fast": 2}[tm.split("-")[-1]] for tm in tms}
     short = {tm: tm.split("-")[-1] for tm in tms}
 
+    def contended_of(s):
+        stalled = s["stall"] > args.stall_cut
+        if "throttled" in s:                 # logged since 2026-10-12: the kernel's CPU signal
+            return s["throttled"] > args.throttle_cut
+        if args.contention_fallback:
+            return s["contention"] > args.contention_cut and not stalled
+        # Before throttling was logged, busy/CPU is the only CPU signal, and it misreads I/O
+        # waits as contention (medium learned as 1.2 cores). Off by default: an unknown
+        # capacity stays optimistic until the kernel reports throttling.
+        return False
+
+    def local_of(s):
+        # The machine's own share of the reward: stalled on disk, or throttled on CPU. Busy/CPU
+        # stands in for throttling only where the kernel's figure was not logged.
+        cpu = s["throttled"] if "throttled" in s else max(0.0, s["contention"] - args.contention_cut)
+        return -min(1.0, s["stall"] + cpu)
+
+    # HINDSIGHT (2026-10-12). A machine's capacity does not change between epochs, so what was
+    # learned about it LATER is the best description of what it had EARLIER too. Without this the
+    # 53 epochs logged before throttling was measured all see every machine at the optimistic
+    # 8 cores, and their CPU features are zero whatever happened: the regression then credits
+    # slow's overload to other features and never learns that CPU overload costs anything.
+    hindsight = None
+    if args.hindsight:
+        hindsight = v5.MachineModel()
+        for _ep, _o, _r, telemetry, _s, _ran in data:
+            for tm in tms:
+                s = telemetry[tm]
+                hindsight.observe(tm, s["cpu"], contended_of(s), s["disk"], s["stall"] > args.stall_cut)
+
     agent, machines = v5.LinUCBPlacer(alpha=0.0), v5.MachineModel()
     operators = v5.OperatorProfile()
     for k, (ep, offered, reward, telemetry, slices, ran) in enumerate(data):
-        for s in slices:
-            operators.observe(s["name"], s["cpu"], s["disk"], offered)
+        starved_tm = {tm for tm in tms if telemetry[tm]["stall"] > args.stall_cut
+                      or telemetry[tm].get("throttled", 0.0) > args.throttle_cut}
+        for i, s in enumerate(slices):
+            operators.observe(s["name"], s["cpu"], s["disk"], offered, starved=ran[i] in starved_tm)
         measured = slices
         slices = [dict(s, **operators.demand(s["name"], offered, s)) for s in slices]
         local = {}
         for tm in tms:
             s = telemetry[tm]
-            stalled = s["stall"] > args.stall_cut
-            if "throttled" in s:             # logged since 2026-10-12: the kernel's CPU signal
-                contended = s["throttled"] > args.throttle_cut
-            elif args.contention_fallback:
-                contended = s["contention"] > args.contention_cut and not stalled
-            else:
-                # Before throttling was logged, busy/CPU is the only CPU signal, and it misreads
-                # I/O waits as contention (medium learned as 1.2 cores). Off by default: an
-                # unknown capacity stays optimistic until the kernel reports throttling.
-                contended = False
-            machines.observe(tm, s["cpu"], contended, s["disk"], stalled)
-            local[tm] = -min(1.0, s["stall"] + max(0.0, s["contention"] - args.contention_cut))
-        seen = [machines.view(tm, slots[tm]) for tm in tms]
+            machines.observe(tm, s["cpu"], contended_of(s), s["disk"], s["stall"] > args.stall_cut)
+            local[tm] = local_of(s)
+        seen = [(hindsight or machines).view(tm, slots[tm]) for tm in tms]
         idx = {tm: i for i, tm in enumerate(tms)}
         for x, m in v5.plan_features(slices, seen, {i: idx[tm] for i, tm in ran.items()}):
             agent.update(x, (1 - args.local_weight) * reward + args.local_weight * local[tms[m]])

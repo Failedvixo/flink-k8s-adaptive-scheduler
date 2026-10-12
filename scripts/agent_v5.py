@@ -171,31 +171,49 @@ class OperatorProfile:
     reading, fast looked big enough for a join again, so the policy alternated: medium (good),
     fast (20-50% delivered), medium, fast... the same feedback loop as project memory "el agente
     mandó el join a la lenta". The cure is to characterise the OPERATOR, not the last reading:
-    keep, per slice kind, its demand per 1000 ev/s offered, as a decaying maximum — a starved
-    reading cannot pull it down quickly, a genuinely cheaper operator still does over time.
+    keep, per slice kind, its demand per 1000 ev/s offered, averaged over the epochs in which its
+    machine was neither throttled nor stalled (see observe).
     Both learning and deciding use this demand, so a plan that starved a join is recorded as what
     it was: a machine asked for 20 MB/s of disk, not one that wrote 0.4.
     """
 
-    DECAY = 0.97                       # per observation: halves in ~23 epochs
+    SMOOTH = 0.3                       # weight of a new clean reading
 
     def __init__(self, stored=None):
         self.p = dict(stored or {})
 
-    def observe(self, key, cpu, disk, offered):
+    def observe(self, key, cpu, disk, offered, starved=False):
+        """Fold one epoch's reading in. A STARVED reading (its machine was throttled or stalled)
+        can only raise the profile: it shows a floor, never the operator's real demand.
+
+        Revised the same day: the first version kept a decaying MAXIMUM of every reading, which
+        a starved reading cannot pull down — but compaction is bursty, so the maximum also
+        carried every spike (13 MB/s per join at 40 000 ev/s, against ~6.5 measured with both
+        joins on medium delivering 90%), and two joins then looked like too much for medium.
+        Clean readings are averaged instead; starved ones are excluded from the average.
+        """
         if offered <= 0:
             return
-        e = self.p.setdefault(key, {"cpu": 0.0, "disk": 0.0})
-        e["cpu"] = max(cpu * 1000.0 / offered, self.DECAY * e["cpu"])
-        e["disk"] = max(disk * 1000.0 / offered, self.DECAY * e["disk"])
+        c, d = cpu * 1000.0 / offered, disk * 1000.0 / offered
+        e = self.p.get(key)
+        if e is None:
+            self.p[key] = {"cpu": c, "disk": d, "clean": not starved}
+            return
+        if starved:
+            e["cpu"], e["disk"] = max(e["cpu"], c), max(e["disk"], d)
+        elif not e.get("clean", True):
+            # The first clean reading replaces whatever starved readings left.
+            e.update(cpu=c, disk=d, clean=True)
+        else:
+            e["cpu"] += self.SMOOTH * (c - e["cpu"])
+            e["disk"] += self.SMOOTH * (d - e["disk"])
 
     def demand(self, key, offered, measured):
         """{'cpu', 'disk'} expected at `offered`; the measurement itself if never profiled."""
         e = self.p.get(key)
         if not e:
-            return dict(measured)
-        return {"cpu": max(measured["cpu"], e["cpu"] * offered / 1000.0),
-                "disk": max(measured["disk"], e["disk"] * offered / 1000.0)}
+            return {"cpu": measured["cpu"], "disk": measured["disk"]}
+        return {"cpu": e["cpu"] * offered / 1000.0, "disk": e["disk"] * offered / 1000.0}
 
     def to_json(self):
         return self.p
@@ -221,7 +239,27 @@ class LinUCBPlacer:
             self.n = stored.get("n", 0)
 
     def theta(self):
-        return np.linalg.solve(self.A, self.b)
+        """Ridge solution with every LOAD weight constrained to be <= 0 (the bias is free).
+
+        MONOTONE, BECAUSE MORE LOAD NEVER HELPS (2026-10-12, third cluster training). The free
+        fit learned cpu_over = +0.12: the earlier data had no CPU capacities (every machine at the
+        optimistic 8 cores, cpu_over always 0) and the few new samples, collinear with cpu_util
+        and sat_util, tipped it positive — so two joins on slow (1 core, cpu_util 2) scored better
+        than spreading them, and the agent kept doing it at 53-63% delivered. "A machine carrying
+        more, relative to what it has, is not better off" is a property of the reward, not a rule
+        about where operators go; with it the regression can only learn HOW MUCH each overload
+        costs. Solved as least squares on the Cholesky factor of the normal equations.
+        """
+        free = np.linalg.solve(self.A, self.b)
+        if (free[1:] <= 0).all():
+            return free
+        from scipy.optimize import lsq_linear
+        L = np.linalg.cholesky(self.A)
+        target = np.linalg.solve(L, self.b)
+        lower = np.full(len(free), -np.inf)
+        upper = np.zeros(len(free))
+        upper[0] = np.inf
+        return lsq_linear(L.T, target, bounds=(lower, upper)).x
 
     def score(self, x, explore):
         value = float(self.theta() @ x)
