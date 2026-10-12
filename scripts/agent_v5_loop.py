@@ -126,6 +126,7 @@ def main():
         agent.b = v5.np.array(stored["regression"]["b"])
         agent.n = stored["regression"].get("n", 0)
     machines = v5.MachineModel(stored.get("machines"))
+    operators = v5.OperatorProfile(stored.get("operators"))
 
     def save():
         if args.freeze:
@@ -136,6 +137,7 @@ def main():
             "regression": {"A": agent.A.tolist(), "b": agent.b.tolist(), "n": agent.n},
             "weights": dict(zip(v5.FEATURES, agent.theta().round(4).tolist())),
             "machines": machines.to_json(),
+            "operators": operators.to_json(),
         }, indent=2))
 
     print("=" * 60)
@@ -231,6 +233,16 @@ def main():
                                "disk": sum(comp.get(m, 0.0) for m in members)})
                 slice_tm.append(next((where[m] for m in members if m in where), None))
 
+            # CHARACTERISE THE OPERATORS (agent_v5.OperatorProfile): what each slice kind needs per
+            # unit of offered rate, so a slice starved where it ran is not taken as cheap. Learning
+            # and deciding both use these demands; the trace keeps the raw measurements.
+            names = {v["id"]: v.get("name", "") for v in detail.get("vertices", [])}
+            keys = [", ".join(sorted({names.get(vid, vid[:8]) for vid, _ in members}))
+                    for members in layout["slices"]]
+            for key, s in zip(keys, slices):
+                operators.observe(key, s["cpu"], s["disk"], offered)
+            planned = [dict(s, **operators.demand(key, offered, s)) for key, s in zip(keys, slices)]
+
             # What each machine went through in the window: telemetry for the machine model and
             # the local term of the reward.
             local, tm_state = {}, {}
@@ -267,14 +279,14 @@ def main():
             ran = {i: index[tm] for i, tm in enumerate(slice_tm) if tm in index}
             if not args.freeze and len(ran) == len(slices):
                 # One sample per MACHINE the placement used (see agent_v5.FEATURES).
-                for x, m in v5.plan_features(slices, seen, ran):
+                for x, m in v5.plan_features(planned, seen, ran):
                     r = (1 - args.local_weight) * reward + args.local_weight * local[tms[m]]
                     agent.update(x, r)
                 save()
 
             # DECIDE THE NEXT PLAN with what is now known about loads and machines.
             capacity = [machines.view(tm, free[tm]) for tm in tms]
-            plan, _traj = v5.decide(agent, slices, capacity, explore=not args.freeze)
+            plan, _traj = v5.decide(agent, planned, capacity, explore=not args.freeze)
             if plan is not None:
                 plans[len(slices)] = {f"{vid}:{sub}": tms[plan[i]]
                                       for i, members in enumerate(layout["slices"])
@@ -282,14 +294,14 @@ def main():
                 ok, error = ca.publish_plan(plans, args.node)
                 if not ok:
                     print(f"  ! no se pudo publicar el plan — {error}", flush=True)
-            names = {v["id"]: v.get("name", "") for v in detail.get("vertices", [])}
             with (out / f"v5-placement-epoch{epoch:03d}.txt").open("w") as trace:
                 for i, members in enumerate(layout["slices"]):
                     stages = sorted({names.get(vid, vid[:8]) for vid, _ in members})
                     nxt = tms[plan[i]] if plan else "-"
                     trace.write(f"slice {i} ran-on {slice_tm[i]} -> next {nxt}  "
                                 f"cpu={slices[i]['cpu']:.2f}{' SAT' if slices[i]['saturated'] else ''}"
-                                f"  disco={slices[i]['disk']:.2f}MB/s  {', '.join(stages)}\n")
+                                f"  disco={slices[i]['disk']:.2f}MB/s  {', '.join(stages)}"
+                                f"  | perfil cpu={planned[i]['cpu']:.2f} disco={planned[i]['disk']:.2f}\n")
             print(f"  slices={len(slices)} rps={rps:.0f} pedido={offered:.0f} "
                   f"({ratio:.0%}) lat={latency} reward={reward:+.3f}", flush=True)
             for tm in tms:

@@ -66,34 +66,39 @@ FEATURES = [
 UNLIMITED_DISK_MBPS = 200.0     # a machine without a cap: its disk is never the constraint here
 
 
-def _bounded(over):
-    """Overload capped at 1 (= twice the capacity).
+UTIL_CAP = 2.0
 
-    BOUNDED, BECAUSE THE REWARD IS (2026-10-11, training on the cluster). The reward cannot go
-    below -1, but a raw overload term can: a join's 15 MB/s on fast's learned 0.75 MB/s disk is
-    disk_over = 19. A linear model cannot fit both "a bit over hurts" and "19x over hurts no more
-    than 3x over", and LinUCB's bonus grows with the size of the feature vector, so the more
-    absurd the plan the more optimistic it was about it: every other epoch the agent sent both
-    joins to fast (20-53% delivered) while its greedy choice, medium, was right all along.
-    A cap rather than x/(1+x): on the simulator at 30 episodes (8 seeds) the cap kept Q3 at its
-    optimum 8/8 and found Q5-60's optimum 3/8; x/(1+x) lost Q3 in 5/8.
+
+def _capped(util):
+    """Utilisation capped at UTIL_CAP (twice the capacity). EVERY feature is bounded.
+
+    WHY (2026-10-11/12, two trainings on the cluster). The reward cannot go below -1, but a raw
+    utilisation can go anywhere: a join's 21 MB/s on fast's learned 0.56 MB/s disk is disk_util 38.
+    A linear model fitted where the data are (utilisations around 0-2) extrapolates such a value
+    into nonsense, in either direction:
+      * first training: disk_over = 19 made LinUCB's bonus (which grows with the size of the
+        feature vector) outweigh the penalty, so the agent explored the most absurd plan;
+      * second, with only the overload terms capped: disk_util kept a small POSITIVE weight
+        (+0.05; high disk use on medium came with good epochs), and x38 it turned the worst plan
+        into the greedy favourite (+0.84). Both joins went to fast in 15 of 30 epochs.
+    Past twice the capacity a machine is simply overwhelmed; the features say so and stop there.
     """
-    return min(1.0, over)
+    return min(UTIL_CAP, util)
 
 
 def machine_features(load, machine):
     """Features of a machine carrying `load` = {'cpu', 'disk', 'slots', 'sat'} from one plan."""
     cores = machine["cores"]
     disk = machine.get("disk_mbps") or UNLIMITED_DISK_MBPS
-    cpu_util = load["cpu"] / cores
-    disk_util = load["disk"] / disk
+    cpu_util = _capped(load["cpu"] / cores)
+    disk_util = _capped(load["disk"] / disk)
     return np.array([
         1.0,
         cpu_util,
-        _bounded(max(0.0, cpu_util - 1.0)),
+        max(0.0, cpu_util - 1.0),
         disk_util,
-        _bounded(max(0.0, disk_util - 1.0)),
-        load["sat"] / cores,
+        max(0.0, disk_util - 1.0),
+        _capped(load["sat"] / cores),
         load["slots"] / machine["slots"],
     ])
 
@@ -150,6 +155,45 @@ class MachineModel:
 
     def to_json(self):
         return self.m
+
+
+class OperatorProfile:
+    """What each kind of slice DEMANDS per unit of offered rate, remembered across epochs.
+
+    WHY (2026-10-12, replaying the two cluster trainings). A slice's demand is measured where it
+    ran, and an operator starved there measures cheap: both joins on fast, stalled on its disk,
+    read 0.4 MB/s and 0.7 cores, against 10-13 MB/s on medium at a similar rate. Deciding with that
+    reading, fast looked big enough for a join again, so the policy alternated: medium (good),
+    fast (20-50% delivered), medium, fast... the same feedback loop as project memory "el agente
+    mandó el join a la lenta". The cure is to characterise the OPERATOR, not the last reading:
+    keep, per slice kind, its demand per 1000 ev/s offered, as a decaying maximum — a starved
+    reading cannot pull it down quickly, a genuinely cheaper operator still does over time.
+    Both learning and deciding use this demand, so a plan that starved a join is recorded as what
+    it was: a machine asked for 20 MB/s of disk, not one that wrote 0.4.
+    """
+
+    DECAY = 0.97                       # per observation: halves in ~23 epochs
+
+    def __init__(self, stored=None):
+        self.p = dict(stored or {})
+
+    def observe(self, key, cpu, disk, offered):
+        if offered <= 0:
+            return
+        e = self.p.setdefault(key, {"cpu": 0.0, "disk": 0.0})
+        e["cpu"] = max(cpu * 1000.0 / offered, self.DECAY * e["cpu"])
+        e["disk"] = max(disk * 1000.0 / offered, self.DECAY * e["disk"])
+
+    def demand(self, key, offered, measured):
+        """{'cpu', 'disk'} expected at `offered`; the measurement itself if never profiled."""
+        e = self.p.get(key)
+        if not e:
+            return dict(measured)
+        return {"cpu": max(measured["cpu"], e["cpu"] * offered / 1000.0),
+                "disk": max(measured["disk"], e["disk"] * offered / 1000.0)}
+
+    def to_json(self):
+        return self.p
 
 
 class LinUCBPlacer:
