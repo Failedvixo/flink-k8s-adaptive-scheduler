@@ -47,10 +47,15 @@ WINDOW="${WINDOW:-45}"
 WHEN="${WHEN:-now}"
 MONITOR_ARGS="${MONITOR_ARGS:-}"
 
+MODEL="${MODEL:-}"
+FREEZE="${FREEZE:-}"
 case "$ARM" in
     MON) MODE_ARGS="" ;;
     NOMON) MODE_ARGS="--observe-only" ;;
-    *) echo "ERROR: ARM debe ser MON o NOMON" >&2; exit 2 ;;
+    # BANDIT (2026-10-12): scripts/plan_bandit.py — picks placements by measuring them, v4 only
+    # proposes. MODEL is where it learns (kept across runs); FREEZE=1 evaluates it.
+    BANDIT) [ -n "$MODEL" ] || { echo "ERROR: ARM=BANDIT necesita MODEL=<json>" >&2; exit 2; } ;;
+    *) echo "ERROR: ARM debe ser MON, NOMON o BANDIT" >&2; exit 2 ;;
 esac
 [ -f "$ROOT_DIR/$QTABLE" ] || [ -f "$QTABLE" ] || { echo "ERROR: no existe $QTABLE" >&2; exit 2; }
 
@@ -60,10 +65,10 @@ mkdir -p "$OUT"
 LOG="$OUT/driver.log"
 say() { echo "$@" | tee -a "$LOG"; }
 
-STALE=$(pgrep -f "scripts/(arm_controller|characterizer_agent|agent_v5_loop|replan_monitor)\.py" | tr '\n' ' ')
+STALE=$(pgrep -f "scripts/(arm_controller|characterizer_agent|agent_v5_loop|replan_monitor|plan_bandit)\.py" | tr '\n' ' ')
 if [ -n "$STALE" ]; then
     echo "ERROR: procesos de una corrida anterior siguen vivos: $STALE" >&2
-    echo "  pkill -f 'scripts/(arm_controller|characterizer_agent|agent_v5_loop|replan_monitor).py'" >&2
+    echo "  pkill -f 'scripts/(arm_controller|characterizer_agent|agent_v5_loop|replan_monitor|plan_bandit).py'" >&2
     exit 1
 fi
 
@@ -83,7 +88,8 @@ say "=========================================="
 say "  Parte B — $ARM   $QUERY a $RATE ($DIST)"
 say "  monitoreo ${DURATION}s, cada ${INTERVAL}s (ventana ${WINDOW}s), replan '$WHEN'"
 say "  disco inicial: $INITIAL_DISK   eventos: ${EVENT:-ninguno}"
-say "  tabla v4: $QTABLE"
+say "  tabla v4: $QTABLE${MODEL:+   modelo del bandit: $MODEL${FREEZE:+ (congelado)}}"
+say "  ventana de la query: ${JOB_WINDOW:-por defecto}"
 say "  -> $OUT"
 say "=========================================="
 
@@ -99,15 +105,23 @@ for spec in $INITIAL_DISK; do
 done
 
 # One job, submitted wide so all twelve slots enter the pool, rescaled once to TARGET_PAR.
-KEEP=1 QUERY="$QUERY" RATE="$RATE" DIST="$DIST" DURATION=$(( DURATION + 1800 )) \
+KEEP=1 QUERY="$QUERY" RATE="$RATE" DIST="$DIST" DURATION=$(( DURATION + 1800 )) JOB_WINDOW="${JOB_WINDOW:-10}" \
     SETTLE=10 SAMPLES=1 INTERVAL=1 "$SCRIPT_DIR/profile-job.sh" 2>&1 | tail -4 | tee -a "$LOG"
 
 T0=$(date +%s)
-timeout $(( DURATION + 300 )) python3 -u "$SCRIPT_DIR/replan_monitor.py" \
-    --jm-pod "$JM_POD" --qtable "$QTABLE" --rate "$RATE" --dist "$DIST" \
-    --duration "$DURATION" --interval "$INTERVAL" --window "$WINDOW" --when "$WHEN" \
-    --out-dir "$OUT" $MODE_ARGS $MONITOR_ARGS \
-    < /dev/null > "$OUT/monitor.log" 2>&1 &
+if [ "$ARM" = BANDIT ]; then
+    timeout $(( DURATION + 300 )) python3 -u "$SCRIPT_DIR/plan_bandit.py" \
+        --jm-pod "$JM_POD" --qtable "$QTABLE" --rate "$RATE" --dist "$DIST" \
+        --duration "$DURATION" --model "$MODEL" ${FREEZE:+--freeze} \
+        --out-dir "$OUT" $MONITOR_ARGS \
+        < /dev/null > "$OUT/monitor.log" 2>&1 &
+else
+    timeout $(( DURATION + 300 )) python3 -u "$SCRIPT_DIR/replan_monitor.py" \
+        --jm-pod "$JM_POD" --qtable "$QTABLE" --rate "$RATE" --dist "$DIST" \
+        --duration "$DURATION" --interval "$INTERVAL" --window "$WINDOW" --when "$WHEN" \
+        --out-dir "$OUT" $MODE_ARGS $MONITOR_ARGS \
+        < /dev/null > "$OUT/monitor.log" 2>&1 &
+fi
 MON_PID=$!
 say "  monitor pid $MON_PID -> $OUT/monitor.log"
 
@@ -133,7 +147,8 @@ kubectl logs -n "$NAMESPACE" "$JM_POD" --since=$(( DURATION + 1800 ))s 2>/dev/nu
 python3 - "$OUT" <<'EOF' | tee -a "$LOG"
 import csv, glob, sys
 out = sys.argv[1]
-rows = [r for f in glob.glob(f"{out}/monitor-*.csv") for r in csv.DictReader(open(f))]
+rows = [r for f in glob.glob(f"{out}/monitor-*.csv") + glob.glob(f"{out}/bandit-*.csv")
+        for r in csv.DictReader(open(f))]
 if not rows:
     sys.exit("sin registros del monitor")
 events = [(int(l.split()[0]), l.split()[1]) for l in open(f"{out}/events.txt")] \
@@ -153,6 +168,6 @@ if cut is not None:
 moves = [r for r in rows if r["decision"] == "mover"]
 print(f"  replanificaciones: {len(moves)}")
 for r in moves:
-    print(f"    t+{r['elapsed_s']}s  {r['reason']}")
+    print(f"    t+{r['elapsed_s']}s  {r.get('reason') or r.get('why')}")
 EOF
 say "  -> $OUT"
