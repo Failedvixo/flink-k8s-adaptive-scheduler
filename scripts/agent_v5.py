@@ -142,7 +142,15 @@ class MachineModel:
             # rather than computing) must not cap it below what it has already delivered.
             e["cpu_hi"] = max(e["cpu_hi"], e["cpu_lo"])
         if disk_stalled and disk_written > 0:
-            e["disk_hi"] = disk_written if e["disk_hi"] is None else min(e["disk_hi"], disk_written)
+            # ONE STALL IS AN ANECDOTE (2026-10-12). Compaction comes in bursts, and the host's
+            # disk is shared: a single stalled epoch had capped medium (no disk limit at all) at
+            # 13 MB/s, after which two joins "did not fit" and the agent split them onto slow —
+            # ~70% delivered against ~90% for both on medium. The cap is set from the second
+            # stalled epoch on, at the lowest throughput a stall was seen at.
+            e["disk_stalls"] = e.get("disk_stalls", 0) + 1
+            e["disk_stall_at"] = min(e.get("disk_stall_at") or disk_written, disk_written)
+            if e["disk_stalls"] >= 2:
+                e["disk_hi"] = e["disk_stall_at"]
         elif not disk_stalled:
             e["disk_lo"] = max(e["disk_lo"], disk_written)
         if e["disk_hi"] is not None:
