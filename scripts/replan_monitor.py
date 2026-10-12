@@ -137,22 +137,33 @@ def observe(args, jid, detail, layout):
     key0 = ac.epoch_key(base, jid)
     disk0, stall0 = ca.disk_bytes(base, jid, detail, disk_ids), ca.disk_bytes(base, jid, detail, stall_ids)
     cg0 = v5loop.cgroup_cpu(args.node, args.namespace, tms)
-    # THE SOURCE COUNTER MOVES IN STEPS OF ~10 s (the REST metric refresh), so the rate is taken
-    # between the first and last time it CHANGED inside the window, polled every 2 s; start-to-end
-    # differences over 45 s would be off by up to a fifth.
-    changes, t0 = [], time.time()
+    # SOURCE RATE FROM THE SAME METER THE CAMPAIGNS USE (2026-10-12). The first version used the
+    # cumulative write-records counter: it refreshes every ~10 s and restarts at zero with every
+    # replan, and Q5 at 3000 ev/s read 92% while the sources were emitting 2993/s. The campaigns'
+    # source_out_rps is numRecordsOutPerSecond (a 60 s meter per subtask), summed here over the
+    # source subtasks with the aggregated endpoint, and averaged over the window's samples.
+    sources, _sinks = ac.graph_roles(detail)
+    src_rates, t0 = [], time.time()
     samples = []
     step = args.window / max(1, args.samples)
     for _ in range(max(1, args.samples)):
+        t_sample = time.time()
         samples.append(ca.subtask_loads(base, jid, detail, gen_ids))
-        until = time.time() + step
-        while time.time() < until:
-            rec = ac.source_records(base, jid)
-            if rec is not None and (not changes or rec != changes[-1][1]):
-                changes.append((time.time(), rec))
-            time.sleep(2.0)
+        total, seen = 0.0, False
+        for vid in sources:
+            got = ac.rest(base, f"/jobs/{jid}/vertices/{vid}/subtasks/metrics"
+                                f"?get=numRecordsOutPerSecond&agg=sum") or []
+            for m in got:
+                try:
+                    total += float(m["sum"])
+                    seen = True
+                except (KeyError, TypeError, ValueError):
+                    pass
+        if seen:
+            src_rates.append(total)
+        time.sleep(max(0.0, step - (time.time() - t_sample)))
     t1 = time.time()
-    if ac.epoch_key(base, jid) != key0 or len(changes) < 3 or changes[-1][1] < changes[1][1]:
+    if ac.epoch_key(base, jid) != key0 or not src_rates:
         return None
     dt = max(1e-6, t1 - t0)
     disk1, stall1 = ca.disk_bytes(base, jid, detail, disk_ids), ca.disk_bytes(base, jid, detail, stall_ids)
@@ -178,10 +189,9 @@ def observe(args, jid, detail, layout):
             throttled = (cg1[tm][2] - cg0[tm][2]) / (cg1[tm][1] - cg0[tm][1])
         machines[tm] = {"throttled": throttled,
                         "stall": max((stall_task.get(k, 0.0) for k in tasks), default=0.0)}
-    # changes[0] may be a stale value read just before the first refresh: start at changes[1].
-    rps = (changes[-1][1] - changes[1][1]) / max(1e-6, changes[-1][0] - changes[1][0])
-    offered = args.rate * v5loop.offered_multiplier(args.dist, args.rate,
-                                                     changes[1][0], changes[-1][0])
+    rps = statistics.fmean(src_rates)
+    # The meter averages the last 60 s, so the offered rate is averaged over the same span.
+    offered = args.rate * v5loop.offered_multiplier(args.dist, args.rate, t0 - 60.0, t1)
     return {"rps": rps, "offered": offered, "ratio": min(1.0, rps / offered) if offered else 0.0,
             "per_slice": per_slice, "per_slice_disk": per_slice_disk, "where": where,
             "machines": machines, "t": t1}
