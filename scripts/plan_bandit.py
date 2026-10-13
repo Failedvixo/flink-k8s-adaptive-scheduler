@@ -126,7 +126,11 @@ def main():
     ap.add_argument("--window", type=float, default=120.0)
     ap.add_argument("--samples", type=int, default=6)
     ap.add_argument("--ucb", type=float, default=0.05, help="exploration bonus scale")
-    ap.add_argument("--optimism", type=float, default=0.05,
+    # 0.1, not 0.05 (2026-10-12, short run on the cluster): at 0.05 the bonus of an unmeasured
+    # placement tied with the UCB bonus of the one running after a single measurement
+    # (0.05*sqrt(ln 2) = 0.042), so the bandit always measured the current placement twice before
+    # trying anything — at 63% delivered on a bad start, and a third of a 30-min step's windows.
+    ap.add_argument("--optimism", type=float, default=0.10,
                     help="bonus of a placement never measured in this context")
     ap.add_argument("--move-cost", type=float, default=0.01)
     ap.add_argument("--latency-weight", type=float, default=0.1)
