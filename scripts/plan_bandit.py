@@ -327,9 +327,21 @@ def main():
             speeds = ca.read_speeds(args.node)
             rate = obs["offered"]
 
-            # Heavy kinds: by the PEAK busy each kind has shown, so they stay heavy at low rates.
-            for kind, (cost, sat) in zip(kinds, obs["per_slice"]):
-                peak_busy[kind] = max(peak_busy.get(kind, 0.0), 1000.0 if sat else cost)
+            # Heavy kinds: by the PEAK load each kind has shown, so they stay heavy at low rates.
+            # Sources by the CPU their thread burns, NOT the busy gauge v4 reads: that one is wall
+            # time in the emit loop, which collect() blocks under backpressure — the first run on
+            # the cluster (2026-10-13) took Q5's bid sources for heavy (~1000 ms/s while the counts
+            # downstream were saturated) and spent explorations moving them. Same fix as v5's.
+            cpu_ids = ca.generator_metric_ids(args.rest, jid, detail, "generatorCpuMsPerSecond")
+            cpu_loads = ca.operator_profile(ca.subtask_loads(args.rest, jid, detail, cpu_ids)) \
+                if cpu_ids else None
+            cpu_slices = ca.slice_loads(layout, cpu_loads, args.saturation_cut) if cpu_loads else obs["per_slice"]
+            sources, _sinks = ac.graph_roles(detail)
+            for kind, members, (cost, sat), (cpu_cost, cpu_sat) in zip(kinds, layout["slices"],
+                                                                       obs["per_slice"], cpu_slices):
+                is_source = any(v in sources for v, _ in members)
+                load = cpu_cost if (is_source and cpu_loads) else (1000.0 if sat else cost)
+                peak_busy[kind] = max(peak_busy.get(kind, 0.0), load)
             top = max(peak_busy.values()) if peak_busy else 0.0
             heavy = {k for k, b in peak_busy.items()
                      if b >= args.heavy_floor and b >= args.heavy_share * top}
@@ -418,8 +430,13 @@ def main():
 
             caps = [s.cap if s.cap else s.lo for s in arms.values() if s.n]
             best_cap = max(caps) if caps else None
-            scale = (best_cap is not None and rate > best_cap * 1.02
-                     and all(s.cap is not None or s.lo < rate for s in arms.values() if s.n))
+            # "No placement suffices" only once the neighbourhood is EXHAUSTED: every candidate has
+            # been run and seen at its limit below the offered rate. The first cluster run said it
+            # with one arm measured and four never tried, which is not evidence of anything.
+            exhausted = all(arms.get(a) is not None and arms[a].n and
+                            (arms[a].cap is not None or arms[a].lo >= rate) for a in cands)
+            scale = (args.mode == "bandit" and exhausted and best_cap is not None
+                     and rate > best_cap * 1.02)
             short = lambda a: "; ".join(f"{k.split(',')[0].split(':')[-1].strip()[:12]} "     # noqa
                                         + "+".join(f"{c}x{n}" for c, n in v.items())
                                         for k, v in json.loads(a).items()) or "(sin pesados)"
