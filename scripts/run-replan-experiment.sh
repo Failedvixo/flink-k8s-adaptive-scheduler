@@ -48,14 +48,20 @@ WHEN="${WHEN:-now}"
 MONITOR_ARGS="${MONITOR_ARGS:-}"
 
 MODEL="${MODEL:-}"
-FREEZE="${FREEZE:-}"
+# The three arms of the part-B comparison (2026-10-13) all run scripts/plan_bandit.py, so every arm
+# is measured by the same loop with the same windows:
+#   STOCK   the fork's STOCK arm (Flink's own placement), measured only
+#   V4      v4's plan applied once at the start, then measured only (no monitor)
+#   BANDIT  v4's plan at the start, then the online bandit (v2)
+# MON / NOMON are the earlier rule-based monitor (scripts/replan_monitor.py), kept for reference.
+FORK_ARM=RL
 case "$ARM" in
+    STOCK) BANDIT_MODE=stock; FORK_ARM=STOCK ;;
+    V4) BANDIT_MODE=v4 ;;
+    BANDIT) BANDIT_MODE=bandit ;;
     MON) MODE_ARGS="" ;;
     NOMON) MODE_ARGS="--observe-only" ;;
-    # BANDIT (2026-10-12): scripts/plan_bandit.py — picks placements by measuring them, v4 only
-    # proposes. MODEL is where it learns (kept across runs); FREEZE=1 evaluates it.
-    BANDIT) [ -n "$MODEL" ] || { echo "ERROR: ARM=BANDIT necesita MODEL=<json>" >&2; exit 2; } ;;
-    *) echo "ERROR: ARM debe ser MON, NOMON o BANDIT" >&2; exit 2 ;;
+    *) echo "ERROR: ARM debe ser STOCK, V4 o BANDIT (o MON / NOMON, el monitor por regla)" >&2; exit 2 ;;
 esac
 [ -f "$ROOT_DIR/$QTABLE" ] || [ -f "$QTABLE" ] || { echo "ERROR: no existe $QTABLE" >&2; exit 2; }
 
@@ -88,7 +94,7 @@ say "=========================================="
 say "  Parte B — $ARM   $QUERY a $RATE ($DIST)"
 say "  monitoreo ${DURATION}s, cada ${INTERVAL}s (ventana ${WINDOW}s), replan '$WHEN'"
 say "  disco inicial: $INITIAL_DISK   eventos: ${EVENT:-ninguno}"
-say "  tabla v4: $QTABLE${MODEL:+   modelo del bandit: $MODEL${FREEZE:+ (congelado)}}"
+say "  brazo del fork: $FORK_ARM   tabla v4: $QTABLE${MODEL:+   modelo del bandit: $MODEL}"
 say "  ventana de la query: ${JOB_WINDOW:-por defecto}"
 say "  -> $OUT"
 say "=========================================="
@@ -98,7 +104,7 @@ say "=========================================="
 docker exec "$NODE" sh -c "rm -f /var/thesis/assignment /var/thesis/replan; \
     rm -rf /var/thesis/minio/flink-checkpoints/checkpoints/* /var/thesis/minio/.minio.sys/multipart/*" \
     </dev/null >/dev/null 2>&1
-"$SCRIPT_DIR/publish-arm.sh" RL >>"$LOG" 2>&1
+"$SCRIPT_DIR/publish-arm.sh" "$FORK_ARM" >>"$LOG" 2>&1
 for m in fast medium slow; do "$SCRIPT_DIR/limit-disk.sh" "$m" off >>"$LOG" 2>&1; done
 for spec in $INITIAL_DISK; do
     "$SCRIPT_DIR/limit-disk.sh" "${spec%%:*}" "${spec##*:}" 2>&1 | tee -a "$LOG"
@@ -109,10 +115,10 @@ KEEP=1 QUERY="$QUERY" RATE="$RATE" DIST="$DIST" DURATION=$(( DURATION + 1800 )) 
     SETTLE=10 SAMPLES=1 INTERVAL=1 "$SCRIPT_DIR/profile-job.sh" 2>&1 | tail -4 | tee -a "$LOG"
 
 T0=$(date +%s)
-if [ "$ARM" = BANDIT ]; then
-    timeout $(( DURATION + 300 )) python3 -u "$SCRIPT_DIR/plan_bandit.py" \
+if [ -n "${BANDIT_MODE:-}" ]; then
+    timeout $(( DURATION + 300 )) python3 -u "$SCRIPT_DIR/plan_bandit.py" --mode "$BANDIT_MODE" \
         --jm-pod "$JM_POD" --qtable "$QTABLE" --rate "$RATE" --dist "$DIST" \
-        --duration "$DURATION" --model "$MODEL" ${FREEZE:+--freeze} \
+        --duration "$DURATION" ${MODEL:+--model "$MODEL"} \
         --out-dir "$OUT" $MONITOR_ARGS \
         < /dev/null > "$OUT/monitor.log" 2>&1 &
 else
@@ -148,7 +154,7 @@ python3 - "$OUT" <<'EOF' | tee -a "$LOG"
 import csv, glob, sys
 out = sys.argv[1]
 rows = [r for f in glob.glob(f"{out}/monitor-*.csv") + glob.glob(f"{out}/bandit-*.csv")
-        for r in csv.DictReader(open(f))]
+        + glob.glob(f"{out}/monitor2-*.csv") for r in csv.DictReader(open(f))]
 if not rows:
     sys.exit("sin registros del monitor")
 events = [(int(l.split()[0]), l.split()[1]) for l in open(f"{out}/events.txt")] \
@@ -157,8 +163,10 @@ def mean(xs):
     return sum(xs) / len(xs) if xs else float("nan")
 def summary(label, rs):
     if rs:
+        lats = [float(r['latency_ms']) for r in rs if r.get('latency_ms') not in (None, '', 'None')]
         print(f"  {label:22s} {len(rs):3d} ventanas  entrega {mean([float(r['ratio']) for r in rs]):6.1%}"
-              f"  (<90%: {sum(float(r['ratio']) < 0.9 for r in rs)})")
+              f"  (<90%: {sum(float(r['ratio']) < 0.9 for r in rs)})"
+              + (f"  latencia p50 media {mean(lats) / 1000:.1f} s" if lats else ""))
 print("\nRESUMEN")
 summary("toda la corrida", rows)
 cut = events[0][0] if events else None
