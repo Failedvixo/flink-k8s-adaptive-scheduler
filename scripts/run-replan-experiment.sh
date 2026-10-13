@@ -130,6 +130,12 @@ else
 fi
 MON_PID=$!
 say "  monitor pid $MON_PID -> $OUT/monitor.log"
+# THE WHOLE-RUN LEDGER (2026-10-13): what the job processed over the entire run, settling and
+# restarts included, independently of the monitor — the basis of the evaluation (run_ledger.py).
+timeout $(( DURATION + 120 )) python3 -u "$SCRIPT_DIR/run_ledger.py" --jm-pod "$JM_POD" \
+    --rate "$RATE" --dist "$DIST" --duration "$DURATION" --out "$OUT/ledger.csv" \
+    < /dev/null > "$OUT/ledger.log" 2>&1 &
+LEDGER_PID=$!
 
 # Events, in time order, relative to the monitor's start.
 for ev in $(echo "$EVENT" | tr ' ' '\n' | sort -t@ -k2 -n); do
@@ -141,7 +147,9 @@ for ev in $(echo "$EVENT" | tr ' ' '\n' | sort -t@ -k2 -n); do
 done
 
 wait "$MON_PID"
+wait "$LEDGER_PID" 2>/dev/null
 say "  monitor terminado"
+cat "$OUT/ledger.log" | tee -a "$LOG"
 
 JID=$(kubectl exec -n "$NAMESPACE" "$JM_POD" -- flink list 2>/dev/null | awk '/RUNNING/ {print $4; exit}')
 [ -n "$JID" ] && kubectl exec -n "$NAMESPACE" "$JM_POD" -- flink cancel "$JID" >/dev/null 2>&1 \

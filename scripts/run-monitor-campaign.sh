@@ -10,8 +10,10 @@
 # numbers, as they would be in production. Order rotates every pass (A B C, B C A, C A B), as in the
 # multi-arm placement campaigns, so no arm always runs first or last in a session.
 #
-# The analysis counts RUNS: each run's mean delivered/offered and mean p50 latency over all its
-# windows, then a permutation test per pair of arms.
+# The analysis counts RUNS and uses each run's WHOLE-RUN LEDGER (scripts/run_ledger.py): delivered
+# over offered from start to end — settling after moves and restarts included, every event weighing
+# the same whatever the rate — and the time-weighted p50 / p99 latency; then a permutation test per
+# pair of arms.
 #
 # Usage:
 #   QUERY=q5 JOB_WINDOW="60:1" RATE=6000 DIST="SINE:3600:2000,6000" DURATION=7200 RUNS=3 \
@@ -67,23 +69,31 @@ out = sys.argv[1]
 runs = []
 for line in open(f"{out}/runs.txt"):
     p, arm, d = line.split()
-    rows = [r for f in glob.glob(f"{d}/monitor2-*.csv") for r in csv.DictReader(open(f))]
-    if not rows:
-        print(f"  ! pasada {p} {arm}: sin registros en {d}")
+    # THE EVALUATION USES THE WHOLE-RUN LEDGER, not the monitor's windows: settling after a move
+    # and restarts count, and every event weighs the same whatever the rate at the time.
+    led = list(csv.DictReader(open(f"{d}/ledger.csv"))) if glob.glob(f"{d}/ledger.csv") else []
+    if not led:
+        print(f"  ! pasada {p} {arm}: sin ledger.csv en {d}")
         continue
-    ratio = sum(float(r["ratio"]) for r in rows) / len(rows)
-    lats = [float(r["latency_ms"]) for r in rows if r["latency_ms"] not in ("", "None", "-1", "-1.0")]
-    moves = sum(r["decision"] == "mover" for r in rows)
-    runs.append({"pass": int(p), "arm": arm, "ratio": ratio, "lat": sum(lats) / len(lats) if lats else None,
-                 "windows": len(rows), "moves": moves})
+    end = led[-1]
+    ratio = float(end["delivered_cum"]) / float(end["offered_cum"])
+    lats = [float(r["p50_ms"]) for r in led if r["p50_ms"] not in ("", "None")]
+    p99 = [float(r["p99_ms"]) for r in led if r["p99_ms"] not in ("", "None")]
+    mon = [r for f in glob.glob(f"{d}/monitor2-*.csv") for r in csv.DictReader(open(f))]
+    runs.append({"pass": int(p), "arm": arm, "ratio": min(1.0, ratio),
+                 "lat": sum(lats) / len(lats) if lats else None,
+                 "p99": sum(p99) / len(p99) if p99 else None,
+                 "moves": sum(r["decision"] == "mover" for r in mon), "restarts": int(end["restarts"])})
 
 arms = list(dict.fromkeys(r["arm"] for r in runs))
-print(f"\n{'brazo':8s} {'n':>2s} {'entrega':>9s} {'latencia p50':>13s} {'cambios':>8s}   por pasada (entrega)")
+print(f"\n{'brazo':8s} {'n':>2s} {'entrega':>9s} {'latencia p50':>13s} {'p99':>8s} {'cambios':>8s}   por pasada (entrega, toda la corrida)")
 for a in arms:
     rs = [r for r in runs if r["arm"] == a]
     lat = [r["lat"] for r in rs if r["lat"] is not None]
     print(f"{a:8s} {len(rs):2d} {sum(r['ratio'] for r in rs) / len(rs):9.1%} "
-          f"{(sum(lat) / len(lat) / 1000) if lat else float('nan'):11.1f} s {sum(r['moves'] for r in rs) / len(rs):8.1f}   "
+          f"{(sum(lat) / len(lat) / 1000) if lat else float('nan'):11.1f} s "
+          f"{(sum(x['p99'] for x in rs if x['p99']) / max(1, sum(1 for x in rs if x['p99'])) / 1000):6.1f} s "
+          f"{sum(r['moves'] for r in rs) / len(rs):8.1f}   "
           + "  ".join(f"{r['ratio']:.1%}" for r in sorted(rs, key=lambda r: r['pass'])))
 
 def perm(x, y, iters=20000):
@@ -101,7 +111,7 @@ def perm(x, y, iters=20000):
 
 print("\nComparaciones (por corrida; prueba de permutación):")
 for a, b in itertools.combinations(arms, 2):
-    for key, label in (("ratio", "entrega"), ("lat", "latencia")):
+    for key, label in (("ratio", "entrega"), ("lat", "latencia p50"), ("p99", "latencia p99")):
         x = [r[key] for r in runs if r["arm"] == b and r[key] is not None]
         y = [r[key] for r in runs if r["arm"] == a and r[key] is not None]
         if len(x) >= 2 and len(y) >= 2:
