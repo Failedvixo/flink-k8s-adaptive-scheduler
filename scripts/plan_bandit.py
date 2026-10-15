@@ -207,13 +207,22 @@ class ArmStats:
         for p in self.lat:
             p[2] *= factor
 
-    def delivery(self, rate):
-        """(expected delivered/offered at `rate`, known?)"""
+    def delivery(self, rate, headroom):
+        """(expected delivered/offered at `rate`, known?)
+
+        Above the highest rate it has kept up with and with no capacity measured, the arm is
+        assumed to hold `headroom` more than that bound, not anything at all (2026-10-15, one-hour
+        test): arms measured only in the sine's valley all read "100% at the peak", and the bandit
+        tried two counts on fast+slow at 5778 ev/s (62.5%) — known only up to 3440 — when
+        fast+medium was known up to 4574. Exploration moves to where it is informative: an arm is
+        tried at rates a little above what it has shown, on the way up."""
         if self.cap is not None:
             return min(1.0, self.cap / rate), True
         if rate <= self.lo:
             return 1.0, True
-        return 1.0, False                         # never saw it fail, never saw it this high
+        if self.lo <= 0:
+            return 1.0, False
+        return min(1.0, self.lo * (1.0 + headroom) / rate), False
 
     def latency(self, rate):
         """Latency expected at `rate`: weighted by closeness in rate and by recency."""
@@ -260,6 +269,19 @@ def dominated_by(arm, other, order):
     return True
 
 
+def source_gauge(rest, jid, detail, suffix, agg="sum"):
+    """A gauge of the source subtasks, aggregated over them; None if no source exposes it."""
+    total = None
+    for vid, mid in (ca.generator_metric_ids(rest, jid, detail, suffix) or {}).items():
+        for m in ac.rest(rest, f"/jobs/{jid}/vertices/{vid}/subtasks/metrics?get={mid}&agg={agg}") or []:
+            try:
+                v = float(m[agg])
+            except (KeyError, TypeError, ValueError):
+                continue
+            total = v if total is None else (total + v if agg == "sum" else max(total, v))
+    return total
+
+
 def reward(delivery, latency_ms, weight):
     lat = None if latency_ms is None else max(1.0, latency_ms)
     return delivery - (weight * math.log(lat / 1000.0) if lat else 0.0)
@@ -288,6 +310,8 @@ def main():
     ap.add_argument("--unknown-limit", type=float, default=0.03,
                     help="bonus of an arm run but never seen at its limit above this rate")
     ap.add_argument("--move-cost", type=float, default=0.01)
+    ap.add_argument("--headroom", type=float, default=0.25,
+                    help="an arm never saturated is assumed to hold this much above its best full rate")
     ap.add_argument("--penalty-weight", type=float, default=1.0,
                     help="weight of what a move of the same kind lost before (0 disables)")
     ap.add_argument("--penalty-margin", type=float, default=0.03,
@@ -295,6 +319,8 @@ def main():
     ap.add_argument("--dominance", default="slow<medium",
                     help="class pairs worse<better on EVERY resource, comma-separated ('' disables)")
     ap.add_argument("--latency-weight", type=float, default=0.1)
+    ap.add_argument("--offered-lag", type=float, default=30.0,
+                    help="seconds the delivered rate trails the schedule (see replan_monitor.observe)")
     ap.add_argument("--lag-floor", type=float, default=0.90,
                     help="delivered share below which a window is saturated whatever the latency")
     ap.add_argument("--latency-factor", type=float, default=2.0,
@@ -342,7 +368,8 @@ def main():
     print("=" * 70, flush=True)
 
     fields = ["time", "elapsed_s", "offered", "rps", "ratio", "latency_ms", "arm", "heavy",
-              "decision", "why", "candidates", "best_capacity", "judged"]
+              "decision", "why", "candidates", "best_capacity", "judged",
+              "throttled_fast", "throttled_medium", "throttled_slow", "source_lag_epochs", "skipped_epochs"]
     csv_path = out / f"monitor2-{args.mode}-{time.strftime('%Y%m%d-%H%M%S')}.csv"
     started = time.time()
     last_key, settle_until, moves, initial_done = None, 0.0, 0, args.mode == "stock"
@@ -379,6 +406,19 @@ def main():
             if obs is None:
                 continue
             latency = ca.sink_record_latency_ms(args.rest, jid, detail)
+            # DIAGNOSTICS, logged and not used (2026-10-15). In the one-hour test the shortfall on
+            # a rising sine was asymmetric (+3% falling, -8% rising) with a normal latency. With
+            # MAX_EVENT_AGE the bid sources DROP events more than 5 s late instead of queuing them,
+            # so a source short of CPU loses events without raising the latency — and the rule for
+            # light slices puts the sources on slow (1 core). The kernel's throttling per machine
+            # and the sources' own lag and drop counters say whether that is it.
+            throttled = {}
+            for tm, m in (obs.get("machines") or {}).items():
+                if m.get("throttled") is not None:
+                    cls = machine_class(tm)
+                    throttled[cls] = max(throttled.get(cls, 0.0), m["throttled"])
+            src_lag = source_gauge(args.rest, jid, detail, "loopLagEpochs", "max")
+            skipped = source_gauge(args.rest, jid, detail, "skippedEpochs", "sum")
             names = {v["id"]: v.get("name", "") for v in detail.get("vertices", [])}
             kinds = [", ".join(sorted({names.get(v, v) for v, _ in m})) for m in layout["slices"]]
             running = [obs["where"].get(m[0]) for m in layout["slices"]]
@@ -436,7 +476,7 @@ def main():
             judged = ""
             if pending is not None and pending[0] in arms and not ambiguous:
                 before, keys = pending
-                d0, _ = arms[before].delivery(rate)
+                d0, _ = arms[before].delivery(rate, args.headroom)
                 lat0 = arms[before].latency(rate)
                 expected = reward(d0, lat0 if lat0 is not None else latency, args.latency_weight)
                 got = reward(ratio, latency, args.latency_weight)
@@ -481,7 +521,7 @@ def main():
                     if caps and min(caps) < base + bonus:
                         return min(caps), "nunca medido, acotado por uno mejor medido"
                     return base + bonus, "nunca medido"
-                d, known = s.delivery(rate)
+                d, known = s.delivery(rate, args.headroom)
                 lat = s.latency(rate)
                 if lat is None:
                     lat = here_s.latency(rate)
@@ -562,6 +602,8 @@ def main():
                   f"lat {latency} ms | {short(here)} | {len(cands)} candidatos -> {decision.upper()}"
                   + (f": {why}" if why else "")
                   + ("   (falta con latencia normal: ventana ambigua, no se aprende)" if ambiguous else "")
+                  + ("   freno " + " ".join(f"{c} {v:.0%}" for c, v in sorted(throttled.items())) if throttled else "")
+                  + (f"   descartadas {skipped:.0f}" if skipped else "")
                   + (f"   [{judged}]" if judged else "")
                   + ("   ! replanificar no basta: la mejor capacidad conocida es %.0f — habría que escalar"
                      % best_cap if scale else ""), flush=True)
@@ -570,7 +612,10 @@ def main():
                              "ratio": round(obs["ratio"], 4), "latency_ms": latency, "arm": short(here),
                              "heavy": "|".join(sorted(heavy)), "decision": decision, "why": why,
                              "candidates": len(cands), "best_capacity": round(best_cap) if best_cap else "",
-                             "judged": judged})
+                             "judged": judged,
+                             **{f"throttled_{c}": round(throttled[c], 3) for c in throttled
+                                if c in ("fast", "medium", "slow")},
+                             "source_lag_epochs": src_lag, "skipped_epochs": skipped})
             handle.flush()
             save()
 

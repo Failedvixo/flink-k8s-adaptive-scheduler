@@ -190,8 +190,13 @@ def observe(args, jid, detail, layout):
         machines[tm] = {"throttled": throttled,
                         "stall": max((stall_task.get(k, 0.0) for k in tasks), default=0.0)}
     rps = statistics.fmean(src_rates)
-    # The meter averages the last 60 s, so the offered rate is averaged over the same span.
-    offered = args.rate * v5loop.offered_multiplier(args.dist, args.rate, t0 - 60.0, t1)
+    # The meter averages the last 60 s, so the offered rate is averaged over the same span —
+    # shifted back by --offered-lag (2026-10-15): fitted on the unsaturated windows of three Q5 runs
+    # (sine of 30 min), what the sources deliver matches the schedule 25-45 s EARLIER than the
+    # monitor's clock says (rms error 7.5% -> 2.2% on the V4 run), so without the shift a job
+    # that keeps up reads ~92% on a rising sine and >100% on a falling one.
+    lag = getattr(args, "offered_lag", 0.0)
+    offered = args.rate * v5loop.offered_multiplier(args.dist, args.rate, t0 - 60.0 - lag, t1 - lag)
     return {"rps": rps, "offered": offered, "ratio": min(1.0, rps / offered) if offered else 0.0,
             "per_slice": per_slice, "per_slice_disk": per_slice_disk, "where": where,
             "machines": machines, "t": t1}
