@@ -275,8 +275,12 @@ def main():
     ap.add_argument("--rate", type=float, required=True)
     ap.add_argument("--dist", default="CONSTANT")
     ap.add_argument("--duration", type=float, default=3600.0)
-    ap.add_argument("--warmup", type=float, default=120.0, help="settle after a restart")
-    ap.add_argument("--window", type=float, default=120.0)
+    # 90 s, not 60 (2026-10-15, third cluster test): the sources' rate meter averages the LAST
+    # 60 s, so the first sample of a window opened 60 s after a restart still covers the restart
+    # and the replay from the checkpoint — fast+medium "delivered" 98% at 5717 ev/s against a
+    # capacity of ~4985. 90 s = the meter's 60 s + ~15-30 s for the sources to recover.
+    ap.add_argument("--warmup", type=float, default=90.0, help="settle after a restart")
+    ap.add_argument("--window", type=float, default=60.0)
     ap.add_argument("--samples", type=int, default=6)
     ap.add_argument("--optimism", type=float, default=0.10, help="bonus of an arm never run")
     ap.add_argument("--sarsa-bonus", type=float, default=0.03,
@@ -291,6 +295,10 @@ def main():
     ap.add_argument("--dominance", default="slow<medium",
                     help="class pairs worse<better on EVERY resource, comma-separated ('' disables)")
     ap.add_argument("--latency-weight", type=float, default=0.1)
+    ap.add_argument("--lag-floor", type=float, default=0.90,
+                    help="delivered share below which a window is saturated whatever the latency")
+    ap.add_argument("--latency-factor", type=float, default=2.0,
+                    help="between --lag-floor and full, saturated only if latency >= this x the run's minimum")
     ap.add_argument("--smooth", type=float, default=0.4, help="weight of a new capacity reading")
     ap.add_argument("--fade", type=float, default=0.97, help="forgetting per decision")
     ap.add_argument("--heavy-share", type=float, default=0.5,
@@ -323,6 +331,7 @@ def main():
     penalties = dict(stored.get("penalties", {}))
     order = [tuple(p.split("<")) for p in args.dominance.split(",") if "<" in p]
     pending = None                  # (arm before the last move, the move's keys), until it is judged
+    min_latency = None              # lowest p50 seen this run: the latency of a job that keeps up
     agent =ca.SliceSarsa(0.0, 0.0, Path(args.qtable), 3, ucb=0.0)
 
     names_mode = {"stock": "Flink estándar (solo mide)", "v4": "v4 sin monitoreo (plan inicial, solo mide)",
@@ -407,22 +416,41 @@ def main():
             # later candidate that repeats it — including arms never run, which otherwise get the
             # full optimism bonus. A move that worked pulls its penalty down. Judged BEFORE
             # observe(), so the arm left behind is predicted from what was known when it was left.
+            # A SHORTFALL IS NOT SATURATION BY ITSELF (2026-10-15, third cluster test). What the
+            # sources deliver trails the offered schedule by ~15-25 s, so on a rising sine a job
+            # that keeps up reads 94-95% (and over 100% on a falling one); with a 30-min period the
+            # slope, and the error, are twice those of a 60-min one. The test read fast×2 at 2500-
+            # 3000 ev/s as saturated with a normal 2.5 s latency and dragged its capacity from
+            # ~5000 to ~3141. A job that cannot keep up builds a backlog, and the backlog shows in
+            # the latency (12-16 s in every saturated window so far), so a small shortfall counts
+            # only with the latency up; a large one (below --lag-floor) counts on its own. A small
+            # shortfall with a normal latency is AMBIGUOUS — lag, or the first minute of a backlog
+            # that has not reached the latency yet — so the window teaches nothing: no capacity, no
+            # bound, no verdict on the last move (which waits for the next window).
+            ratio = obs["ratio"]
+            ambiguous = (args.lag_floor <= ratio < FULL and latency is not None
+                         and min_latency is not None and latency < args.latency_factor * min_latency)
+            if latency is not None and latency > 0:
+                min_latency = latency if min_latency is None else min(min_latency, latency)
+
             judged = ""
-            if pending is not None and pending[0] in arms:
+            if pending is not None and pending[0] in arms and not ambiguous:
                 before, keys = pending
                 d0, _ = arms[before].delivery(rate)
                 lat0 = arms[before].latency(rate)
                 expected = reward(d0, lat0 if lat0 is not None else latency, args.latency_weight)
-                got = reward(obs["ratio"], latency, args.latency_weight)
+                got = reward(ratio, latency, args.latency_weight)
                 loss = max(0.0, expected - got - args.penalty_margin)
                 for k in keys:
                     penalties[k] = (1 - args.smooth) * penalties[k] + args.smooth * loss \
                         if k in penalties else loss
                 judged = f"cambio anterior {expected - got:+.2f}"
-            pending = None
+                pending = None
 
             # Learn: the arm in force delivered this at this rate.
-            arms.setdefault(here, ArmStats()).observe(rate, obs["ratio"], latency, args.smooth)
+            stats = arms.setdefault(here, ArmStats())
+            if not ambiguous:
+                stats.observe(rate, ratio, latency, args.smooth)
             for a, s in arms.items():
                 if a != here:
                     s.fade(args.fade)
@@ -533,6 +561,7 @@ def main():
             print(f"  [{time.strftime('%H:%M:%S')}] pedido {rate:6.0f} entrega {obs['ratio']:5.1%} "
                   f"lat {latency} ms | {short(here)} | {len(cands)} candidatos -> {decision.upper()}"
                   + (f": {why}" if why else "")
+                  + ("   (falta con latencia normal: ventana ambigua, no se aprende)" if ambiguous else "")
                   + (f"   [{judged}]" if judged else "")
                   + ("   ! replanificar no basta: la mejor capacidad conocida es %.0f — habría que escalar"
                      % best_cap if scale else ""), flush=True)
