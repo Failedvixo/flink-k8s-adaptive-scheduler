@@ -31,6 +31,12 @@ realistic profile) confounds with the placement. v2 changes both:
             an arm run but never saturated above the current rate gets a smaller bonus (its limit
             is unknown); every move pays a small fixed cost. Old evidence fades (forgetting), so a
             machine that starts to underperform is noticed.
+  PENALTY   (2026-10-15, the professor's suggestion) each move is judged at the next decision
+            against not having moved: the arm left behind, predicted at the rate measured now. A
+            move that did worse leaves its loss on that KIND of move (operator, from, to), charged
+            to every later candidate that repeats it, with forgetting. And an arm never run is
+            capped by a measured arm with the same subtasks on strictly better machines
+            (--dominance, slow<medium here), so optimism cannot override what is known.
   SCALING   if even the best known capacity is below the offered rate, no placement suffices: the
             log says so ("replanificar no basta — habría que escalar"), for the coordinated
             autoscaler that comes next.
@@ -218,6 +224,42 @@ class ArmStats:
         return sum(lat * w for (_r, lat, _w), w in zip(pts, weights)) / sum(weights)
 
 
+def move_keys(src_arm, dst_arm):
+    """The moves that turn one arm into another, as "kind|from|to" — one per subtask that changes
+    class. A neighbour differs by one move; SARSA's proposal or the best measured may differ by
+    several, paired in a fixed order (which subtask went where does not matter: same-kind subtasks
+    are interchangeable)."""
+    a, b = json.loads(src_arm), json.loads(dst_arm)
+    keys = []
+    for kind in sorted(set(a) | set(b)):
+        la, lb = a.get(kind, {}), b.get(kind, {})
+        out = [c for c in sorted(la) for _ in range(max(0, la[c] - lb.get(c, 0)))]
+        into = [c for c in sorted(lb) for _ in range(max(0, lb[c] - la.get(c, 0)))]
+        keys += [f"{kind}|{s}|{d}" for s, d in zip(out, into)]
+    return keys
+
+
+def dominated_by(arm, other, order):
+    """True if `other` is `arm` with one or more heavy subtasks on a class that is better in EVERY
+    resource: for each `worse<better` pair in `order`, `other` may have moved subtasks from `worse` to
+    `better`, and nothing else differs. Only pairs that hold on every dimension belong in `order`:
+    on this cluster slow<medium (fewer cores, same disk), NOT medium<fast (fast's disk is capped)."""
+    a, b = json.loads(arm), json.loads(other)
+    if a == b or set(a) != set(b):
+        return False
+    for kind in a:
+        la, lb = dict(a[kind]), dict(b[kind])
+        for worse, better in order:
+            shift = la.get(worse, 0) - lb.get(worse, 0)
+            if shift < 0:
+                return False
+            la[worse] = la.get(worse, 0) - shift
+            la[better] = la.get(better, 0) + shift
+        if {c: n for c, n in la.items() if n} != {c: n for c, n in lb.items() if n}:
+            return False
+    return True
+
+
 def reward(delivery, latency_ms, weight):
     lat = None if latency_ms is None else max(1.0, latency_ms)
     return delivery - (weight * math.log(lat / 1000.0) if lat else 0.0)
@@ -242,6 +284,12 @@ def main():
     ap.add_argument("--unknown-limit", type=float, default=0.03,
                     help="bonus of an arm run but never seen at its limit above this rate")
     ap.add_argument("--move-cost", type=float, default=0.01)
+    ap.add_argument("--penalty-weight", type=float, default=1.0,
+                    help="weight of what a move of the same kind lost before (0 disables)")
+    ap.add_argument("--penalty-margin", type=float, default=0.03,
+                    help="loss below which a move is not counted as having worked worse (noise)")
+    ap.add_argument("--dominance", default="slow<medium",
+                    help="class pairs worse<better on EVERY resource, comma-separated ('' disables)")
     ap.add_argument("--latency-weight", type=float, default=0.1)
     ap.add_argument("--smooth", type=float, default=0.4, help="weight of a new capacity reading")
     ap.add_argument("--fade", type=float, default=0.97, help="forgetting per decision")
@@ -271,7 +319,11 @@ def main():
     stored = json.loads(model_path.read_text()) if (args.warm and model_path and model_path.exists()) else {}
     arms = {a: ArmStats(d) for a, d in stored.get("arms", {}).items()}
     peak_busy = dict(stored.get("peak_busy", {}))
-    agent = ca.SliceSarsa(0.0, 0.0, Path(args.qtable), 3, ucb=0.0)
+    # What each KIND of move cost when it was made: "kind|from|to" -> loss. See "the penalty" below.
+    penalties = dict(stored.get("penalties", {}))
+    order = [tuple(p.split("<")) for p in args.dominance.split(",") if "<" in p]
+    pending = None                  # (arm before the last move, the move's keys), until it is judged
+    agent =ca.SliceSarsa(0.0, 0.0, Path(args.qtable), 3, ucb=0.0)
 
     names_mode = {"stock": "Flink estándar (solo mide)", "v4": "v4 sin monitoreo (plan inicial, solo mide)",
                   "bandit": "v4 + bandit online"}
@@ -281,7 +333,7 @@ def main():
     print("=" * 70, flush=True)
 
     fields = ["time", "elapsed_s", "offered", "rps", "ratio", "latency_ms", "arm", "heavy",
-              "decision", "why", "candidates", "best_capacity"]
+              "decision", "why", "candidates", "best_capacity", "judged"]
     csv_path = out / f"monitor2-{args.mode}-{time.strftime('%Y%m%d-%H%M%S')}.csv"
     started = time.time()
     last_key, settle_until, moves, initial_done = None, 0.0, 0, args.mode == "stock"
@@ -290,7 +342,7 @@ def main():
         if model_path:
             model_path.parent.mkdir(parents=True, exist_ok=True)
             model_path.write_text(json.dumps({"arms": {a: s.to_json() for a, s in arms.items()},
-                                              "peak_busy": peak_busy,
+                                              "peak_busy": peak_busy, "penalties": penalties,
                                               "updated": time.strftime("%Y-%m-%d %H:%M:%S")},
                                              indent=1, sort_keys=True))
 
@@ -347,11 +399,35 @@ def main():
                      if b >= args.heavy_floor and b >= args.heavy_share * top}
             here = arm_of(running, kinds, heavy)
 
+            # THE PENALTY (2026-10-15, the professor's suggestion): judge the last move against
+            # NOT having moved. The arm left behind is predicted at the rate measured NOW, from its
+            # own capacity and latency, so a sine that fell or rose in between does not count as the
+            # move's doing. If the move did worse by more than the noise, that loss is remembered
+            # for the kind of move ("a hot-items count from medium to slow") and charged to every
+            # later candidate that repeats it — including arms never run, which otherwise get the
+            # full optimism bonus. A move that worked pulls its penalty down. Judged BEFORE
+            # observe(), so the arm left behind is predicted from what was known when it was left.
+            judged = ""
+            if pending is not None and pending[0] in arms:
+                before, keys = pending
+                d0, _ = arms[before].delivery(rate)
+                lat0 = arms[before].latency(rate)
+                expected = reward(d0, lat0 if lat0 is not None else latency, args.latency_weight)
+                got = reward(obs["ratio"], latency, args.latency_weight)
+                loss = max(0.0, expected - got - args.penalty_margin)
+                for k in keys:
+                    penalties[k] = (1 - args.smooth) * penalties[k] + args.smooth * loss \
+                        if k in penalties else loss
+                judged = f"cambio anterior {expected - got:+.2f}"
+            pending = None
+
             # Learn: the arm in force delivered this at this rate.
             arms.setdefault(here, ArmStats()).observe(rate, obs["ratio"], latency, args.smooth)
             for a, s in arms.items():
                 if a != here:
                     s.fade(args.fade)
+            for k in penalties:
+                penalties[k] *= args.fade
 
             # SARSA's proposal for what it sees now.
             ranked = sorted(layout["tms"], key=lambda t: (-speeds.get(t[0], 1.0), t[0]))
@@ -368,6 +444,14 @@ def main():
                     lat = here_s.latency(rate)
                     base = reward(1.0, lat, args.latency_weight)
                     bonus = args.optimism + (args.sarsa_bonus if arm == sarsa_arm else 0.0)
+                    # DOMINANCE (2026-10-15): an arm never run is no better than a measured arm
+                    # that has the same heavy subtasks on strictly better machines. The test run
+                    # tried two counts on slow at 4683 ev/s (57% delivered) with medium+slow
+                    # already measured at ~3346: the optimism bonus overrode what was known.
+                    caps = [predicted(b)[0] for b, sb in arms.items()
+                            if sb.n and dominated_by(arm, b, order)]
+                    if caps and min(caps) < base + bonus:
+                        return min(caps), "nunca medido, acotado por uno mejor medido"
                     return base + bonus, "nunca medido"
                 d, known = s.delivery(rate)
                 lat = s.latency(rate)
@@ -400,10 +484,15 @@ def main():
                 else:
                     why = "plan inicial de v4 ya aplicado"
             elif args.mode == "bandit":
-                values = {a: predicted(a)[0] - (0.0 if a == here else args.move_cost) for a in cands}
+                def charge(a):
+                    return 0.0 if a == here else args.move_cost + args.penalty_weight * sum(
+                        penalties.get(k, 0.0) for k in move_keys(here, a))
+                values = {a: predicted(a)[0] - charge(a) for a in cands}
                 chosen = max(values, key=values.get)
                 if chosen != here:
-                    decision, why = "mover", f"{cands[chosen]} ({predicted(chosen)[1]})"
+                    pen = charge(chosen) - args.move_cost
+                    decision, why = "mover", f"{cands[chosen]} ({predicted(chosen)[1]}" \
+                        + (f", penalización {pen:.2f})" if pen > 0.005 else ")")
             else:
                 why = "solo mide"
 
@@ -427,6 +516,7 @@ def main():
                     else:
                         moves += 1
                         settle_until = time.time() + args.warmup
+                        pending = (here, move_keys(here, chosen))
 
             caps = [s.cap if s.cap else s.lo for s in arms.values() if s.n]
             best_cap = max(caps) if caps else None
@@ -443,13 +533,15 @@ def main():
             print(f"  [{time.strftime('%H:%M:%S')}] pedido {rate:6.0f} entrega {obs['ratio']:5.1%} "
                   f"lat {latency} ms | {short(here)} | {len(cands)} candidatos -> {decision.upper()}"
                   + (f": {why}" if why else "")
+                  + (f"   [{judged}]" if judged else "")
                   + ("   ! replanificar no basta: la mejor capacidad conocida es %.0f — habría que escalar"
                      % best_cap if scale else ""), flush=True)
             writer.writerow({"time": time.strftime("%H:%M:%S"), "elapsed_s": round(time.time() - started),
                              "offered": round(rate), "rps": round(obs["rps"]),
                              "ratio": round(obs["ratio"], 4), "latency_ms": latency, "arm": short(here),
                              "heavy": "|".join(sorted(heavy)), "decision": decision, "why": why,
-                             "candidates": len(cands), "best_capacity": round(best_cap) if best_cap else ""})
+                             "candidates": len(cands), "best_capacity": round(best_cap) if best_cap else "",
+                             "judged": judged})
             handle.flush()
             save()
 
@@ -458,6 +550,10 @@ def main():
         if s.n:
             print(f"  {short(a):40s} n={s.n:2d}  "
                   + (f"capacidad ~{s.cap:.0f}" if s.cap else f"aguanta >= {s.lo:.0f}"))
+    for k, v in sorted(penalties.items(), key=lambda kv: -kv[1]):
+        if v > 0.005:
+            kind, src, dst = k.split("|")
+            print(f"  penalización {v:.2f}: mover un {kind[:24]} de {src} a {dst}")
     return 0
 
 
