@@ -470,7 +470,10 @@ def main():
             ratio = obs["ratio"]
             ambiguous = (args.lag_floor <= ratio < FULL and latency is not None
                          and min_latency is not None and latency < args.latency_factor * min_latency)
-            if latency is not None and latency > 0:
+            # The baseline is the latency of a job that KEPT UP: only windows delivered in full
+            # update it. The fifth test started at the peak, saturated, so its "minimum" was 14 s
+            # and a window at 90% with 10 s of latency passed for normal.
+            if latency is not None and latency > 0 and obs["ratio"] >= FULL:
                 min_latency = latency if min_latency is None else min(min_latency, latency)
 
             judged = ""
