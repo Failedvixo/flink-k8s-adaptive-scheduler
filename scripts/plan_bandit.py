@@ -54,6 +54,7 @@ import csv
 import json
 import math
 import statistics
+import subprocess
 import sys
 import time
 from pathlib import Path
@@ -269,6 +270,40 @@ def dominated_by(arm, other, order):
     return True
 
 
+def trigger_checkpoint(jid, timeout=90.0):
+    """Ask Flink for a checkpoint NOW (REST, Flink >= 1.19) and wait for it. (seconds, error).
+
+    WHY (2026-10-16, first monitoring campaign). A replan restarts from the latest completed
+    checkpoint, and the periodic ones are 180 s apart: every move replayed up to three minutes of
+    events. The replayed results came out late (latency spikes of up to 510 s, 26-53 ledger samples
+    over 20 s per BANDIT run against 5-8 for V4: +250% p50 over the run, p=0.008), and the sources,
+    more than MAX_EVENT_AGE behind, dropped events in the first window — which once wrote off the
+    best arm (fast×2 read as 2553 ev/s, true ~4860). With the request armed for "the next
+    checkpoint" and a checkpoint taken on the spot, the restart replays seconds, not minutes."""
+    def call(*curl):
+        out = subprocess.run(["kubectl", "exec", "-n", ac._NAMESPACE, ac._JM_POD, "--", "curl", "-s",
+                              "-m", "20", *curl], capture_output=True, text=True, timeout=40)
+        return json.loads(out.stdout) if out.returncode == 0 and out.stdout.strip() else None
+    if not ac._JM_POD:
+        return None, "sin --jm-pod"
+    started = time.time()
+    try:
+        got = call("-X", "POST", "-H", "Content-Type: application/json", "-d", "{}",
+                   f"http://localhost:8081/jobs/{jid}/checkpoints")
+        rid = (got or {}).get("request-id")
+        if not rid:
+            return None, f"POST checkpoints: {got}"
+        while time.time() - started < timeout:
+            st = call(f"http://localhost:8081/jobs/{jid}/checkpoints/{rid}") or {}
+            if st.get("status", {}).get("id") == "COMPLETED":
+                failure = (st.get("operation") or {}).get("failure-cause")
+                return time.time() - started, (str(failure)[:200] if failure else None)
+            time.sleep(1.0)
+    except (subprocess.SubprocessError, ValueError):
+        pass
+    return None, "el checkpoint no terminó a tiempo"
+
+
 def source_gauge(rest, jid, detail, suffix, agg="sum"):
     """A gauge of the source subtasks, aggregated over them; None if no source exposes it."""
     total = None
@@ -319,6 +354,10 @@ def main():
     ap.add_argument("--dominance", default="slow<medium",
                     help="class pairs worse<better on EVERY resource, comma-separated ('' disables)")
     ap.add_argument("--latency-weight", type=float, default=0.1)
+    ap.add_argument("--replan-at", choices=["checkpoint", "now"], default="checkpoint",
+                    help="restart from a checkpoint taken on the spot, or from the latest periodic one")
+    ap.add_argument("--busy-machine", type=float, default=0.5,
+                    help="share of throttled CPU periods above which no heavy subtask moves INTO a machine")
     ap.add_argument("--offered-lag", type=float, default=30.0,
                     help="seconds the delivered rate trails the schedule (see replan_monitor.observe)")
     ap.add_argument("--lag-floor", type=float, default=0.90,
@@ -358,6 +397,7 @@ def main():
     order = [tuple(p.split("<")) for p in args.dominance.split(",") if "<" in p]
     pending = None                  # (arm before the last move, the move's keys), until it is judged
     min_latency = None              # lowest p50 seen this run: the latency of a job that keeps up
+    fresh = True                    # no window measured yet since the last restart
     agent =ca.SliceSarsa(0.0, 0.0, Path(args.qtable), 3, ucb=0.0)
 
     names_mode = {"stock": "Flink estándar (solo mide)", "v4": "v4 sin monitoreo (plan inicial, solo mide)",
@@ -393,6 +433,7 @@ def main():
                 continue
             if key != last_key:
                 last_key = key
+                fresh = True                     # the next window is the first of this epoch
                 settle_until = max(settle_until, ac.epoch_started_at(key, time.time()) + args.warmup)
             if time.time() < settle_until:
                 time.sleep(5)
@@ -468,8 +509,22 @@ def main():
             # that has not reached the latency yet — so the window teaches nothing: no capacity, no
             # bound, no verdict on the last move (which waits for the next window).
             ratio = obs["ratio"]
+            # Without a baseline yet, a small shortfall is ambiguous too: the sixth test read
+            # fast×2 at 95.7% with 2.5 s of latency, before any window had kept up in full, as a
+            # capacity of 2797 (true ~4860).
             ambiguous = (args.lag_floor <= ratio < FULL and latency is not None
-                         and min_latency is not None and latency < args.latency_factor * min_latency)
+                         and (min_latency is None or latency < args.latency_factor * min_latency))
+            # Drops in the FIRST window after a restart are the sources catching up on the replay
+            # (the skip counter restarts with the job, so anything in it is since the restart),
+            # not the arm failing to keep up: pass 4 of the first campaign read fast×2 at 96%
+            # with 525 drops and a normal latency as saturated and never went back to it.
+            # Only with a normal latency: the seventh test saw real saturation right after a move
+            # (65% delivered, 16 s) carrying drops too, and this rule hid it, so fast×2's capacity
+            # was never learned.
+            ambiguous = ambiguous or (fresh and ratio < FULL and bool(skipped) and latency is not None
+                                      and min_latency is not None
+                                      and latency < args.latency_factor * min_latency)
+            fresh = False
             # The baseline is the latency of a job that KEPT UP: only windows delivered in full
             # update it. The fifth test started at the peak, saturated, so its "minimum" was 14 s
             # and a window at 90% with 10 s of latency passed for normal.
@@ -508,13 +563,28 @@ def main():
             sarsa_place = [ranked[plan[i]][0] for i in range(len(running))] if plan else None
             sarsa_arm = arm_of(sarsa_place, kinds, heavy) if sarsa_place else None
 
+            class_speed = {}
+            for tm, sp in speeds.items():
+                class_speed[machine_class(tm)] = max(class_speed.get(machine_class(tm), 0.0), sp)
+            top_speed = max(class_speed.values(), default=1.0) or 1.0
+
+            def heavy_speed(arm):
+                """Mean published speed of the machines that hold the arm's heavy subtasks, 0-1."""
+                got = [class_speed.get(c, 0.0) / top_speed
+                       for layout_ in json.loads(arm).values() for c, n in layout_.items() for _ in range(n)]
+                return sum(got) / len(got) if got else 1.0
+
             def predicted(arm):
                 s = arms.get(arm)
                 here_s = arms[here]
                 if s is None or s.n == 0:
                     lat = here_s.latency(rate)
                     base = reward(1.0, lat, args.latency_weight)
-                    bonus = args.optimism + (args.sarsa_bonus if arm == sarsa_arm else 0.0)
+                    # Among arms never run, the published machine speeds break the tie: half the
+                    # bonus is scaled by how fast the machines holding the heavy subtasks are. Twice
+                    # the bandit tried a count on slow (1 core) first, at the peak, for 38% and 65%.
+                    bonus = args.optimism * (0.5 + 0.5 * heavy_speed(arm)) \
+                        + (args.sarsa_bonus if arm == sarsa_arm else 0.0)
                     # DOMINANCE (2026-10-15): an arm never run is no better than a measured arm
                     # that has the same heavy subtasks on strictly better machines. The test run
                     # tried two counts on slow at 4683 ev/s (57% delivered) with medium+slow
@@ -555,6 +625,25 @@ def main():
                 else:
                     why = "plan inicial de v4 ya aplicado"
             elif args.mode == "bandit":
+                # EXPLORE ONLY WHEN THE ARM IN FORCE FALLS SHORT (2026-10-16, sixth test). Arms that
+                # keep up all read the same, so trying one in the valley teaches nothing and costs
+                # a restart, and an arm that delivers in full at a normal latency has no reason to
+                # be left: when it does, only arms already MEASURED are candidates. And never move a
+                # heavy subtask INTO a machine the kernel is throttling (--busy-machine): the test
+                # moved the second count to slow with slow at 82% and delivered 38%.
+                # "Short" = it did not deliver in full. A rising latency at full delivery (the
+                # seventh test: fast×2 at 100% with 5.4 s) is a warning, not a shortfall: it may move
+                # to an arm already measured, but tries a NEW one only once it actually falls short —
+                # it tried slow there and delivered 65% at the peak.
+                short = obs["ratio"] < FULL and not ambiguous
+                for a in list(cands):
+                    if a == here:
+                        continue
+                    if not short and not (arms.get(a) and arms[a].n):
+                        del cands[a]
+                    elif any(throttled.get(k.split("|")[2], 0.0) >= args.busy_machine
+                             for k in move_keys(here, a)):
+                        del cands[a]
                 def charge(a):
                     return 0.0 if a == here else args.move_cost + args.penalty_weight * sum(
                         penalties.get(k, 0.0) for k in move_keys(here, a))
@@ -581,7 +670,17 @@ def main():
                     token = str(int(time.time() * 1000))
                     if ok:
                         _, error = ca.node_command(args.node, ["sh", "-c",
-                                                   f"printf '%s now\\n' {token} > {REPLAN_FILE}"])
+                                                   f"printf '%s {args.replan_at}\\n' {token} > {REPLAN_FILE}"])
+                    if ok and not error and args.replan_at == "checkpoint":
+                        # The fork polls the request file every 2 s and only then arms it: a
+                        # checkpoint completed before that would not trigger the restart.
+                        time.sleep(5.0)
+                        took, ck_error = trigger_checkpoint(jid)
+                        why += f"; checkpoint {took:.0f} s" if took is not None else ""
+                        if ck_error:
+                            # The request stays armed: the restart comes with the next periodic
+                            # checkpoint instead (<= 180 s), replaying more. Logged, not fatal.
+                            why += f"; ! checkpoint manual falló ({ck_error}), queda para el periódico"
                     if not ok or error:
                         decision, why = "error", str(error)
                     else:
