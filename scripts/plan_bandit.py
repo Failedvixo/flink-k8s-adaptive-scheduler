@@ -183,13 +183,19 @@ class ArmStats:
         self.cap_w = d.get("cap_w", 0.0)      # weight of the capacity estimate
         self.lat = d.get("lat", [])           # [[rate, latency_ms, weight], ...]
         self.n = d.get("n", 0)
+        self.tight = d.get("tight", False)    # its best full rate was held with a machine at its limit
 
     def to_json(self):
-        return {"lo": self.lo, "cap": self.cap, "cap_w": self.cap_w, "lat": self.lat, "n": self.n}
+        return {"lo": self.lo, "cap": self.cap, "cap_w": self.cap_w, "lat": self.lat, "n": self.n,
+                "tight": self.tight}
 
-    def observe(self, offered, delivered_ratio, latency_ms, smooth):
+    def observe(self, offered, delivered_ratio, latency_ms, smooth, at_limit=False):
         self.n += 1
         if delivered_ratio >= FULL:
+            if offered > self.lo:
+                self.tight = at_limit
+            elif offered == self.lo:
+                self.tight = self.tight or at_limit
             self.lo = max(self.lo, offered)
             if self.cap is not None and self.cap < offered:
                 self.cap = None                  # it kept up above the old estimate: stale
@@ -223,7 +229,10 @@ class ArmStats:
             return 1.0, True
         if self.lo <= 0:
             return 1.0, False
-        return min(1.0, self.lo * (1.0 + headroom) / rate), False
+        # No headroom if a machine was at its CPU limit when it held that rate (2026-10-17, second
+        # campaign): fast+slow "held >= 3713" with slow throttled 92%, was credited 25% more, and
+        # delivered 59% at 4910.
+        return min(1.0, self.lo * (1.0 + (0.0 if self.tight else headroom)) / rate), False
 
     def latency(self, rate):
         """Latency expected at `rate`: weighted by closeness in rate and by recency."""
@@ -356,6 +365,8 @@ def main():
     ap.add_argument("--latency-weight", type=float, default=0.1)
     ap.add_argument("--replan-at", choices=["checkpoint", "now"], default="checkpoint",
                     help="restart from a checkpoint taken on the spot, or from the latest periodic one")
+    ap.add_argument("--limit-throttle", type=float, default=0.85,
+                    help="throttled share at which a machine counts as at its limit (no headroom)")
     ap.add_argument("--busy-machine", type=float, default=0.5,
                     help="share of throttled CPU periods above which no heavy subtask moves INTO a machine")
     ap.add_argument("--offered-lag", type=float, default=30.0,
@@ -409,7 +420,8 @@ def main():
 
     fields = ["time", "elapsed_s", "offered", "rps", "ratio", "latency_ms", "arm", "heavy",
               "decision", "why", "candidates", "best_capacity", "judged",
-              "throttled_fast", "throttled_medium", "throttled_slow", "source_lag_epochs", "skipped_epochs"]
+              "throttled_fast", "throttled_medium", "throttled_slow", "source_lag_epochs", "skipped_epochs",
+              "clock_skew_ms"]
     csv_path = out / f"monitor2-{args.mode}-{time.strftime('%Y%m%d-%H%M%S')}.csv"
     started = time.time()
     last_key, settle_until, moves, initial_done = None, 0.0, 0, args.mode == "stock"
@@ -539,7 +551,11 @@ def main():
                 expected = reward(d0, lat0 if lat0 is not None else latency, args.latency_weight)
                 got = reward(ratio, latency, args.latency_weight)
                 loss = max(0.0, expected - got - args.penalty_margin)
-                for k in keys:
+                # Only a move of ONE subtask leaves a penalty (2026-10-17, second campaign): a
+                # two-subtask move (medium->fast plus medium->slow) lost because of its slow half
+                # and charged the medium->fast direction too, which then kept the counts on medium
+                # at 71% through the whole peak. Which half failed is not observable.
+                for k in (keys if len(keys) == 1 else []):
                     penalties[k] = (1 - args.smooth) * penalties[k] + args.smooth * loss \
                         if k in penalties else loss
                 judged = f"cambio anterior {expected - got:+.2f}"
@@ -548,7 +564,8 @@ def main():
             # Learn: the arm in force delivered this at this rate.
             stats = arms.setdefault(here, ArmStats())
             if not ambiguous:
-                stats.observe(rate, ratio, latency, args.smooth)
+                stats.observe(rate, ratio, latency, args.smooth,
+                              at_limit=max(throttled.values(), default=0.0) >= args.limit_throttle)
             for a, s in arms.items():
                 if a != here:
                     s.fade(args.fade)
@@ -717,7 +734,8 @@ def main():
                              "judged": judged,
                              **{f"throttled_{c}": round(throttled[c], 3) for c in throttled
                                 if c in ("fast", "medium", "slow")},
-                             "source_lag_epochs": src_lag, "skipped_epochs": skipped})
+                             "source_lag_epochs": src_lag, "skipped_epochs": skipped,
+                             "clock_skew_ms": obs.get("clock_skew_ms")})
             handle.flush()
             save()
 

@@ -132,7 +132,10 @@ MON_PID=$!
 say "  monitor pid $MON_PID -> $OUT/monitor.log"
 # THE WHOLE-RUN LEDGER (2026-10-13): what the job processed over the entire run, settling and
 # restarts included, independently of the monitor — the basis of the evaluation (run_ledger.py).
-timeout $(( DURATION + 120 )) python3 -u "$SCRIPT_DIR/run_ledger.py" --jm-pod "$JM_POD" \
+# The deadline is generous on purpose (2026-10-19): `timeout` counts MONOTONIC seconds and the
+# ledger counts wall-clock ones, and on this WSL2 host the monotonic clock runs ~8.4% fast — with
+# DURATION + 120 every ledger was killed at wall-clock 1770 s of 1800, before printing its summary.
+timeout $(( DURATION * 13 / 10 + 120 )) python3 -u "$SCRIPT_DIR/run_ledger.py" --jm-pod "$JM_POD" \
     --rate "$RATE" --dist "$DIST" --duration "$DURATION" --out "$OUT/ledger.csv" \
     < /dev/null > "$OUT/ledger.log" 2>&1 &
 LEDGER_PID=$!

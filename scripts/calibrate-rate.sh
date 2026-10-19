@@ -203,7 +203,8 @@ for RATE in $RATES; do
         flink run -d -c "$JOB_CLASS" /tmp/nexmark.jar \
         "$RATE" "$DURATION" "$SUBMIT_PAR" "$JOB_WINDOW" "$CPU_LOAD" "$DIST" \
         "$SUBMIT_PAR" "$MAX_EVENT_AGE" "$QUERY" "${ZIPF_ALPHA:-0.5}" "${HOT_POOL:-1000}" \
-        "$SLOT_SHARING" 2>&1)
+        "$SLOT_SHARING" 2>&1) || true    # set -e would exit here SILENTLY on a failed submit
+                                         # (2026-10-17, q11 with the old job class); report it
     JID=$(echo "$SUBMIT_OUT" | grep -oP '(?<=JobID )[0-9a-f]{32}' | head -1)
     [ -n "$JID" ] || JID=$(echo "$SUBMIT_OUT" | grep -oP '[0-9a-f]{32}' | head -1)
     if [ -z "$JID" ]; then

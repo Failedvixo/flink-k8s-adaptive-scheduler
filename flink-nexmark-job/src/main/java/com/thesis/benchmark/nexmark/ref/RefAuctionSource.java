@@ -79,6 +79,15 @@ public class RefAuctionSource extends RichParallelSourceFunction<Auction> {
      * auction sources at "1000" on a machine that gave them 0.1 cores. Thread CPU time counts only
      * cycles, and covers the operators chained behind the source, which run on this thread.
      */
+    /**
+     * This source's clock minus the TaskManager's wall clock, ms (2026-10-17). The schedule runs
+     * on {@link NexmarkEpochs.Clock} — the wall clock read once at start, then advanced by the
+     * monotonic clock — while the monitor computes the offered rate from the host's wall clock.
+     * Fitted per run, the two disagreed by 15-100 s and drifted over a night of campaigns, enough
+     * to read a job that keeps up as 87% on a rising sine. Published so the monitor can line the
+     * schedule up exactly instead of assuming a fixed lag.
+     */
+    private transient volatile long clockSkewMs;
     private transient volatile long lastGeneratorCpuMs;
     private transient long epochsPerSecond;
     private transient int subtasks;
@@ -117,6 +126,8 @@ public class RefAuctionSource extends RichParallelSourceFunction<Auction> {
                 .gauge("generatorBusyMsPerSecond", (Gauge<Long>) () -> lastGeneratorBusyMs);
         getRuntimeContext().getMetricGroup()
                 .gauge("generatorCpuMsPerSecond", (Gauge<Long>) () -> lastGeneratorCpuMs);
+        getRuntimeContext().getMetricGroup()
+                .gauge("clockSkewMs", (Gauge<Long>) () -> clockSkewMs);
     }
 
     @Override
@@ -137,6 +148,7 @@ public class RefAuctionSource extends RichParallelSourceFunction<Auction> {
         long nextEpoch = NexmarkEpochs.alignUp(
                 schedule.epochAt(startedAt), subtasks, index);
         while (running && clock.nowMillis() < deadline) {
+            clockSkewMs = clock.nowMillis() - System.currentTimeMillis();
             final long emitStart = clock.nowMillis();
             final long due = schedule.epochAt(emitStart);
             if (maxEventAgeMs > 0) {

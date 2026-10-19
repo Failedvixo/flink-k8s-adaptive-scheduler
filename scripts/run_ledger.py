@@ -22,6 +22,7 @@ Usage: scripts/run_ledger.py --rate 6000 --dist SINE:3600:2000,6000 --duration 3
 """
 import argparse
 import csv
+import signal
 import subprocess
 import sys
 import time
@@ -81,6 +82,11 @@ def main():
         capture_output=True, text=True, timeout=30).stdout.strip() or None
     base = ac.DEFAULT_REST
 
+    # A deadline kill must still leave the summary (2026-10-19): end the loop on SIGTERM instead of
+    # dying in it. See the timeout in run-replan-experiment.sh for why it was being killed.
+    stop = []
+    signal.signal(signal.SIGTERM, lambda *_: stop.append(True))
+
     t0 = time.time()
     prev_t, offered = t0, 0.0
     bridge, last_records, last_started, restarts = 0.0, None, None, 0
@@ -91,7 +97,7 @@ def main():
         w = csv.writer(handle)
         w.writerow(["t", "elapsed_s", "offered_rate", "offered_cum", "delivered_cum", "p50_ms",
                     "p99_ms", "running", "restarts"])
-        while time.time() - t0 < args.duration:
+        while time.time() - t0 < args.duration and not stop:
             time.sleep(max(0.0, args.interval - (time.time() - prev_t)))
             now = time.time()
             rate_now = args.rate * v5loop.offered_multiplier(args.dist, args.rate, prev_t, now)

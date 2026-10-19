@@ -25,6 +25,7 @@ import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
 import org.apache.flink.streaming.api.functions.co.KeyedCoProcessFunction;
 import org.apache.flink.streaming.api.functions.windowing.ProcessWindowFunction;
 import org.apache.flink.streaming.api.functions.sink.legacy.RichSinkFunction;
+import org.apache.flink.streaming.api.windowing.assigners.EventTimeSessionWindows;
 import org.apache.flink.streaming.api.windowing.assigners.SlidingEventTimeWindows;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
@@ -110,9 +111,11 @@ public class RefNexmarkJob {
             runQ5(env, rate, durationSec, heavyPar, maxEventAgeMs, q5Window(args[3]));
         } else if ("q3".equals(query)) {
             runQ3(env, rate, durationSec, heavyPar, maxEventAgeMs, q3StateTtlSec());
+        } else if ("q11".equals(query)) {
+            runQ11(env, rate, durationSec, heavyPar, maxEventAgeMs, q11Gap(args[3]));
         } else {
             throw new IllegalArgumentException(
-                    "only q3, q5 and q8 are ported to the reference sources so far, got " + query);
+                    "only q3, q5, q8 and q11 are ported to the reference sources so far, got " + query);
         }
 
         env.execute("nexmark-ref-" + query + " rate=" + rate + " par=" + parallelism
@@ -442,6 +445,84 @@ public class RefNexmarkJob {
                 .addSink(new HotItemsSink()).name("q5-sink").uid("q5-sink");
         if (slotSharing != GraphConfig.SlotSharingMode.SHARED) {
             sink.slotSharingGroup("snk");
+        }
+    }
+
+    // ================================================================
+    //   Q11 — User Sessions
+    //     How many bids each bidder made in each of their sessions, a
+    //     session closing after a gap without bids (Beam's
+    //     NexmarkConfiguration default windowSizeSec = 10 s).
+    // ================================================================
+    //
+    // WHY Q11 (2026-10-17). The next stateful query of DS2's Nexmark port, and a third kind of
+    // keyed state: Q5 adds into fixed sliding windows, Q8 and Q3 buffer records for a join, and
+    // a session window MERGES — every bid either opens a window or extends one, and overlapping
+    // windows are merged in state, so the operator reads and rewrites its state on most records
+    // instead of incrementing a counter. Keyed by bidder rather than by auction, which spreads
+    // differently: Beam draws bidders from the recent persons with a hot-bidder ratio.
+    //
+    // Same shape as Q5 under PER_STAGE sharing without the max stage: bids (source + watermarks),
+    // sessions, sink. The gap is argument 3 (JOB_WINDOW), seconds, default Beam's 10.
+    static Duration q11Gap(String arg) {
+        final long gap = (arg == null || arg.isEmpty()) ? 10 : Long.parseLong(arg.split(":")[0].trim());
+        if (gap <= 0) {
+            throw new IllegalArgumentException("Q11 session gap must be > 0 s, got " + arg);
+        }
+        return Duration.ofSeconds(gap);
+    }
+
+    private static void runQ11(StreamExecutionEnvironment env, int rate, int durationSec,
+                               int heavyPar, long maxEventAgeMs, Duration gap) {
+        System.out.println("  q11: sesiones por postor, se cierran tras " + gap.getSeconds() + " s sin pujas");
+        final DataStream<Bid> bids = g(env
+                .addSource(new RefBidSource(rate, durationSec, maxEventAgeMs, querySchedule, rate))
+                .name("bid-source").uid("bid-source"), "bid", "bid-source")
+                .assignTimestampsAndWatermarks(
+                        WatermarkStrategy.<Bid>forBoundedOutOfOrderness(Duration.ofSeconds(2))
+                                .withTimestampAssigner((b, ts) -> b.dateTime.getMillis()))
+                .name("bid-watermarks").uid("bid-watermarks");
+
+        // Incremental count per (bidder, session): the accumulator is merged when sessions merge.
+        final SingleOutputStreamOperator<Tuple3<Long, Long, Long>> sessions = bids
+                .keyBy((KeySelector<Bid, Long>) b -> b.bidder)
+                .window(EventTimeSessionWindows.withGap(gap))
+                .aggregate(new CountBids(), new WithWindowEnd(),
+                        TypeInformation.of(Long.class), TypeInformation.of(Long.class),
+                        TypeInformation.of(new TypeHint<Tuple3<Long, Long, Long>>() {}));
+        g(sessions.setParallelism(heavyPar).name("user-sessions").uid("user-sessions"),
+                "sessions", "user-sessions");
+
+        final DataStreamSink<Tuple3<Long, Long, Long>> sink = sessions
+                .addSink(new UserSessionsSink()).name("q11-sink").uid("q11-sink");
+        if (slotSharing != GraphConfig.SlotSharingMode.SHARED) {
+            sink.slotSharingGroup("snk");
+        }
+    }
+
+    /** Counts sessions, so a Q11 that emits nothing is visible. */
+    public static class UserSessionsSink extends RichSinkFunction<Tuple3<Long, Long, Long>> {
+        private static final long serialVersionUID = 1L;
+        private long received = 0;
+        private long lastLog = 0;
+        private transient LatencyMeter latency;
+
+        @Override
+        public void open(org.apache.flink.api.common.functions.OpenContext ctx) {
+            latency = new LatencyMeter(getRuntimeContext().getMetricGroup());
+        }
+
+        @Override
+        public void invoke(Tuple3<Long, Long, Long> v, Context ctx) {
+            received++;
+            latency.record(v.f2);   // the session's end: last bid + gap, when its count is final
+            final long now = System.currentTimeMillis();
+            if (now - lastLog > 5000) {
+                lastLog = now;
+                System.out.printf("[Q11-Sink-%d] sessions=%,d last=(bidder=%d,bids=%d,end=%d)%n",
+                        getRuntimeContext().getTaskInfo().getIndexOfThisSubtask() + 1,
+                        received, v.f0, v.f1, v.f2);
+            }
         }
     }
 

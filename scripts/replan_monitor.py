@@ -127,6 +127,18 @@ def fewest_moves(proposed, running, kinds):
 # ---------------------------------------------------------------------------
 # observation
 # ---------------------------------------------------------------------------
+def source_clock_skew_ms(base, jid, detail):
+    """Mean clockSkewMs over the source subtasks, or None if the job does not publish it."""
+    vals = []
+    for vid, mid in (ca.generator_metric_ids(base, jid, detail, "clockSkewMs") or {}).items():
+        for m in ac.rest(base, f"/jobs/{jid}/vertices/{vid}/subtasks/metrics?get={mid}&agg=avg") or []:
+            try:
+                vals.append(float(m["avg"]))
+            except (KeyError, TypeError, ValueError):
+                pass
+    return sum(vals) / len(vals) if vals else None
+
+
 def observe(args, jid, detail, layout):
     """One window of measurements. None if the window crossed a restart."""
     base = args.rest
@@ -195,9 +207,15 @@ def observe(args, jid, detail, layout):
     # (sine of 30 min), what the sources deliver matches the schedule 25-45 s EARLIER than the
     # monitor's clock says (rms error 7.5% -> 2.2% on the V4 run), so without the shift a job
     # that keeps up reads ~92% on a rising sine and >100% on a falling one.
-    lag = getattr(args, "offered_lag", 0.0)
+    # Since 2026-10-17 the sources PUBLISH that offset (clockSkewMs: their schedule clock minus
+    # the TaskManager's wall clock); the fitted lag had drifted from 15 to 100 s over two nights,
+    # so a fixed --offered-lag misread a job that kept up. The fixed value stays as the fallback
+    # for jars without the gauge.
+    skew_ms = source_clock_skew_ms(base, jid, detail)
+    lag = -skew_ms / 1000.0 if skew_ms is not None else getattr(args, "offered_lag", 0.0)
     offered = args.rate * v5loop.offered_multiplier(args.dist, args.rate, t0 - 60.0 - lag, t1 - lag)
     return {"rps": rps, "offered": offered, "ratio": min(1.0, rps / offered) if offered else 0.0,
+            "clock_skew_ms": skew_ms,
             "per_slice": per_slice, "per_slice_disk": per_slice_disk, "where": where,
             "machines": machines, "t": t1}
 

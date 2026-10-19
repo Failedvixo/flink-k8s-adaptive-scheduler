@@ -49,6 +49,15 @@ public class RefBidSource extends RichParallelSourceFunction<Bid> {
      * auction sources at "1000" on a machine that gave them 0.1 cores. Thread CPU time counts only
      * cycles, and covers the operators chained behind the source, which run on this thread.
      */
+    /**
+     * This source's clock minus the TaskManager's wall clock, ms (2026-10-17). The schedule runs
+     * on {@link NexmarkEpochs.Clock} — the wall clock read once at start, then advanced by the
+     * monotonic clock — while the monitor computes the offered rate from the host's wall clock.
+     * Fitted per run, the two disagreed by 15-100 s and drifted over a night of campaigns, enough
+     * to read a job that keeps up as 87% on a rising sine. Published so the monitor can line the
+     * schedule up exactly instead of assuming a fixed lag.
+     */
+    private transient volatile long clockSkewMs;
     private transient volatile long lastGeneratorCpuMs;
     private transient long epochsPerSecond;
     private transient int subtasks;
@@ -99,6 +108,8 @@ public class RefBidSource extends RichParallelSourceFunction<Bid> {
         group.gauge("generatorBusyMsPerSecond", (Gauge<Long>) () -> lastGeneratorBusyMs);
         getRuntimeContext().getMetricGroup()
                 .gauge("generatorCpuMsPerSecond", (Gauge<Long>) () -> lastGeneratorCpuMs);
+        getRuntimeContext().getMetricGroup()
+                .gauge("clockSkewMs", (Gauge<Long>) () -> clockSkewMs);
         this.emitted = group.counter("bidsHandedToCollect");
         group.gauge("loopLagEpochs", (Gauge<Long>) () -> lastLagEpochs);
         group.gauge("loopMaxGapMs", (Gauge<Long>) () -> maxGapMs);
@@ -124,6 +135,7 @@ public class RefBidSource extends RichParallelSourceFunction<Bid> {
                 schedule.epochAt(startedAt), subtasks, index);
         long previousStart = -1;
         while (running && clock.nowMillis() < deadline) {
+            clockSkewMs = clock.nowMillis() - System.currentTimeMillis();
             final long emitStart = clock.nowMillis();
             if (previousStart > 0) {
                 maxGapMs = Math.max(maxGapMs, emitStart - previousStart);
