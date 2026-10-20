@@ -64,8 +64,9 @@ echo "=========================================="
 echo "  ANÁLISIS"
 echo "=========================================="
 python3 - "$OUT" <<'EOF' | tee "$OUT/summary.txt"
-import csv, glob, itertools, random, sys
+import csv, glob, itertools, os, random, sys
 out = sys.argv[1]
+MEASURE_LAST = float(os.environ.get("MEASURE_LAST", "600"))
 runs = []
 for line in open(f"{out}/runs.txt"):
     p, arm, d = line.split()
@@ -80,12 +81,32 @@ for line in open(f"{out}/runs.txt"):
     lats = [float(r["p50_ms"]) for r in led if r["p50_ms"] not in ("", "None")]
     p99 = [float(r["p99_ms"]) for r in led if r["p99_ms"] not in ("", "None")]
     mon = [r for f in glob.glob(f"{d}/monitor2-*.csv") for r in csv.DictReader(open(f))]
+    # THE LAST MEASURE_LAST SECONDS (2026-10-20), next to the whole run: CAPSys (EuroSys'25 §6.1)
+    # collects 10 min of metrics after a 6-min warm-up, i.e. a placement's STEADY state. The
+    # whole-run figure is still the headline for a monitor — it pays its exploration there — but
+    # the window is what compares with the literature.
+    t_end = float(end["elapsed_s"])
+    first = min(led, key=lambda r: abs(float(r["elapsed_s"]) - (t_end - MEASURE_LAST)))
+    w_off = float(end["offered_cum"]) - float(first["offered_cum"])
+    w_ratio = (float(end["delivered_cum"]) - float(first["delivered_cum"])) / w_off if w_off > 0 else None
+    w_lats = [float(r["p50_ms"]) for r in led if r["p50_ms"] not in ("", "None")
+              and float(r["elapsed_s"]) >= t_end - MEASURE_LAST]
     runs.append({"pass": int(p), "arm": arm, "ratio": min(1.0, ratio),
+                 "w_ratio": w_ratio, "w_lat": sum(w_lats) / len(w_lats) if w_lats else None,
                  "lat": sum(lats) / len(lats) if lats else None,
                  "p99": sum(p99) / len(p99) if p99 else None,
                  "moves": sum(r["decision"] == "mover" for r in mon), "restarts": int(end["restarts"])})
 
 arms = list(dict.fromkeys(r["arm"] for r in runs))
+print(f"\nÚLTIMOS {MEASURE_LAST / 60:.0f} MIN de cada corrida (estado estable, como CAPSys):")
+for a in arms:
+    rs = [r for r in runs if r["arm"] == a and r["w_ratio"] is not None]
+    if rs:
+        wl = [r["w_lat"] for r in rs if r["w_lat"] is not None]
+        print(f"  {a:8s} entrega {sum(r['w_ratio'] for r in rs) / len(rs):6.1%}  latencia p50 "
+              f"{(sum(wl) / len(wl) / 1000) if wl else float('nan'):5.1f} s   "
+              + "  ".join(f"{r['w_ratio']:.1%}" for r in sorted(rs, key=lambda r: r['pass'])))
+print("\nTODA LA CORRIDA (incluye asentamiento, reinicios y exploración):")
 print(f"\n{'brazo':8s} {'n':>2s} {'entrega':>9s} {'latencia p50':>13s} {'p99':>8s} {'cambios':>8s}   por pasada (entrega, toda la corrida)")
 for a in arms:
     rs = [r for r in runs if r["arm"] == a]
@@ -111,7 +132,9 @@ def perm(x, y, iters=20000):
 
 print("\nComparaciones (por corrida; prueba de permutación):")
 for a, b in itertools.combinations(arms, 2):
-    for key, label in (("ratio", "entrega"), ("lat", "latencia p50"), ("p99", "latencia p99")):
+    for key, label in (("ratio", "entrega"), ("lat", "latencia p50"), ("p99", "latencia p99"),
+                       ("w_ratio", f"entrega últimos {MEASURE_LAST / 60:.0f} min"),
+                       ("w_lat", f"latencia p50 últimos {MEASURE_LAST / 60:.0f} min")):
         x = [r[key] for r in runs if r["arm"] == b and r[key] is not None]
         y = [r[key] for r in runs if r["arm"] == a and r[key] is not None]
         if len(x) >= 2 and len(y) >= 2:

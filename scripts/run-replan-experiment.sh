@@ -57,11 +57,14 @@ MODEL="${MODEL:-}"
 FORK_ARM=RL
 case "$ARM" in
     STOCK) BANDIT_MODE=stock; FORK_ARM=STOCK ;;
+    # Round Robin (2026-10-19): the fork's ROUND_ROBIN arm, measured only — the second baseline of
+    # the retrained-v4 comparison (STOCK / RR / V4), alongside Flink's own placement.
+    RR) BANDIT_MODE=stock; FORK_ARM=ROUND_ROBIN ;;
     V4) BANDIT_MODE=v4 ;;
     BANDIT) BANDIT_MODE=bandit ;;
     MON) MODE_ARGS="" ;;
     NOMON) MODE_ARGS="--observe-only" ;;
-    *) echo "ERROR: ARM debe ser STOCK, V4 o BANDIT (o MON / NOMON, el monitor por regla)" >&2; exit 2 ;;
+    *) echo "ERROR: ARM debe ser STOCK, RR, V4 o BANDIT (o MON / NOMON, el monitor por regla)" >&2; exit 2 ;;
 esac
 [ -f "$ROOT_DIR/$QTABLE" ] || [ -f "$QTABLE" ] || { echo "ERROR: no existe $QTABLE" >&2; exit 2; }
 
