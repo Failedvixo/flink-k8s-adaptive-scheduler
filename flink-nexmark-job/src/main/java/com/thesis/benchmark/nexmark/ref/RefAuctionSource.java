@@ -88,6 +88,14 @@ public class RefAuctionSource extends RichParallelSourceFunction<Auction> {
      * schedule up exactly instead of assuming a fixed lag.
      */
     private transient volatile long clockSkewMs;
+    /**
+     * Epochs ahead at which Beam's auction-length horizon sits: numInFlightAuctions x 50 / 3
+     * events (the auction proportion), at 50 events per epoch.
+     */
+    private static final long IN_FLIGHT_EPOCHS =
+            Math.max(1L, NexmarkConfiguration.DEFAULT.numInFlightAuctions
+                    * (long) GeneratorConfig.PROPORTION_DENOMINATOR
+                    / GeneratorConfig.AUCTION_PROPORTION / GeneratorConfig.PROPORTION_DENOMINATOR);
     private transient volatile long lastGeneratorCpuMs;
     private transient long epochsPerSecond;
     private transient int subtasks;
@@ -166,8 +174,20 @@ public class RefAuctionSource extends RichParallelSourceFunction<Auction> {
                     final long eventId = total * nextEpoch + persons + slot;
                     // nextAuction takes the raw millisecond timestamp, unlike nextPerson,
                     // which takes a joda DateTime. That asymmetry is Beam's, not a typo.
-                    ctx.collect(AuctionGenerator.nextAuction(
-                            eventsCountSoFar, eventId, new Random(eventId), timestamp, config));
+                    final Auction auction = AuctionGenerator.nextAuction(
+                            eventsCountSoFar, eventId, new Random(eventId), timestamp, config);
+                    // THE AUCTION'S LENGTH ON OUR CLOCK (2026-10-20, Q6). Beam draws it as
+                    // 1 + U[0, 2 x horizon), the horizon being how long until the event that
+                    // keeps numInFlightAuctions (100) auctions open — but it computes that future
+                    // event's time from ITS OWN base time (1970), so against our wall-clock
+                    // timestamp the horizon is negative and every auction lasted 1 ms: closed
+                    // before any bid. Same formula, horizon taken from our schedule. Q8 and Q3
+                    // never read `expires`; Q6 lives on it.
+                    final long horizonMs = Math.max(1L,
+                            schedule.timeOf(nextEpoch + IN_FLIGHT_EPOCHS) - timestamp);
+                    auction.expires = new org.joda.time.Instant(timestamp + 1L
+                            + (long) (new Random(~eventId).nextDouble() * 2.0 * horizonMs));
+                    ctx.collect(auction);
                     eventsCountSoFar++;
                 }
                 nextEpoch += subtasks;

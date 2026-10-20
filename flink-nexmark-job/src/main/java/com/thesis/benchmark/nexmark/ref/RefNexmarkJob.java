@@ -111,11 +111,13 @@ public class RefNexmarkJob {
             runQ5(env, rate, durationSec, heavyPar, maxEventAgeMs, q5Window(args[3]));
         } else if ("q3".equals(query)) {
             runQ3(env, rate, durationSec, heavyPar, maxEventAgeMs, q3StateTtlSec());
+        } else if ("q6".equals(query)) {
+            runQ6(env, rate, durationSec, heavyPar, maxEventAgeMs);
         } else if ("q11".equals(query)) {
             runQ11(env, rate, durationSec, heavyPar, maxEventAgeMs, q11Gap(args[3]));
         } else {
             throw new IllegalArgumentException(
-                    "only q3, q5, q8 and q11 are ported to the reference sources so far, got " + query);
+                    "only q3, q5, q6, q8 and q11 are ported to the reference sources so far, got " + query);
         }
 
         env.execute("nexmark-ref-" + query + " rate=" + rate + " par=" + parallelism
@@ -490,13 +492,231 @@ public class RefNexmarkJob {
                 .aggregate(new CountBids(), new WithWindowEnd(),
                         TypeInformation.of(Long.class), TypeInformation.of(Long.class),
                         TypeInformation.of(new TypeHint<Tuple3<Long, Long, Long>>() {}));
-        g(sessions.setParallelism(heavyPar).name("user-sessions").uid("user-sessions"),
-                "sessions", "user-sessions");
+        // Named as run-placement-experiment.sh's query_heavy_vertex expects (q11 -> q11-sessions).
+        g(sessions.setParallelism(heavyPar).name("q11-sessions").uid("q11-sessions"),
+                "sessions", "q11-sessions");
 
         final DataStreamSink<Tuple3<Long, Long, Long>> sink = sessions
                 .addSink(new UserSessionsSink()).name("q11-sink").uid("q11-sink");
         if (slotSharing != GraphConfig.SlotSharingMode.SHARED) {
             sink.slotSharingGroup("snk");
+        }
+    }
+
+    // ================================================================
+    //   Q6 — Average Selling Price by Seller
+    //     For each seller, the average closing price of their last 10
+    //     auctions. An auction closes at its expiry; its closing price is
+    //     the highest bid at or above the reserve placed before it expired
+    //     (Beam's WinningBids). Auctions that never reach their reserve
+    //     do not count.
+    // ================================================================
+    //
+    // WHY Q6 (2026-10-20). It completes CAPSys' Nexmark set (EuroSys'25 §6.1: their
+    // "Q5-aggregate" = Nexmark Q6, "a stateful join operator and a process function operator").
+    // The heavy operator is the winning-bids join: per auction it keeps the auction and its best
+    // bid until expiry, then hands (seller, price) to a per-seller rolling average — a second,
+    // lighter keyed operator with its own state, which none of the other four queries has.
+    //
+    // Rates: Beam's event sequence has 1 person, 3 auctions and 46 bids per epoch, and both
+    // sources must walk the SAME epochs so a bid refers to an auction that exists — exactly the
+    // Q8 constraint (see runQ8). The query uses auctions and bids only: 3 + 46 = 49 events per
+    // epoch, the total rate rounded down to a multiple of 49.
+    static final int Q6_LAST_N = 10;
+
+    private static void runQ6(StreamExecutionEnvironment env, int rate, int durationSec,
+                              int heavyPar, long maxEventAgeMs) {
+        final int epochs = Math.max(1, rate / 49);
+        final int auctionRate = 3 * epochs;
+        final int bidRate = 46 * epochs;
+        System.out.println("  q6: " + auctionRate + " subastas/s + " + bidRate
+                + " pujas/s; promedio de las últimas " + Q6_LAST_N + " por vendedor");
+
+        final DataStream<Auction> auctions = g(env
+                .addSource(new RefAuctionSource(auctionRate, durationSec, maxEventAgeMs, querySchedule, rate))
+                .name("auction-source").uid("auction-source"), "auction", "auction-source")
+                .assignTimestampsAndWatermarks(
+                        WatermarkStrategy.<Auction>forBoundedOutOfOrderness(Duration.ofSeconds(2))
+                                .withTimestampAssigner((a, ts) -> a.dateTime.getMillis()))
+                .name("auction-watermarks").uid("auction-watermarks");
+
+        final DataStream<Bid> bids = g(env
+                .addSource(new RefBidSource(bidRate, durationSec, maxEventAgeMs, querySchedule, rate))
+                .name("bid-source").uid("bid-source"), "bid", "bid-source")
+                .assignTimestampsAndWatermarks(
+                        WatermarkStrategy.<Bid>forBoundedOutOfOrderness(Duration.ofSeconds(2))
+                                .withTimestampAssigner((b, ts) -> b.dateTime.getMillis()))
+                .name("bid-watermarks").uid("bid-watermarks");
+
+        // (seller, closing price, closing time, input time) per auction that met its reserve.
+        final SingleOutputStreamOperator<Tuple4<Long, Long, Long, Long>> winning = auctions
+                .keyBy((KeySelector<Auction, Long>) a -> a.id)
+                .connect(bids.keyBy((KeySelector<Bid, Long>) b -> b.auction))
+                .process(new WinningBids())
+                .returns(TypeInformation.of(new TypeHint<Tuple4<Long, Long, Long, Long>>() {}));
+        g(winning.setParallelism(heavyPar).name("q6-winning-bids").uid("q6-winning-bids"),
+                "winning", "q6-winning-bids");
+
+        // (seller, average of the last N closing prices, input time).
+        final SingleOutputStreamOperator<Tuple3<Long, Long, Long>> averages = winning
+                .keyBy((KeySelector<Tuple4<Long, Long, Long, Long>, Long>) t -> t.f0)
+                .process(new SellerAverage(Q6_LAST_N))
+                .returns(TypeInformation.of(new TypeHint<Tuple3<Long, Long, Long>>() {}));
+        g(averages.name("q6-seller-avg").uid("q6-seller-avg"), "avg", "q6-seller-avg");
+
+        final DataStreamSink<Tuple3<Long, Long, Long>> sink = averages
+                .addSink(new SellerAverageSink()).name("q6-sink").uid("q6-sink");
+        if (slotSharing != GraphConfig.SlotSharingMode.SHARED) {
+            sink.slotSharingGroup("snk");
+        }
+    }
+
+    /**
+     * Beam's WinningBids in Flink terms, per auction id: the auction and the best valid bid so
+     * far; at the auction's expiry (an event-time timer) the winner, if any, is emitted and the
+     * state cleared. A bid that arrives before its auction — the two sources run in step but on
+     * different subtasks — waits in a short list until the auction shows up, and is dropped if it
+     * does not within EARLY_BID_MS of its own time.
+     */
+    public static class WinningBids extends KeyedCoProcessFunction<
+            Long, Auction, Bid, Tuple4<Long, Long, Long, Long>> {
+        private static final long serialVersionUID = 1L;
+        private static final long EARLY_BID_MS = 30_000L;
+        private transient ValueState<Auction> auction;
+        private transient ValueState<Long> bestPrice;
+        private transient ValueState<Long> bestInput;
+        private transient ListState<Bid> early;
+
+        @Override
+        public void open(org.apache.flink.api.common.functions.OpenContext ctx) {
+            auction = getRuntimeContext().getState(
+                    new ValueStateDescriptor<>("auction", TypeInformation.of(Auction.class)));
+            bestPrice = getRuntimeContext().getState(
+                    new ValueStateDescriptor<>("best-price", TypeInformation.of(Long.class)));
+            bestInput = getRuntimeContext().getState(
+                    new ValueStateDescriptor<>("best-input", TypeInformation.of(Long.class)));
+            early = getRuntimeContext().getListState(
+                    new ListStateDescriptor<>("early-bids", TypeInformation.of(Bid.class)));
+        }
+
+        private void offer(Auction a, Bid b) throws Exception {
+            final long t = b.dateTime.getMillis();
+            if (b.price < a.reserve || t < a.dateTime.getMillis() || t >= a.expires.getMillis()) {
+                return;
+            }
+            final Long best = bestPrice.value();
+            if (best == null || b.price > best) {
+                bestPrice.update(b.price);
+                bestInput.update(Math.max(t, a.dateTime.getMillis()));
+            }
+        }
+
+        @Override
+        public void processElement1(Auction a, Context ctx,
+                                    Collector<Tuple4<Long, Long, Long, Long>> out) throws Exception {
+            auction.update(a);
+            for (Bid b : early.get()) {
+                offer(a, b);
+            }
+            early.clear();
+            ctx.timerService().registerEventTimeTimer(a.expires.getMillis());
+        }
+
+        @Override
+        public void processElement2(Bid b, Context ctx,
+                                    Collector<Tuple4<Long, Long, Long, Long>> out) throws Exception {
+            final Auction a = auction.value();
+            if (a != null) {
+                offer(a, b);
+            } else {
+                early.add(b);
+                ctx.timerService().registerEventTimeTimer(b.dateTime.getMillis() + EARLY_BID_MS);
+            }
+        }
+
+        @Override
+        public void onTimer(long ts, OnTimerContext ctx,
+                            Collector<Tuple4<Long, Long, Long, Long>> out) throws Exception {
+            final Auction a = auction.value();
+            if (a == null) {
+                early.clear();                       // bids whose auction never came
+                return;
+            }
+            if (ts < a.expires.getMillis()) {
+                return;                              // an early-bid timer, the auction is still open
+            }
+            final Long best = bestPrice.value();
+            if (best != null) {
+                // Fourth field: when the result could first exist — the auction's close.
+                out.collect(Tuple4.of(a.seller, best, a.expires.getMillis(), a.expires.getMillis()));
+            }
+            auction.clear();
+            bestPrice.clear();
+            bestInput.clear();
+            early.clear();
+        }
+    }
+
+    /** Per seller: the average of the last N closing prices, emitted on every new one. */
+    public static class SellerAverage extends KeyedProcessFunction<
+            Long, Tuple4<Long, Long, Long, Long>, Tuple3<Long, Long, Long>> {
+        private static final long serialVersionUID = 1L;
+        private final int lastN;
+        private transient ListState<Long> prices;
+
+        public SellerAverage(int lastN) {
+            this.lastN = lastN;
+        }
+
+        @Override
+        public void open(org.apache.flink.api.common.functions.OpenContext ctx) {
+            prices = getRuntimeContext().getListState(
+                    new ListStateDescriptor<>("last-prices", TypeInformation.of(Long.class)));
+        }
+
+        @Override
+        public void processElement(Tuple4<Long, Long, Long, Long> w, Context ctx,
+                                   Collector<Tuple3<Long, Long, Long>> out) throws Exception {
+            final java.util.ArrayList<Long> kept = new java.util.ArrayList<>();
+            for (Long p : prices.get()) {
+                kept.add(p);
+            }
+            kept.add(w.f1);
+            while (kept.size() > lastN) {
+                kept.remove(0);
+            }
+            prices.update(kept);
+            long sum = 0;
+            for (long p : kept) {
+                sum += p;
+            }
+            out.collect(Tuple3.of(w.f0, sum / kept.size(), w.f3));
+        }
+    }
+
+    /** Counts averages, so a Q6 that emits nothing is visible. */
+    public static class SellerAverageSink extends RichSinkFunction<Tuple3<Long, Long, Long>> {
+        private static final long serialVersionUID = 1L;
+        private long received = 0;
+        private long lastLog = 0;
+        private transient LatencyMeter latency;
+
+        @Override
+        public void open(org.apache.flink.api.common.functions.OpenContext ctx) {
+            latency = new LatencyMeter(getRuntimeContext().getMetricGroup());
+        }
+
+        @Override
+        public void invoke(Tuple3<Long, Long, Long> v, Context ctx) {
+            received++;
+            latency.record(v.f2);   // the auction's close: when its price could first be known
+            final long now = System.currentTimeMillis();
+            if (now - lastLog > 5000) {
+                lastLog = now;
+                System.out.printf("[Q6-Sink-%d] averages=%,d last=(seller=%d,avg=%d)%n",
+                        getRuntimeContext().getTaskInfo().getIndexOfThisSubtask() + 1,
+                        received, v.f0, v.f1);
+            }
         }
     }
 

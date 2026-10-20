@@ -288,7 +288,7 @@ query_heavy_vertex() {
         q0) echo "q0-passthrough" ;;      q1) echo "q1-currency" ;;
         q2) echo "q2-selection" ;;        q3) echo "q3-state-join" ;;
         q4) echo "q4-cat-avg" ;;          q5) echo "hot-items-count" ;;
-        q6) echo "q6-seller-avg" ;;       q7) echo "q7-max-bid" ;;
+        q6) echo "q6-winning-bids" ;;     q7) echo "q7-max-bid" ;;
         q8) echo "new-users-join" ;;      q9) echo "q9-winning-bid" ;;
         q10) echo "q10-sink" ;;           q11) echo "q11-sessions" ;;
         q12) echo "q12-proc-sessions" ;;  *) echo "" ;;
