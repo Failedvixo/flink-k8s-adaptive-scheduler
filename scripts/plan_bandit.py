@@ -103,8 +103,8 @@ def realise(arm, running, kinds, heavy, capacity, speeds):
         need = dict(want[kind])
         keep, move = [], []
         for i in idx:
-            cls = machine_class(running[i])
-            if need.get(cls, 0) > 0:
+            cls = machine_class(running[i]) if running[i] else None
+            if cls is not None and need.get(cls, 0) > 0:
                 need[cls] -= 1
                 keep.append(i)
             else:
@@ -118,6 +118,10 @@ def realise(arm, running, kinds, heavy, capacity, speeds):
             out[i] = ("class", cls)
     used = {tm: 0 for tm in capacity}
     for i, tm in enumerate(out):
+        if out[i] is None:
+            # A subtask that does not exist yet (the plan for a parallelism about to be set): a
+            # light one goes where there is room, after the heavy ones below.
+            continue
         if isinstance(tm, str) and kinds[i] in heavy:
             used[tm] += 1
     # Heavy subtasks that move: the TaskManager of their class with most room.
@@ -132,7 +136,7 @@ def realise(arm, running, kinds, heavy, capacity, speeds):
     # Light slices: stay if their machine still has room, else go to the slowest with room.
     light = [i for i in range(len(out)) if kinds[i] not in heavy]
     for i in light:
-        if used[out[i]] < capacity[out[i]]:
+        if out[i] is not None and used[out[i]] < capacity[out[i]]:
             used[out[i]] += 1
         else:
             out[i] = None
@@ -279,6 +283,44 @@ def dominated_by(arm, other, order):
     return True
 
 
+# ---------------------------------------------------------------------------
+# coordinated scaling (2026-10-21)
+# ---------------------------------------------------------------------------
+def future_slices(slices, group, k_new):
+    """The slice list after the operators in `group` (vertex ids) go to parallelism k_new, the
+    rest unchanged. Under PER_STAGE sharing a slice is one subtask index of one sharing group, so
+    the future layout is predictable: the group's slices for indices >= k_new disappear, and new
+    ones [(vid, i) for vid in group] appear for the indices it gains."""
+    out = [m for m in slices if not (m[0][0] in group and m[0][1] >= k_new)]
+    have = {m[0][1] for m in slices if m[0][0] in group}
+    members = sorted(group)
+    for i in range(k_new):
+        if i not in have:
+            out.append([(vid, i) for vid in members])
+    return out
+
+
+def rescale_put(jid, detail, group, k_new):
+    """PUT resource-requirements: the group's vertices to k_new, every other vertex as it is (a
+    partial payload is rejected outright). (ok, error)."""
+    reqs = {}
+    for v in detail.get("vertices", []):
+        par = k_new if v["id"] in group else max(1, int(v.get("parallelism", 1)))
+        reqs[v["id"]] = {"parallelism": {"lowerBound": par, "upperBound": par}}
+    if not ac._JM_POD:
+        return False, "sin --jm-pod"
+    try:
+        out = subprocess.run(["kubectl", "exec", "-n", ac._NAMESPACE, ac._JM_POD, "--", "curl", "-s",
+                              "-o", "/dev/null", "-w", "%{http_code}", "-m", "20", "-X", "PUT",
+                              f"http://localhost:8081/jobs/{jid}/resource-requirements",
+                              "-H", "Content-Type: application/json", "-d", json.dumps(reqs)],
+                             capture_output=True, text=True, timeout=40)
+        code = out.stdout.strip()
+        return code in ("200", "202"), (None if code in ("200", "202") else f"HTTP {code}")
+    except subprocess.SubprocessError as e:
+        return False, str(e)
+
+
 def trigger_checkpoint(jid, timeout=90.0):
     """Ask Flink for a checkpoint NOW (REST, Flink >= 1.19) and wait for it. (seconds, error).
 
@@ -374,6 +416,22 @@ def main():
                     help="throttled share at which a machine counts as at its limit (no headroom)")
     ap.add_argument("--busy-machine", type=float, default=0.5,
                     help="share of throttled CPU periods above which no heavy subtask moves INTO a machine")
+    # THE COMMON AUTOSCALER (2026-10-21, the "with rescaling" condition). The same rule for every
+    # arm decides the parallelism of the scalable operator; what differs is the PLACEMENT that
+    # comes with it. STOCK just rescales and Flink places. V4 and the bandit are COORDINATED: the
+    # plan for the new parallelism is computed and published BEFORE the PUT — v4 from the loads it
+    # sees divided over the new subtasks, the bandit from the best placement it has measured with
+    # that many subtasks (else v4's proposal) — so the rescale lands on a planned placement instead
+    # of falling back to LPT and being corrected afterwards.
+    ap.add_argument("--autoscale", action="store_true")
+    ap.add_argument("--scale-vertex", default="", help="name (substring) of the operator to scale")
+    ap.add_argument("--kmin", type=int, default=1)
+    ap.add_argument("--kmax", type=int, default=4)
+    ap.add_argument("--up-streak", type=int, default=2, help="windows short in a row to scale up")
+    ap.add_argument("--down-streak", type=int, default=2, help="windows idle in a row to scale down")
+    ap.add_argument("--up-util", type=float, default=750.0,
+                    help="busy ms/s per subtask the operator should stay under after scaling down")
+    ap.add_argument("--scale-cooldown", type=float, default=240.0, help="s after a rescale before the next")
     ap.add_argument("--offered-lag", type=float, default=30.0,
                     help="seconds the delivered rate trails the schedule (see replan_monitor.observe)")
     ap.add_argument("--lag-floor", type=float, default=0.90,
@@ -419,6 +477,9 @@ def main():
         else Path(args.qtable)
     agent = ca.SliceSarsa(0.0, 0.0, qtable_path, 3, ucb=0.0)
     arm_switched = args.base != "stock"   # STOCK + bandit: the fork's arm goes to RL on the first move
+    short_streak = idle_streak = 0
+    last_scale = 0.0
+    scales = 0
 
     base_name = "Flink estándar" if args.base == "stock" else \
         ("v4 SIN ENTRENAR" if args.qtable in ("", "none") else "v4")
@@ -642,7 +703,11 @@ def main():
                 cands.setdefault(a, why)
             if sarsa_arm:
                 cands.setdefault(sarsa_arm, "propuesta de SARSA")
-            measured = [a for a, s in arms.items() if s.n]
+            # Only arms with as many heavy subtasks as now: after a rescale the arms measured at the
+            # old parallelism cannot be realised (the simulator's first scaled run kept proposing them).
+            n_heavy = sum(sum(v.values()) for v in json.loads(here).values())
+            measured = [a for a, s in arms.items() if s.n
+                        and sum(sum(v.values()) for v in json.loads(a).values()) == n_heavy]
             if measured:
                 best = max(measured, key=lambda a: predicted(a)[0])
                 cands.setdefault(best, "el mejor medido")
@@ -686,6 +751,113 @@ def main():
                         + (f", penalización {pen:.2f})" if pen > 0.005 else ")")
             else:
                 why = "solo mide"
+
+            # ---- THE COMMON AUTOSCALER (see --autoscale). Same rule for every arm; it overrides a
+            # placement move in the cycle it fires. Up: the job fell short --up-streak windows in a
+            # row. Down: --down-streak windows in a row in which the operator, spread over one
+            # subtask less, would still stay under --up-util busy ms/s per subtask.
+            if args.autoscale and args.scale_vertex and initial_done:
+                group = {v["id"] for v in detail.get("vertices", []) if args.scale_vertex in v.get("name", "")}
+                kcur = max((int(v.get("parallelism", 1)) for v in detail.get("vertices", [])
+                            if v["id"] in group), default=0)
+                gslices = [i for i, m in enumerate(layout["slices"]) if any(v in group for v, _ in m)]
+                busy = [1000.0 if obs["per_slice"][i][1] else obs["per_slice"][i][0] for i in gslices]
+                mean_busy = sum(busy) / len(busy) if busy else 0.0
+                short_now = ratio < FULL and not ambiguous
+                short_streak = short_streak + 1 if short_now else 0
+                idle_now = (not short_now and kcur > 1
+                            and mean_busy * kcur / (kcur - 1) < args.up_util)
+                idle_streak = idle_streak + 1 if idle_now else 0
+                k_new = None
+                if group and gslices and time.time() - last_scale >= args.scale_cooldown:
+                    if short_streak >= args.up_streak and kcur < args.kmax:
+                        k_new = kcur + 1
+                    elif idle_streak >= args.down_streak and kcur > args.kmin:
+                        k_new = kcur - 1
+                if k_new is not None:
+                    fut = future_slices(layout["slices"], group, k_new)
+                    fut_kinds = [", ".join(sorted({names.get(v, v) for v, _ in m})) for m in fut]
+                    gkind = kinds[gslices[0]]
+                    heavy_g = set(heavy) | {gkind}
+                    where_now = {tuple(m[0]): running[i] for i, m in enumerate(layout["slices"])}
+                    fut_running = [where_now.get(tuple(m[0])) for m in fut]
+                    placement, how = None, "Flink coloca"
+                    target = None
+                    if args.mode in ("v4", "bandit"):
+                        # The future slices' loads: the operator's total busy spread over k_new.
+                        disk_now = obs.get("per_slice_disk") or [0.0] * len(layout["slices"])
+                        tot = sum(busy)
+                        tot_disk = sum(disk_now[i] for i in gslices)
+                        idx_now = {tuple(m[0]): i for i, m in enumerate(layout["slices"])}
+                        fps, fdisk = [], []
+                        for m in fut:
+                            if m[0][0] in group:
+                                fps.append((tot / k_new, False))
+                                fdisk.append(tot_disk / k_new)
+                            else:
+                                j = idx_now[tuple(m[0])]
+                                fps.append(obs["per_slice"][j])
+                                fdisk.append(disk_now[j])
+                        fplan, _ = ca.decide(agent, fps, [f for _t, f in ranked], 0.0, args.busy_cut,
+                                             disk=fdisk, machine_load=True, disk_floor=args.disk_floor)
+                        fplace = [ranked[fplan[i]][0] for i in range(len(fut))] if fplan else None
+                        target = None
+                        if args.mode == "bandit":
+                            known = [a_ for a_, s_ in arms.items() if s_.n and
+                                     sum(json.loads(a_).get(gkind, {}).values()) == k_new]
+                            if known:
+                                target = max(known, key=lambda a_: predicted(a_)[0])
+                                how = "el mejor medido con %d" % k_new
+                        if target is None and args.mode == "bandit":
+                            # Nothing measured with k_new: EXTEND the placement in force — the new
+                            # subtask to the fastest class with room, or on the way down the one on
+                            # the slowest class goes. The bandit's own neighbourhood, one step in k;
+                            # a stale v4 put all three counts on medium in the simulator's first run.
+                            cur = json.loads(here)
+                            lay = dict(cur.get(gkind, {}))
+                            classes = sorted(class_speed, key=lambda c: -class_speed[c])
+                            tries = classes if k_new > kcur else [c for c in reversed(classes) if lay.get(c, 0)]
+                            for c in tries:
+                                l2 = dict(lay)
+                                l2[c] = l2.get(c, 0) + (1 if k_new > kcur else -1)
+                                l2 = {cc: n for cc, n in l2.items() if n > 0}
+                                cand = dict(cur)
+                                cand[gkind] = l2
+                                cand_arm = json.dumps({k_: dict(sorted(v.items())) for k_, v in sorted(cand.items())},
+                                                      sort_keys=True)
+                                pl = realise(cand_arm, fut_running, fut_kinds, heavy_g, capacity, speeds)
+                                if pl:
+                                    placement = pl
+                                    how = ("+1 en %s" if k_new > kcur else "-1 en %s") % c
+                                    break
+                        if target is None and placement is None and fplace:
+                            target = arm_of(fplace, fut_kinds, heavy_g)
+                            how = "plan de v4 para %d" % k_new
+                        if target and placement is None:
+                            placement = realise(target, fut_running, fut_kinds, heavy_g, capacity, speeds)
+                        if not placement and fplace:
+                            placement, how = fplace, "plan de v4 para %d" % k_new
+                    error = None
+                    if placement:
+                        if not arm_switched:
+                            ca.node_command(args.node, ["sh", "-c", "printf RL > /var/thesis/arm"])
+                            arm_switched = True
+                        ok, error = ca.publish_plan({len(fut): {f"{vid}:{sub}": placement[i]
+                                                               for i, members in enumerate(fut)
+                                                               for vid, sub in members}}, args.node)
+                        if not ok:
+                            error = error or "no se pudo publicar el plan"
+                    if not error:
+                        ok, error = rescale_put(jid, detail, group, k_new)
+                    if error:
+                        decision, why = "error", f"escalar {kcur}->{k_new}: {error}"
+                    else:
+                        decision, why = "escalar", f"{gkind[:24]} {kcur} -> {k_new} ({how})"
+                        scales += 1
+                        last_scale = time.time()
+                        settle_until = time.time() + args.warmup
+                        pending = None
+                        short_streak = idle_streak = 0
 
             if decision == "mover":
                 placement = realise(chosen, running, kinds, heavy, capacity, speeds)
@@ -758,7 +930,7 @@ def main():
             handle.flush()
             save()
 
-    print(f"\nfin: {moves} cambios de emplazamiento; {csv_path}")
+    print(f"\nfin: {moves} cambios de emplazamiento, {scales} reescalados; {csv_path}")
     for a, s in sorted(arms.items(), key=lambda kv: -(kv[1].cap or kv[1].lo)):
         if s.n:
             print(f"  {short(a):40s} n={s.n:2d}  "
