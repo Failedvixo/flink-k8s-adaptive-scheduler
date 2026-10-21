@@ -227,13 +227,25 @@ public class RefNexmarkJob {
     static final java.util.Set<String> Q3_STATES = java.util.Set.of("OR", "ID", "CA");
     static final long Q3_CATEGORY = 10L;
 
-    /** Beam's maxAuctionsWaitingTime unless Q3_STATE_TTL_SEC overrides it (seconds). */
+    /**
+     * How long a person or an auction waits for its match, seconds: 60 unless Q3_STATE_TTL_SEC
+     * overrides it.
+     *
+     * <p>NOT BEAM'S 600 (2026-10-21). With Beam's maxAuctionsWaitingTime, Q3 at 20000 ev/s held
+     * 1.7 GB of state: a checkpoint took 373 s, and since the adaptive scheduler rescales on the
+     * next completed checkpoint and then restores, every rescale or replan cost ~9 min — over the
+     * 300 s the drivers wait, and most of a 10-min measurement window. Q3 then measures state
+     * migration, not placement. 60 s is the same move as Q5's window (CAPSys' 60 min / 1 min,
+     * run as 60 s / 1 s): the query's time scale brought to the testbed's, here to keep state size
+     * over disk bandwidth closer to an SSD cluster's than to fast's capped 5 MB/s. The operator is
+     * the same stateful incremental join; only how long an unmatched record waits changes.
+     */
     static long q3StateTtlSec() {
         final String env = System.getenv("Q3_STATE_TTL_SEC");
         if (env != null && !env.isEmpty()) {
             return Long.parseLong(env);
         }
-        return org.apache.beam.sdk.nexmark.NexmarkConfiguration.DEFAULT.maxAuctionsWaitingTime;
+        return 60L;
     }
 
     private static void runQ3(StreamExecutionEnvironment env, int rate, int durationSec,

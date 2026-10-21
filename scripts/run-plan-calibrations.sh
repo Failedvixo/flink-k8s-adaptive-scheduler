@@ -71,7 +71,8 @@ heavy-slow=q11-sessions=tm-1-slow,bid-source=tm-2-medium,sink=tm-1-slow" ;;
 for q in $QUERIES; do
     case "$q" in
         q8)  RATES="${RATES_Q8:-15000 22000}";  WIN=10; WARM=0;   SUBMIT=3 ;;
-        q3)  RATES="${RATES_Q3:-15000 22000}";  WIN=10; WARM=600; SUBMIT=3 ;;
+        # Q3 runs with a 60 s TTL since 2026-10-21 (RefNexmarkJob.q3StateTtlSec): 2 min fill it.
+        q3)  RATES="${RATES_Q3:-20000 30000}";  WIN=10; WARM=120; SUBMIT=3 ;;
         q6)  RATES="${RATES_Q6:-60000 120000}"; WIN=10; WARM=0;   SUBMIT=3 ;;
         # Q11 has three stages: submitted at 3 it asks for 9 slots, and the pool can come up
         # without fast at all (2026-10-20: "libres slow 6, medium 3"). At 4 it asks for all 12.
