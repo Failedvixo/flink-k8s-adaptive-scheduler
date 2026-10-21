@@ -49,7 +49,20 @@ def snapshot(base, with_latency=True):
             except (TypeError, ValueError):
                 pass
     started = max((v.get("start-time", 0) for v in d.get("vertices", [])), default=0)
-    p50 = p99 = None
+    p50 = p99 = bp = None
+    if with_latency:
+        # BACKPRESSURE (2026-10-21): the sources' backPressuredTimeMsPerSecond, averaged over their
+        # subtasks — the third metric with delivery and latency by which the v4 tables are compared
+        # across queries, and the one CAPSys reports at the source operator.
+        vals = []
+        for vid in sources:
+            for m in ac.rest(base, f"/jobs/{jid}/vertices/{vid}/subtasks/metrics"
+                                   f"?get=backPressuredTimeMsPerSecond&agg=avg") or []:
+                try:
+                    vals.append(float(m["avg"]))
+                except (KeyError, TypeError, ValueError):
+                    pass
+        bp = sum(vals) / len(vals) if vals else None
     for v in d.get("vertices", []) if with_latency else []:
         if v["id"] not in sinks:
             continue
@@ -58,7 +71,7 @@ def snapshot(base, with_latency=True):
             if g.get("latencySamples", 0) > 0 and g.get("latencyP50Ms", -1) >= 0:
                 p50 = max(p50 or 0.0, g["latencyP50Ms"])
                 p99 = max(p99 or 0.0, g.get("latencyP99Ms", g["latencyP50Ms"]))
-    return {"records": records, "started": started, "p50": p50, "p99": p99,
+    return {"records": records, "started": started, "p50": p50, "p99": p99, "bp": bp,
             "running": all(v.get("status") == "RUNNING" for v in d.get("vertices", []))}
 
 
@@ -96,7 +109,7 @@ def main():
     with open(args.out, "w", newline="") as handle:
         w = csv.writer(handle)
         w.writerow(["t", "elapsed_s", "offered_rate", "offered_cum", "delivered_cum", "p50_ms",
-                    "p99_ms", "running", "restarts"])
+                    "p99_ms", "running", "restarts", "bp_ms"])
         while time.time() - t0 < args.duration and not stop:
             time.sleep(max(0.0, args.interval - (time.time() - prev_t)))
             now = time.time()
@@ -107,7 +120,7 @@ def main():
             s = snapshot(base, with_latency=(tick % args.latency_every == 0))
             if s is None:
                 w.writerow([round(now, 1), round(now - t0, 1), round(rate_now), round(offered),
-                            round(bridge + (last_records or 0)), "", "", False, restarts])
+                            round(bridge + (last_records or 0)), "", "", False, restarts, ""])
                 stalled += args.interval
                 continue
             if last_started is not None and (s["started"] != last_started or
@@ -135,7 +148,8 @@ def main():
             rows.append((now - t0, rate_now, s["p50"], s["p99"]))
             w.writerow([round(now, 1), round(now - t0, 1), round(rate_now), round(offered),
                         round(delivered), s["p50"] if s["p50"] is not None else "",
-                        s["p99"] if s["p99"] is not None else "", s["running"], restarts])
+                        s["p99"] if s["p99"] is not None else "", s["running"], restarts,
+                        round(s["bp"], 1) if s.get("bp") is not None else ""])
             handle.flush()
 
     # The last counter value is up to one refresh (~10 s) old: add what the sources emitted since,

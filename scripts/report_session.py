@@ -50,8 +50,10 @@ def window(led, start, end):
     off = float(b["offered_cum"]) - float(a["offered_cum"])
     lats = [float(r["p50_ms"]) for r in led if r["p50_ms"] not in ("", "None")
             and start <= float(r["elapsed_s"]) <= end]
+    bps = [float(r["bp_ms"]) for r in led if r.get("bp_ms") not in (None, "", "None")
+           and start <= float(r["elapsed_s"]) <= end]
     return ((float(b["delivered_cum"]) - float(a["delivered_cum"])) / off if off > 0 else None,
-            st.mean(lats) / 1000 if lats else None)
+            st.mean(lats) / 1000 if lats else None, st.mean(bps) if bps else None)
 
 
 def load_campaign(camp, last=None):
@@ -66,8 +68,8 @@ def load_campaign(camp, last=None):
             continue
         t_end = float(led[-1]["elapsed_s"])
         span = LAST if last is None else last
-        w_ratio, w_lat = window(led, t_end - span, t_end)
-        f_ratio, f_lat = window(led, 0, t_end)
+        w_ratio, w_lat, w_bp = window(led, t_end - span, t_end)
+        f_ratio, f_lat, _ = window(led, 0, t_end)
         mon = [r for f in glob.glob(f"{d}/monitor2-*.csv") for r in csv.DictReader(open(f))]
         late = [r for r in mon if float(r.get("elapsed_s") or 0) >= t_end - span] or mon
         k_avg = None
@@ -75,7 +77,7 @@ def load_campaign(camp, last=None):
             if "paralelismo medio del operador escalado:" in line:
                 k_avg = float(line.split(":")[1].split()[0])
         placed = collections.Counter(r.get("arm", "") for r in late).most_common(1)
-        runs.append({"pass": int(p), "arm": arm, "w": w_ratio, "w_lat": w_lat, "f": f_ratio,
+        runs.append({"pass": int(p), "arm": arm, "w": w_ratio, "w_lat": w_lat, "w_bp": w_bp, "f": f_ratio,
                      "f_lat": f_lat, "moves": sum(r.get("decision") == "mover" for r in mon),
                      "placed": placed[0][0] if placed else "", "k": k_avg, "dir": d})
     return runs
@@ -124,11 +126,11 @@ def main():
         sys.exit(f"sin bloques terminados en {sess} (ni --block)")
 
     out = [f"# Resultados de la sesión {args.query}", ""]
-    sel = sess / "selected-table.txt"
+    sel = ROOT / "results" / "sessions" / "selected-v4.txt"
     if sel.exists():
         t, arm, score = (sel.read_text().split() + ["", "", ""])[:3]
-        out += [f"Tabla de v4 seleccionada en A para V y R: `{t}` (brazo {arm}, entrega {float(score or 0):.1%} "
-                "en los últimos 10 min de A).", ""]
+        out += [f"v4 seleccionado en la fase G (todas las queries) para A, V y R: `{t}` ({arm}, rango medio "
+                f"{score}; scripts/select_v4.py).", ""]
     own_v4_w = None
     for b in "AGVR":
         if b not in blocks:
@@ -153,9 +155,10 @@ def main():
                        f"{(f'{st.mean(r[chr(107)] for r in rs if r[chr(107)]):.2f}') if any(r['k'] for r in rs) else '2'} | "
                        f"{' · '.join(fmt_pct(r['w']) for r in rs)} | "
                        f"{places[0][0] if places else ''} |")
-        if b == "A":
-            own = [r["w"] for r in runs if r["arm"] == "V4" and r["w"] is not None]
-            own_v4_w = own or None
+        own_arm = "V4" if b == "A" else f"V4_{args.query.upper()}"
+        if b in ("A", "G"):
+            own = [r["w"] for r in runs if r["arm"] == own_arm and r["w"] is not None]
+            own_v4_w = own or own_v4_w
         pairs = list(PRIMARY.get(b, []))
         if b in ("A", "G"):
             pairs += [(a, "V4_PRIOR") for a in arms if a.startswith("V4_Q")]
@@ -167,7 +170,8 @@ def main():
             out += ["", f"Comparaciones declaradas (permutación exacta; con Bonferroni sobre {k} "
                         f"comparaciones el umbral es p < {0.05 / k:.4f}):", ""]
             for x, y in pairs:
-                for key, label in (("w", f"entrega ({lbl})"), ("w_lat", "latencia"), ("f", "entrega toda la corrida"),
+                for key, label in (("w", f"entrega ({lbl})"), ("w_lat", "latencia"), ("w_bp", "contrapresión"),
+                                   ("f", "entrega toda la corrida"),
                                    ("k", "paralelismo medio")):
                     c = compare(runs, x, y, key)
                     if c:
@@ -175,9 +179,9 @@ def main():
                         mark = " ✔" if p < 0.05 / k else (" (p<0,05 sin corregir)" if p < 0.05 else "")
                         out.append(f"- {x} vs {y}, {label}: {d:+.1%}, p={p:.3f} (n={nx} vs {ny}){mark}")
         if b in ("A", "G") and own_v4_w and any(a.startswith("V4_Q") for a in arms):
-            out += ["", "Brecha de generalización (últimos 10 min, contra el V4 propio del bloque A):", ""]
+            out += ["", f"Brecha de generalización (últimos 10 min, contra {own_arm}, la tabla entrenada en esta query):", ""]
             for a in arms:
-                if a.startswith("V4_Q"):
+                if a.startswith("V4_Q") and a != own_arm:
                     x = [r["w"] for r in runs if r["arm"] == a and r["w"] is not None]
                     if len(x) >= 2:
                         out.append(f"- {a}: {st.mean(x):.1%} vs V4 propio {st.mean(own_v4_w):.1%} "

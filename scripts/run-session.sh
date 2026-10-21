@@ -4,36 +4,38 @@
 # ============================================
 #
 # WHY (2026-10-21). The design agreed with the professor — five CAPSys queries, constant and
-# sinusoidal load, with and without rescaling, 5 repetitions — runs as one session per query so
-# the cluster state, the calibration and the trained tables are shared by every arm of that query.
-# Blocks (each one run-monitor-campaign.sh, orders rotated, its own analysis):
+# sinusoidal load, with and without rescaling, 5 repetitions — in TWO PHASES:
 #
-#   A  constant, no rescaling, 6 + 10 min           x5
-#        STOCK V4 STOCK_BANDIT BANDIT + V4_<every other query> + V4_PRIOR
-#        (generalisation lives here: same condition, same rotation as the rest)
-#   -- after A: the trained table with the best delivery over A's last 10 min (this query's own or
-#      another's) is SELECTED; A is the validation set, V and R the test, on a different load
-#   V  sine of 20 min, no rescaling, 6 min + one whole period      STOCK V4 BANDIT              x5
+#   phase 1, SELECTION (every query):
+#   G  constant, 6 + 10 min, parallelism 2: the v4 trained on EACH of the five queries (V4_<Qn>,
+#      this query's own included) + the untrained one (V4_PRIOR)                         x5
+#   -> scripts/select_v4.py picks ONE table for all queries: lowest mean rank over 5 queries x
+#      {delivery, p50 latency, sources' backpressure}; the rule is fixed before any result.
+#
+#   phase 2, EVALUATION (every query, with the selected table, on fresh runs):
+#   A  constant, 6 + 10 min           STOCK V4 STOCK_BANDIT BANDIT                         x5
+#   V  sine of 20 min, 6 min + one whole period, no rescaling   STOCK V4 BANDIT           x5
 #   R  same sine, WITH the common proactive autoscaler (1-3 subtasks of the heavy operator),
-#      placement coordinated for V4 and the bandit                 STOCK V4 BANDIT V4_PRIOR_BANDIT  x5
+#      placement coordinated for V4 and the bandit       STOCK V4 BANDIT V4_PRIOR_BANDIT  x5
 #
-# V4 / BANDIT in V and R use the selected table; V4_PRIOR is an empty table (v4's prior alone).
 # Rates: where the best placement at parallelism 2 keeps up and a bad one does not
 # (scripts/run-plan-calibrations.sh). The 20-min period: detecting, rescaling and settling take
 # ~3-5 min, so a 10-min sine left no room for rescaling to pay (simulator: every arm worse).
 #
 # RESUMABLE: a finished block leaves a marker in results/sessions/<query>/ and is skipped on a
-# relaunch; the selection is a file there too. At the end, report_session.py writes report.md.
+# relaunch. report_session.py writes the query's report.md at the end.
 #
 # Usage:
-#   scripts/run-session.sh q5
-#   BLOCKS="V R" scripts/run-session.sh q8        # only some blocks (A must have run for V/R)
+#   BLOCKS=G scripts/run-session.sh q5        # phase 1, for each query
+#   scripts/select_v4.py                      # the selection, once all G blocks are done
+#   scripts/run-session.sh q5                 # phase 2 (A V R), for each query
 set -u
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 Q="${1:?uso: scripts/run-session.sh <q3|q5|q6|q8|q11>}"
 BLOCKS="${BLOCKS:-A V R}"
+SELECTED="$ROOT_DIR/results/sessions/selected-v4.txt"
 ALL="q3 q5 q6 q8 q11"
 PERIOD="${PERIOD:-1200}"
 
@@ -55,14 +57,13 @@ LOG="$OUT/session.log"
 table_for() { ls "$ROOT_DIR"/results/characterizer/"$1"-v4-cpu2105-r*.json 2>/dev/null | head -1 \
     | sed "s|^$ROOT_DIR/||"; }
 
-cross_arms() {
+tables_arms() {        # V4_<Qn> for every query with a trained table (this one's own included)
     local a=""
     for o in $ALL; do
-        [ "$o" = "$Q" ] && continue
         if [ -n "$(table_for "$o")" ]; then
             a="$a V4_$(echo "$o" | tr 'q' 'Q')"
         else
-            echo "  ! sin tabla entrenada de $o: V4_$o queda fuera del bloque A" | tee -a "$LOG" >&2
+            echo "  ! sin tabla entrenada de $o: V4_$o queda fuera del bloque G" | tee -a "$LOG" >&2
         fi
     done
     echo "$a"
@@ -98,47 +99,18 @@ run_block() {          # name arms runs dist duration measure_last [extra env as
     fi
 }
 
-# The trained table with the best delivery over block A's last 10 min: this query's own (arm V4)
-# or another query's (V4_<Qn>). V4_PRIOR is the control, never a candidate. Ties keep the own.
-select_table() {
-    [ -f "$OUT/selected-table.txt" ] && { cat "$OUT/selected-table.txt"; return; }
-    [ -f "$OUT/block-A.done" ] || { echo "$own own (sin bloque A: tabla propia por defecto)"; return; }
-    python3 - "$ROOT_DIR" "$(cat "$OUT/block-A.done")" "$Q" <<'EOF' | tee "$OUT/selected-table.txt"
-import glob, statistics as st, sys
-from pathlib import Path
-root, camp, q = sys.argv[1], sys.argv[2], sys.argv[3]
-sys.path.insert(0, f"{root}/scripts")
-import report_session as rs
-runs = rs.load_campaign(Path(root) / camp)
-def table(arm):
-    qq = q if arm == "V4" else arm[3:].lower()
-    hits = sorted(glob.glob(f"{root}/results/characterizer/{qq}-v4-cpu2105-r*.json"))
-    return hits[0][len(root) + 1:] if hits else None
-scores = {}
-for arm in {r["arm"] for r in runs}:
-    if arm == "V4" or arm.startswith("V4_Q"):
-        w = [r["w"] for r in runs if r["arm"] == arm and r["w"] is not None]
-        if w:
-            scores[arm] = st.mean(w)
-best = max(scores, key=lambda a: (round(scores[a], 3), a == "V4"))
-print(f"{table(best)} {best} {scores[best]:.4f}")
-EOF
-}
-
 for b in $BLOCKS; do
+    if [ "$b" != G ]; then
+        [ -f "$SELECTED" ] || { echo "ERROR: falta $SELECTED — corre G en todas las queries y scripts/select_v4.py" | tee -a "$LOG" >&2; exit 2; }
+        read -r SEL SEL_ARM SEL_SCORE < "$SELECTED"
+        echo "  v4 seleccionado: $SEL  ($SEL_ARM, rango medio $SEL_SCORE)" | tee -a "$LOG"
+    fi
     case "$b" in
-        A) run_block A "STOCK V4 STOCK_BANDIT BANDIT$(cross_arms) V4_PRIOR" 5 CONSTANT 960 600 ;;
-        V|R)
-            read -r SEL SEL_ARM SEL_SCORE <<< "$(select_table)"
-            echo "  tabla de v4 para V y R: $SEL  (brazo $SEL_ARM en A, entrega $SEL_SCORE)" | tee -a "$LOG"
-            if [ "$b" = V ]; then
-                run_block V "STOCK V4 BANDIT" 5 "SINE:$PERIOD:$LO,$HI" $((360 + PERIOD)) "$PERIOD" \
-                    QTABLE="$SEL"
-            else
-                run_block R "STOCK V4 BANDIT V4_PRIOR_BANDIT" 5 "SINE:$PERIOD:$LO,$HI" $((360 + PERIOD)) "$PERIOD" \
-                    QTABLE="$SEL" \
-                    MONITOR_ARGS="--autoscale --scale-vertex $HEAVY --kmin 1 --kmax 3 --forecast 180"
-            fi ;;
+        G) run_block G "$(tables_arms) V4_PRIOR" 5 CONSTANT 960 600 ;;
+        A) run_block A "STOCK V4 STOCK_BANDIT BANDIT" 5 CONSTANT 960 600 QTABLE="$SEL" ;;
+        V) run_block V "STOCK V4 BANDIT" 5 "SINE:$PERIOD:$LO,$HI" $((360 + PERIOD)) "$PERIOD" QTABLE="$SEL" ;;
+        R) run_block R "STOCK V4 BANDIT V4_PRIOR_BANDIT" 5 "SINE:$PERIOD:$LO,$HI" $((360 + PERIOD)) "$PERIOD" \
+               QTABLE="$SEL" MONITOR_ARGS="--autoscale --scale-vertex $HEAVY --kmin 1 --kmax 3 --forecast 180" ;;
         *) echo "bloque desconocido: $b" | tee -a "$LOG" ;;
     esac
 done
