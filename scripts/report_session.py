@@ -32,11 +32,14 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-BLOCK_TITLES = {"A": "constante, sin reescalado", "G": "constante, generalización",
-                "V": "sinusoide, sin reescalado", "R": "sinusoide, con reescalado"}
+BLOCK_TITLES = {"A": "constante, sin reescalado (incluye generalización)", "G": "constante, generalización",
+                "V": "sinusoide, sin reescalado", "R": "sinusoide, con reescalado coordinado"}
+# Measured span per block: the last 10 min under constant load (CAPSys' protocol); one whole sine
+# period (20 min) under the sinusoidal load, so the whole rise and fall is seen.
+MEASURED = {"A": 600.0, "G": 600.0, "V": 1200.0, "R": 1200.0}
 PRIMARY = {"A": [("V4", "STOCK"), ("BANDIT", "V4"), ("STOCK_BANDIT", "STOCK"), ("BANDIT", "STOCK_BANDIT")],
-           "V": [("V4", "STOCK"), ("BANDIT", "V4"), ("STOCK_BANDIT", "STOCK"), ("BANDIT", "STOCK_BANDIT")],
-           "R": [("V4", "STOCK"), ("BANDIT", "V4"), ("BANDIT", "V4_PRIOR_BANDIT")]}
+           "V": [("V4", "STOCK"), ("BANDIT", "V4"), ("BANDIT", "STOCK")],
+           "R": [("V4", "STOCK"), ("BANDIT", "V4"), ("BANDIT", "STOCK"), ("BANDIT", "V4_PRIOR_BANDIT")]}
 LAST = 600.0
 
 
@@ -51,7 +54,7 @@ def window(led, start, end):
             st.mean(lats) / 1000 if lats else None)
 
 
-def load_campaign(camp):
+def load_campaign(camp, last=None):
     runs = []
     for line in open(Path(camp) / "runs.txt"):
         p, arm, d = line.split()
@@ -62,14 +65,19 @@ def load_campaign(camp):
         if len(led) < 10:
             continue
         t_end = float(led[-1]["elapsed_s"])
-        w_ratio, w_lat = window(led, t_end - LAST, t_end)
+        span = LAST if last is None else last
+        w_ratio, w_lat = window(led, t_end - span, t_end)
         f_ratio, f_lat = window(led, 0, t_end)
         mon = [r for f in glob.glob(f"{d}/monitor2-*.csv") for r in csv.DictReader(open(f))]
-        late = [r for r in mon if float(r.get("elapsed_s") or 0) >= t_end - LAST] or mon
+        late = [r for r in mon if float(r.get("elapsed_s") or 0) >= t_end - span] or mon
+        k_avg = None
+        for line in open(Path(d) / "monitor.log", errors="ignore") if (Path(d) / "monitor.log").exists() else []:
+            if "paralelismo medio del operador escalado:" in line:
+                k_avg = float(line.split(":")[1].split()[0])
         placed = collections.Counter(r.get("arm", "") for r in late).most_common(1)
         runs.append({"pass": int(p), "arm": arm, "w": w_ratio, "w_lat": w_lat, "f": f_ratio,
                      "f_lat": f_lat, "moves": sum(r.get("decision") == "mover" for r in mon),
-                     "placed": placed[0][0] if placed else "", "dir": d})
+                     "placed": placed[0][0] if placed else "", "k": k_avg, "dir": d})
     return runs
 
 
@@ -116,16 +124,23 @@ def main():
         sys.exit(f"sin bloques terminados en {sess} (ni --block)")
 
     out = [f"# Resultados de la sesión {args.query}", ""]
+    sel = sess / "selected-table.txt"
+    if sel.exists():
+        t, arm, score = (sel.read_text().split() + ["", "", ""])[:3]
+        out += [f"Tabla de v4 seleccionada en A para V y R: `{t}` (brazo {arm}, entrega {float(score or 0):.1%} "
+                "en los últimos 10 min de A).", ""]
     own_v4_w = None
     for b in "AGVR":
         if b not in blocks:
             continue
-        runs = load_campaign(blocks[b])
+        span = MEASURED.get(b, LAST)
+        runs = load_campaign(blocks[b], span)
         arms = list(dict.fromkeys(r["arm"] for r in runs))
+        lbl = f"{span / 60:.0f} min medidos"
         out += [f"## Bloque {b} — {BLOCK_TITLES.get(b, b)}", f"campaña: `{blocks[b].relative_to(ROOT)}`", "",
-                "| Brazo | n | Entrega últimos 10 min | Latencia p50 (10 min) | Entrega toda la corrida "
-                "| Cambios | Por corrida (últimos 10 min) | Pesado al final |",
-                "|---|---|---|---|---|---|---|---|"]
+                f"| Brazo | n | Entrega ({lbl}) | Latencia p50 | Entrega toda la corrida "
+                "| Cambios | Paralelismo medio | Por corrida | Pesado al final |",
+                "|---|---|---|---|---|---|---|---|---|"]
         for a in arms:
             rs = sorted((r for r in runs if r["arm"] == a), key=lambda r: r["pass"])
             ws = [r["w"] for r in rs if r["w"] is not None]
@@ -134,27 +149,32 @@ def main():
             places = collections.Counter(r["placed"] for r in rs).most_common(1)
             out.append(f"| {a} | {len(rs)} | {fmt_pct(st.mean(ws)) if ws else '—'} | "
                        f"{(f'{st.mean(ls_):.1f} s') if ls_ else '—'} | {fmt_pct(st.mean(fs)) if fs else '—'} | "
-                       f"{st.mean(r['moves'] for r in rs):.1f} | {' · '.join(fmt_pct(r['w']) for r in rs)} | "
+                       f"{st.mean(r['moves'] for r in rs):.1f} | "
+                       f"{(f'{st.mean(r[chr(107)] for r in rs if r[chr(107)]):.2f}') if any(r['k'] for r in rs) else '2'} | "
+                       f"{' · '.join(fmt_pct(r['w']) for r in rs)} | "
                        f"{places[0][0] if places else ''} |")
         if b == "A":
             own = [r["w"] for r in runs if r["arm"] == "V4" and r["w"] is not None]
             own_v4_w = own or None
         pairs = list(PRIMARY.get(b, []))
-        if b == "G":
-            pairs = [(a, "V4_PRIOR") for a in arms if a.startswith("V4_Q")]
+        if b in ("A", "G"):
+            pairs += [(a, "V4_PRIOR") for a in arms if a.startswith("V4_Q")]
+            if "V4_PRIOR" in arms and "V4" in arms:
+                pairs.append(("V4", "V4_PRIOR"))
         pairs = [(x, y) for x, y in pairs if x in arms and y in arms]
         if pairs:
             k = len(pairs)
             out += ["", f"Comparaciones declaradas (permutación exacta; con Bonferroni sobre {k} "
                         f"comparaciones el umbral es p < {0.05 / k:.4f}):", ""]
             for x, y in pairs:
-                for key, label in (("w", "entrega 10 min"), ("w_lat", "latencia 10 min"), ("f", "entrega toda la corrida")):
+                for key, label in (("w", f"entrega ({lbl})"), ("w_lat", "latencia"), ("f", "entrega toda la corrida"),
+                                   ("k", "paralelismo medio")):
                     c = compare(runs, x, y, key)
                     if c:
                         d, p, nx, ny = c
                         mark = " ✔" if p < 0.05 / k else (" (p<0,05 sin corregir)" if p < 0.05 else "")
                         out.append(f"- {x} vs {y}, {label}: {d:+.1%}, p={p:.3f} (n={nx} vs {ny}){mark}")
-        if b == "G" and own_v4_w:
+        if b in ("A", "G") and own_v4_w and any(a.startswith("V4_Q") for a in arms):
             out += ["", "Brecha de generalización (últimos 10 min, contra el V4 propio del bloque A):", ""]
             for a in arms:
                 if a.startswith("V4_Q"):
