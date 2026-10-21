@@ -41,7 +41,13 @@ DIST="${DIST:-SINE:3600:20000,40000}"
 DURATION="${DURATION:-5400}"          # seconds the monitor runs, after the job is at TARGET_PAR
 EVENT="${EVENT:-}"
 INITIAL_DISK="${INITIAL_DISK:-fast:5M}"
+# v4's table for a query: the one trained on it with CPU 2/1/0.5 at its campaign rate
+# (scripts/run-trainings.sh). The default is the run's OWN query; V4_Q<n> arms use another's.
+table_for() { ls "$ROOT_DIR"/results/characterizer/"$1"-v4-cpu2105-r*.json 2>/dev/null | head -1 \
+    | sed "s|^$ROOT_DIR/||"; }
+QTABLE="${QTABLE:-$(table_for "$QUERY")}"
 QTABLE="${QTABLE:-results/characterizer/q8-v4-20261008.json}"
+BASE=v4
 INTERVAL="${INTERVAL:-60}"
 WINDOW="${WINDOW:-45}"
 WHEN="${WHEN:-now}"
@@ -60,13 +66,25 @@ case "$ARM" in
     # Round Robin (2026-10-19): the fork's ROUND_ROBIN arm, measured only — the second baseline of
     # the retrained-v4 comparison (STOCK / RR / V4), alongside Flink's own placement.
     RR) BANDIT_MODE=stock; FORK_ARM=ROUND_ROBIN ;;
+    # Controls (2026-10-21). STOCK_BANDIT: the bandit over Flink's own placement — no v4 plan,
+    # no v4 candidate — to show the monitor works over any base. V4_PRIOR: v4 with an EMPTY table,
+    # i.e. its prior alone (heavy work to the fastest machine with room): the reference against
+    # which a trained table that transfers badly shows as worse than not learning (overfitting).
+    # V4_Q<n>: v4 with the table trained on query Q<n>, for the cross-query generalisation matrix.
+    STOCK_BANDIT) BANDIT_MODE=bandit; FORK_ARM=STOCK; BASE=stock ;;
+    V4_PRIOR) BANDIT_MODE=v4; QTABLE=none ;;
+    V4_PRIOR_BANDIT) BANDIT_MODE=bandit; QTABLE=none ;;
+    V4_Q3|V4_Q5|V4_Q6|V4_Q8|V4_Q11)
+        BANDIT_MODE=v4
+        QTABLE=$(table_for "$(echo "${ARM#V4_}" | tr 'Q' 'q')")
+        [ -n "$QTABLE" ] || { echo "ERROR: no hay tabla entrenada para ${ARM#V4_}" >&2; exit 2; } ;;
     V4) BANDIT_MODE=v4 ;;
     BANDIT) BANDIT_MODE=bandit ;;
     MON) MODE_ARGS="" ;;
     NOMON) MODE_ARGS="--observe-only" ;;
-    *) echo "ERROR: ARM debe ser STOCK, RR, V4 o BANDIT (o MON / NOMON, el monitor por regla)" >&2; exit 2 ;;
+    *) echo "ERROR: ARM debe ser STOCK, RR, V4, BANDIT, STOCK_BANDIT, V4_PRIOR, V4_PRIOR_BANDIT o V4_Q<n> (o MON / NOMON)" >&2; exit 2 ;;
 esac
-[ -f "$ROOT_DIR/$QTABLE" ] || [ -f "$QTABLE" ] || { echo "ERROR: no existe $QTABLE" >&2; exit 2; }
+[ "$QTABLE" = none ] || [ -f "$ROOT_DIR/$QTABLE" ] || [ -f "$QTABLE" ] || { echo "ERROR: no existe $QTABLE" >&2; exit 2; }
 
 STAMP=$(date +%Y%m%d-%H%M%S)
 OUT="$ROOT_DIR/results/replan-experiment/$STAMP-$ARM"
@@ -123,7 +141,7 @@ KEEP=1 QUERY="$QUERY" RATE="$RATE" DIST="$DIST" DURATION=$(( DURATION + 1800 )) 
 
 T0=$(date +%s)
 if [ -n "${BANDIT_MODE:-}" ]; then
-    timeout $(( DURATION + 300 )) python3 -u "$SCRIPT_DIR/plan_bandit.py" --mode "$BANDIT_MODE" \
+    timeout $(( DURATION + 300 )) python3 -u "$SCRIPT_DIR/plan_bandit.py" --mode "$BANDIT_MODE" --base "$BASE" \
         --jm-pod "$JM_POD" --qtable "$QTABLE" --rate "$RATE" --dist "$DIST" \
         --duration "$DURATION" ${MODEL:+--model "$MODEL"} \
         --out-dir "$OUT" $MONITOR_ARGS \

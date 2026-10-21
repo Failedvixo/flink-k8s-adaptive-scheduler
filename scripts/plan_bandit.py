@@ -337,7 +337,12 @@ def reward(delivery, latency_ms, weight):
 def main():
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--mode", choices=["stock", "v4", "bandit"], default="bandit")
-    ap.add_argument("--qtable", default="results/characterizer/q8-v4-20261008.json")
+    ap.add_argument("--qtable", default="results/characterizer/q8-v4-20261008.json",
+                    help="v4's table; 'none' = an EMPTY table, v4 with only its prior (the untrained control)")
+    # THE BASE PLANNER (2026-10-21). v4 gives the first plan and a candidate every cycle; "stock"
+    # gives neither — the run starts from Flink's own placement and the bandit explores from there,
+    # the control showing the bandit works over any base planner (STOCK + bandit).
+    ap.add_argument("--base", choices=["v4", "stock"], default="v4")
     ap.add_argument("--rate", type=float, required=True)
     ap.add_argument("--dist", default="CONSTANT")
     ap.add_argument("--duration", type=float, default=3600.0)
@@ -409,10 +414,17 @@ def main():
     pending = None                  # (arm before the last move, the move's keys), until it is judged
     min_latency = None              # lowest p50 seen this run: the latency of a job that keeps up
     fresh = True                    # no window measured yet since the last restart
-    agent =ca.SliceSarsa(0.0, 0.0, Path(args.qtable), 3, ucb=0.0)
+    # 'none': a path that never exists, so SliceSarsa starts from an empty table (its prior only).
+    qtable_path = Path("/nonexistent/v4-sin-entrenar.json") if args.qtable in ("", "none") \
+        else Path(args.qtable)
+    agent = ca.SliceSarsa(0.0, 0.0, qtable_path, 3, ucb=0.0)
+    arm_switched = args.base != "stock"   # STOCK + bandit: the fork's arm goes to RL on the first move
 
-    names_mode = {"stock": "Flink estándar (solo mide)", "v4": "v4 sin monitoreo (plan inicial, solo mide)",
-                  "bandit": "v4 + bandit online"}
+    base_name = "Flink estándar" if args.base == "stock" else \
+        ("v4 SIN ENTRENAR" if args.qtable in ("", "none") else "v4")
+    names_mode = {"stock": "Flink estándar (solo mide)",
+                  "v4": f"{base_name} sin monitoreo (plan inicial, solo mide)",
+                  "bandit": f"{base_name} + bandit online"}
     print("=" * 70)
     print(f"  Monitor v2 — {names_mode[args.mode]}")
     print(f"  tasa {args.rate:.0f} ({args.dist}); ventana {args.window:.0f}s tras {args.warmup:.0f}s de asentamiento")
@@ -424,7 +436,7 @@ def main():
               "clock_skew_ms"]
     csv_path = out / f"monitor2-{args.mode}-{time.strftime('%Y%m%d-%H%M%S')}.csv"
     started = time.time()
-    last_key, settle_until, moves, initial_done = None, 0.0, 0, args.mode == "stock"
+    last_key, settle_until, moves, initial_done = None, 0.0, 0, args.mode == "stock" or args.base == "stock"
 
     def save():
         if model_path:
@@ -574,9 +586,11 @@ def main():
 
             # SARSA's proposal for what it sees now.
             ranked = sorted(layout["tms"], key=lambda t: (-speeds.get(t[0], 1.0), t[0]))
-            plan, _ = ca.decide(agent, obs["per_slice"], [f for _t, f in ranked], 0.0,
-                                args.busy_cut, disk=obs["per_slice_disk"], machine_load=True,
-                                disk_floor=args.disk_floor)
+            plan = None
+            if args.base == "v4":
+                plan, _ = ca.decide(agent, obs["per_slice"], [f for _t, f in ranked], 0.0,
+                                    args.busy_cut, disk=obs["per_slice_disk"], machine_load=True,
+                                    disk_floor=args.disk_floor)
             sarsa_place = [ranked[plan[i]][0] for i in range(len(running))] if plan else None
             sarsa_arm = arm_of(sarsa_place, kinds, heavy) if sarsa_place else None
 
@@ -683,6 +697,11 @@ def main():
                     plans = {len(running): {f"{vid}:{sub}": placement[i]
                                             for i, members in enumerate(layout["slices"])
                                             for vid, sub in members}}
+                    if not arm_switched:
+                        # The run started on the fork's STOCK arm, which ignores published plans:
+                        # from the first move on the plan has to be applied, so the arm goes to RL.
+                        ca.node_command(args.node, ["sh", "-c", "printf RL > /var/thesis/arm"])
+                        arm_switched = True
                     ok, error = ca.publish_plan(plans, args.node)
                     token = str(int(time.time() * 1000))
                     if ok:

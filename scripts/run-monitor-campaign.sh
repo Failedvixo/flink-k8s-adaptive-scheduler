@@ -29,7 +29,9 @@ export RATE="${RATE:-6000}"
 export DIST="${DIST:-SINE:3600:2000,6000}"
 export DURATION="${DURATION:-7200}"
 export JOB_WINDOW="${JOB_WINDOW:-10}"
-export QTABLE="${QTABLE:-results/characterizer/q8-v4-20261008.json}"
+# Empty = each run uses the table trained on its OWN query (run-replan-experiment.sh, table_for).
+export QTABLE="${QTABLE:-}"
+export MEASURE_LAST="${MEASURE_LAST:-600}"
 
 set -- $ARMS
 NARMS=$#
