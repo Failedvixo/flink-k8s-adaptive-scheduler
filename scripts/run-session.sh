@@ -99,3 +99,6 @@ for b in $BLOCKS; do
     esac
 done
 echo "fin de la sesión $Q ($(date '+%d-%m %H:%M'))" | tee -a "$LOG"
+echo "" | tee -a "$LOG"
+# The query's report: every finished block, the declared comparisons -> results/sessions/<q>/report.md
+python3 "$SCRIPT_DIR/report_session.py" "$Q" 2>&1 | tee -a "$LOG"
