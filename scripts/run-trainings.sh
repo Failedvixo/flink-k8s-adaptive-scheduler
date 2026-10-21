@@ -29,7 +29,7 @@ REPS="${REPS:-30}"
 for q in $QUERIES; do
     # rate, JOB_WINDOW, heavy operator, submit width (wide enough that all 12 slots join the pool)
     case "$q" in
-        q3)  RATE=20000; WIN=10;     HEAVY=q3-state-join;   SUBMIT=3 ;;
+        q3)  RATE=30000; WIN=10;     HEAVY=q3-state-join;   SUBMIT=3 ;;   # TTL 60 s
         q5)  RATE=4000;  WIN="60:1"; HEAVY=hot-items-count; SUBMIT=3 ;;
         q6)  RATE=95000; WIN=10;     HEAVY=q6-winning-bids; SUBMIT=3 ;;
         q8)  RATE=20000; WIN=10;     HEAVY=new-users-join;  SUBMIT=3 ;;
