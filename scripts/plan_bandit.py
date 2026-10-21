@@ -432,6 +432,17 @@ def main():
     ap.add_argument("--up-util", type=float, default=750.0,
                     help="busy ms/s per subtask the operator should stay under after scaling down")
     ap.add_argument("--scale-cooldown", type=float, default=240.0, help="s after a rescale before the next")
+    # PROACTIVE (2026-10-21, after Daedalus, ICPE'24, and Phoebe, ICWS'22: forecast the load and
+    # scale BEFORE the capacity runs out). Reacting to a shortfall costs detection (a window or
+    # two) plus the rescale itself (1.5-2 min here), about half a 10-min sine period: in the
+    # simulator scaling reactively made every arm WORSE. With --forecast H the rate is
+    # extrapolated H seconds ahead from the trend of the last windows and compared with the
+    # current capacity, estimated as DS2 does (offered / utilisation of the scaled operator):
+    # up if the forecast passes --up-frac of it, down if one subtask less would still leave the
+    # forecast (and the rate now) under --down-frac of the reduced capacity.
+    ap.add_argument("--forecast", type=float, default=0.0, help="seconds ahead to forecast (0 = reactive)")
+    ap.add_argument("--up-frac", type=float, default=0.9)
+    ap.add_argument("--down-frac", type=float, default=0.7)
     ap.add_argument("--offered-lag", type=float, default=30.0,
                     help="seconds the delivered rate trails the schedule (see replan_monitor.observe)")
     ap.add_argument("--lag-floor", type=float, default=0.90,
@@ -480,6 +491,9 @@ def main():
     short_streak = idle_streak = 0
     last_scale = 0.0
     scales = 0
+    rate_hist = []                  # (time, offered) of recent windows, for the forecast
+    k_time = {}                     # heavy subtasks -> seconds spent at that parallelism (resources)
+    k_since = None
 
     base_name = "Flink estándar" if args.base == "stock" else \
         ("v4 SIN ENTRENAR" if args.qtable in ("", "none") else "v4")
@@ -767,13 +781,34 @@ def main():
                 short_streak = short_streak + 1 if short_now else 0
                 idle_now = (not short_now and kcur > 1
                             and mean_busy * kcur / (kcur - 1) < args.up_util)
+                forecast_up = False
+                if args.forecast > 0:
+                    rate_hist.append((time.time(), rate))
+                    del rate_hist[:-4]
+                    if len(rate_hist) >= 2:
+                        t0_, r0_ = rate_hist[0]
+                        slope = (rate - r0_) / max(1.0, time.time() - t0_)
+                    else:
+                        slope = 0.0
+                    pred = rate + slope * args.forecast
+                    top_busy = max(busy) if busy else 0.0
+                    # DS2's true capacity: what the operator would sustain at full utilisation.
+                    cap_now = (obs["rps"] if short_now else
+                               rate * 1000.0 / top_busy if top_busy > 50 else float("inf"))
+                    forecast_up = pred > args.up_frac * cap_now
+                    idle_now = (not short_now and kcur > 1 and
+                                max(pred, rate) < args.down_frac * cap_now * (kcur - 1) / kcur)
                 idle_streak = idle_streak + 1 if idle_now else 0
                 k_new = None
                 if group and gslices and time.time() - last_scale >= args.scale_cooldown:
-                    if short_streak >= args.up_streak and kcur < args.kmax:
+                    if (short_streak >= args.up_streak or forecast_up) and kcur < args.kmax:
                         k_new = kcur + 1
                     elif idle_streak >= args.down_streak and kcur > args.kmin:
                         k_new = kcur - 1
+                # Resources: time spent at each parallelism (reported at the end and in the CSV).
+                if k_since is not None:
+                    k_time[kcur] = k_time.get(kcur, 0.0) + time.time() - k_since
+                k_since = time.time()
                 if k_new is not None:
                     fut = future_slices(layout["slices"], group, k_new)
                     fut_kinds = [", ".join(sorted({names.get(v, v) for v, _ in m})) for m in fut]
@@ -931,6 +966,11 @@ def main():
             save()
 
     print(f"\nfin: {moves} cambios de emplazamiento, {scales} reescalados; {csv_path}")
+    if k_time:
+        tot = sum(k_time.values())
+        print("  paralelismo medio del operador escalado: %.2f  (%s)" % (
+            sum(k * t for k, t in k_time.items()) / tot,
+            ", ".join(f"{k}: {t / tot:.0%}" for k, t in sorted(k_time.items()))))
     for a, s in sorted(arms.items(), key=lambda kv: -(kv[1].cap or kv[1].lo)):
         if s.n:
             print(f"  {short(a):40s} n={s.n:2d}  "

@@ -148,7 +148,7 @@ def observe(args, jid, detail, layout):
             per.append((busy, busy >= 900))
         else:
             per.append((200.0 if vid == "src" else 100.0, False))
-    return {"offered": r, "ratio": ratio, "rps": 0,
+    return {"offered": r, "ratio": ratio, "rps": (W.delivered - del0) / (W.t - t0),
             "where": {m[0]: W.place[m[0]] for m in layout["slices"]},
             "per_slice": per, "per_slice_disk": [0.0] * len(layout["slices"])}
 
@@ -229,4 +229,6 @@ if os.environ.get("SHOW"):
     print(buf.getvalue())
 log = buf.getvalue()
 ratio = W.m_del / W.m_off if W.m_off else W.delivered / W.offered
-print(f"{ratio:.4f} {log.count('-> MOVER')} {log.count('-> ESCALAR')}")
+import re
+m = re.search(r"paralelismo medio del operador escalado: ([0-9.]+)", log)
+print(f"{ratio:.4f} {log.count('-> MOVER')} {log.count('-> ESCALAR')} {m.group(1) if m else W.k}")
