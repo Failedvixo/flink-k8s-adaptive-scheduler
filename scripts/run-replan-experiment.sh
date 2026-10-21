@@ -114,7 +114,11 @@ for spec in $INITIAL_DISK; do
 done
 
 # One job, submitted wide so all twelve slots enter the pool, rescaled once to TARGET_PAR.
+# Submitted wide so every slot enters the pool: Q11 has three stages, and at 3 it asks for only 9
+# slots — the pool can then come up without fast (2026-10-20). At 4 it asks for all 12.
+SUBMIT_PAR="${SUBMIT_PAR:-$([ "$QUERY" = q11 ] && echo 4 || echo 3)}"
 KEEP=1 QUERY="$QUERY" RATE="$RATE" DIST="$DIST" DURATION=$(( DURATION + 1800 )) JOB_WINDOW="${JOB_WINDOW:-10}" \
+    SUBMIT_PAR="$SUBMIT_PAR" \
     SETTLE=10 SAMPLES=1 INTERVAL=1 "$SCRIPT_DIR/profile-job.sh" 2>&1 | tail -4 | tee -a "$LOG"
 
 T0=$(date +%s)
