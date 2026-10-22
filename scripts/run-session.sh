@@ -54,7 +54,7 @@ OUT="$ROOT_DIR/results/sessions/$Q"
 mkdir -p "$OUT"
 LOG="$OUT/session.log"
 
-table_for() { ls "$ROOT_DIR"/results/characterizer/"$1"-v4-cpu2105-r*.json 2>/dev/null | head -1 \
+table_for() { ls "$ROOT_DIR"/results/characterizer/"$1"-v4-cpu2105-r*-ucb.json 2>/dev/null | head -1 \
     | sed "s|^$ROOT_DIR/||"; }
 
 tables_arms() {        # V4_<Qn> for every query with a trained table (this one's own included)

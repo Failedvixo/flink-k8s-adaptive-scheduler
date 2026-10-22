@@ -43,7 +43,7 @@ EVENT="${EVENT:-}"
 INITIAL_DISK="${INITIAL_DISK:-fast:5M}"
 # v4's table for a query: the one trained on it with CPU 2/1/0.5 at its campaign rate
 # (scripts/run-trainings.sh). The default is the run's OWN query; V4_Q<n> arms use another's.
-table_for() { ls "$ROOT_DIR"/results/characterizer/"$1"-v4-cpu2105-r*.json 2>/dev/null | head -1 \
+table_for() { ls "$ROOT_DIR"/results/characterizer/"$1"-v4-cpu2105-r*-ucb.json 2>/dev/null | head -1 \
     | sed "s|^$ROOT_DIR/||"; }
 QTABLE="${QTABLE:-$(table_for "$QUERY")}"
 QTABLE="${QTABLE:-results/characterizer/q8-v4-20261008.json}"

@@ -40,7 +40,7 @@ METRICS = (("w", "entrega", True), ("w_lat", "latencia p50", False), ("w_bp", "c
 
 def table_of(arm):
     q = arm[3:].lower()
-    hits = sorted(glob.glob(str(ROOT / f"results/characterizer/{q}-v4-cpu2105-r*.json")))
+    hits = sorted(glob.glob(str(ROOT / f"results/characterizer/{q}-v4-cpu2105-r*-ucb.json")))
     return hits[0][len(str(ROOT)) + 1:] if hits else None
 
 

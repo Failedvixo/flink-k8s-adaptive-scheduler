@@ -12,7 +12,7 @@
 # Each query at its campaign rate (calibrated by fixed placements, scripts/run-plan-calibrations.sh):
 # where the best placement at parallelism 2 keeps up and a bad one does not.
 #
-# Tables: results/characterizer/<query>-v4-cpu2105-r<rate>.json. An existing table is NOT
+# Tables: results/characterizer/<query>-v4-cpu2105-r<rate>-ucb.json. An existing table is NOT
 # overwritten: that query is skipped, so the script can be relaunched after an interruption.
 #
 # Usage:
@@ -25,6 +25,12 @@ ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 QUERIES="${QUERIES:-q8 q3 q5 q6 q11}"
 LOG_DIR="${LOG_DIR:-$HOME/thesis-logs}"
 REPS="${REPS:-30}"
+# EXPLORATION BY UCB (2026-10-21). With epsilon-greedy (0.3 -> 0.05) the Q8 and Q3 tables never tried
+# medium for the SECOND join — the state is reached late, after epsilon had decayed — and proposed
+# fast+medium where medium x2 is best by 10-13 points (fixed-placement calibration). The same symptom
+# --ucb was added for on 2026-09-29: it tries the least-visited actions first. 0.5 = the value of
+# the 2026-09-30 training. Tables get the "-ucb" suffix; the epsilon ones stay as they are.
+AGENT_UCB="${AGENT_UCB:-0.5}"
 
 for q in $QUERIES; do
     # rate, JOB_WINDOW, heavy operator, submit width (wide enough that all 12 slots join the pool)
@@ -36,7 +42,7 @@ for q in $QUERIES; do
         q11) RATE=95000; WIN=10;     HEAVY=q11-sessions;    SUBMIT=4 ;;
         *) echo "consulta desconocida: $q" >&2; continue ;;
     esac
-    TABLE="results/characterizer/$q-v4-cpu2105-r$RATE.json"
+    TABLE="results/characterizer/$q-v4-cpu2105-r$RATE-ucb.json"
     if [ -f "$ROOT_DIR/$TABLE" ]; then
         echo "################ $q: ya existe $TABLE — se omite"
         continue
@@ -48,9 +54,9 @@ for q in $QUERIES; do
      QUERY="$q" RATE="$RATE" DIST=CONSTANT JOB_WINDOW="$WIN" MAX_EVENT_AGE=5000 \
      SUBMIT_PAR="$SUBMIT" TARGET_PAR=2 SCHEDULE="$SUBMIT 2*" REPS="$REPS" \
      WARMUP=180 WINDOW=300 SLOT_SHARING=PER_STAGE DISK_LIMIT="fast:5M" \
-     AGENT_QTABLE="$TABLE" \
+     AGENT_QTABLE="$TABLE" AGENT_UCB="$AGENT_UCB" \
      AGENT_ARGS_RL="--machine-load --disk-suffix .rocksdb_compact_write_bytes --disk-floor 1e6 --latency-source record" \
      RANDOM_PINS="$HEAVY:1 none" \
-       scripts/run-placement-experiment.sh) 2>&1 | tee "$LOG_DIR/entrena-v4-$q-cpu2105.log"
+       scripts/run-placement-experiment.sh) 2>&1 | tee "$LOG_DIR/entrena-v4-$q-cpu2105-ucb.log"
     echo "################ $q terminado ($(date '+%d-%m %H:%M')): $(ls -la "$ROOT_DIR/$TABLE" 2>/dev/null || echo 'SIN TABLA')"
 done
