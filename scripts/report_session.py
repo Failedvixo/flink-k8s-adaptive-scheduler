@@ -129,7 +129,7 @@ def main():
     sel = ROOT / "results" / "sessions" / "selected-v4.txt"
     if sel.exists():
         t, arm, score = (sel.read_text().split() + ["", "", ""])[:3]
-        out += [f"v4 seleccionado en la fase G (todas las queries) para A, V y R: `{t}` ({arm}, rango medio "
+        out += [f"v4 seleccionado en la fase G (todas las queries) para A, V y R: `{t}` ({arm}, peor posición entre queries "
                 f"{score}; scripts/select_v4.py).", ""]
     own_v4_w = None
     for b in "AGVR":

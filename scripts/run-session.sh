@@ -103,7 +103,7 @@ for b in $BLOCKS; do
     if [ "$b" != G ]; then
         [ -f "$SELECTED" ] || { echo "ERROR: falta $SELECTED — corre G en todas las queries y scripts/select_v4.py" | tee -a "$LOG" >&2; exit 2; }
         read -r SEL SEL_ARM SEL_SCORE < "$SELECTED"
-        echo "  v4 seleccionado: $SEL  ($SEL_ARM, rango medio $SEL_SCORE)" | tee -a "$LOG"
+        echo "  v4 seleccionado: $SEL  ($SEL_ARM, peor posición entre queries $SEL_SCORE)" | tee -a "$LOG"
     fi
     case "$b" in
         G) run_block G "$(tables_arms) V4_PRIOR" 5 CONSTANT 960 600 ;;

@@ -7,15 +7,19 @@ the selected table on fresh runs, so the selection does not inflate their result
 every query is the generalist v4 the cross-query protocol asks about: trained on one query,
 deployed on all.
 
-THE RULE, fixed before any G result is seen:
-  for each query and each metric — delivery over the last 10 min (higher is better), p50 latency
-  and the sources' backpressure (lower is better) — rank the trained tables by their mean over the
-  query's G runs; a table's score is its MEAN RANK over the 5 queries x 3 metrics; the lowest wins,
-  ties broken by the higher mean delivery. Ranks, not raw values: the queries run at 4000 to 95000
-  ev/s, so raw numbers would let one query decide. The untrained table (V4_PRIOR) is the control,
-  ranked and shown but never selected.
+THE RULE, fixed before any G result is seen — the MOST STABLE table across queries, not the best
+on average (Vicente, 2026-10-21: a table excellent on one query and poor on the rest must not win
+on its mean):
+  1. for each query and each metric — delivery over the last 10 min (higher is better), p50
+     latency and the sources' backpressure (lower is better) — rank the trained tables by their
+     mean over the query's G runs; a table's position in a query = its mean rank over the 3 metrics;
+  2. its WORST position over the 5 queries;
+  3. the best (lowest) worst case wins — minimax; ties go to the lower mean position over the
+     queries, then to the higher mean delivery.
+  Ranks, not raw values: the queries run at 4000 to 95000 ev/s, so raw numbers would let one query
+  decide. The untrained table (V4_PRIOR) is the control, ranked and shown but never selected.
 
-Writes results/sessions/selected-v4.txt ("<table> <arm> <mean rank>") and prints the full ranking.
+Writes results/sessions/selected-v4.txt ("<table> <arm> <worst position>") and prints the full ranking.
 
 Usage:
   scripts/select_v4.py                 # needs results/sessions/<q>/block-G.done for every query
@@ -45,6 +49,7 @@ def main():
     ap.add_argument("--queries", default="q3 q5 q6 q8 q11")
     args = ap.parse_args()
     ranks, delivery, table = {}, {}, {}
+    per_query = {}                  # arm -> [its mean rank over the 3 metrics, one per query]
     print(f"{'query':6s} {'métrica':14s} orden (mejor primero)")
     for q in args.queries.split():
         mark = ROOT / "results" / "sessions" / q / "block-G.done"
@@ -52,6 +57,7 @@ def main():
             sys.exit(f"falta el bloque G de {q} ({mark})")
         runs = rs.load_campaign(ROOT / mark.read_text().strip(), 600.0)
         arms = sorted({r["arm"] for r in runs if r["arm"].startswith("V4_Q") or r["arm"] == "V4_PRIOR"})
+        q_ranks = {}
         for key, name, higher in METRICS:
             means = {}
             for a in arms:
@@ -61,17 +67,25 @@ def main():
             order = sorted(means, key=lambda a: -means[a] if higher else means[a])
             for i, a in enumerate(order, 1):
                 ranks.setdefault(a, []).append(i)
+                q_ranks.setdefault(a, []).append(i)
             print(f"{q:6s} {name:14s} " + "  ".join(f"{a}({means[a]:.3g})" for a in order))
         for a in arms:
             delivery.setdefault(a, []).extend(r["w"] for r in runs if r["arm"] == a and r["w"] is not None)
-    print("\nrango medio (5 queries x 3 métricas; menor es mejor):")
-    score = {a: st.mean(v) for a, v in ranks.items()}
-    for a in sorted(score, key=lambda a: (score[a], -st.mean(delivery[a] or [0]))):
-        print(f"  {a:10s} {score[a]:5.2f}   entrega media {st.mean(delivery[a] or [0]):.1%}"
+            if q_ranks.get(a):
+                per_query.setdefault(a, []).append(st.mean(q_ranks[a]))
+    def key(a):
+        return (max(per_query[a]), st.mean(per_query[a]), -st.mean(delivery[a] or [0]))
+    print("\nposición por query (rango medio en 3 métricas; menor es mejor), peor caso y promedio:")
+    for a in sorted(per_query, key=key):
+        print(f"  {a:10s} por query {' '.join(f'{x:4.2f}' for x in per_query[a])}   "
+              f"PEOR {max(per_query[a]):4.2f}   promedio {st.mean(per_query[a]):4.2f}   "
+              f"entrega media {st.mean(delivery[a] or [0]):.1%}"
               + ("   (control, no se selecciona)" if a == "V4_PRIOR" else ""))
-    cands = [a for a in score if a != "V4_PRIOR"]
-    best = min(cands, key=lambda a: (score[a], -st.mean(delivery[a] or [0])))
-    line = f"{table_of(best)} {best} {score[best]:.2f}"
+    cands = [a for a in per_query if a != "V4_PRIOR"]
+    if not cands:
+        sys.exit("ninguna tabla entrenada en los bloques G")
+    best = min(cands, key=key)
+    line = f"{table_of(best)} {best} {max(per_query[best]):.2f}"
     (ROOT / "results" / "sessions").mkdir(parents=True, exist_ok=True)
     (ROOT / "results" / "sessions" / "selected-v4.txt").write_text(line + "\n")
     print(f"\nSELECCIONADO: {line}  -> results/sessions/selected-v4.txt")
